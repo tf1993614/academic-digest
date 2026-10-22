@@ -1,0 +1,33 @@
+{
+  "version": "6.9",
+  "hitCount": 3,
+  "resultList": {
+    "result": [
+      {
+        "id": "PMC7654321",
+        "source": "PMC",
+        "pmcid": "PMC7654321",
+        "doi": "10.1000/oa-epmc.2",
+        "title": "A neighbouring paper returned by a fuzzy DOI query",
+        "isOpenAccess": "Y"
+      },
+      {
+        "id": "PMC1111111",
+        "source": "PMC",
+        "pmcid": "PMC1111111",
+        "title": "A neighbour without a DOI field",
+        "isOpenAccess": "Y"
+      },
+      {
+        "id": "PMC1234567",
+        "source": "PMC",
+        "pmcid": "PMC1234567",
+        "doi": "10.1000/oa-epmc.1",
+        "title": "Single-cell multi-omics of the aging brain",
+        "isOpenAccess": "Y",
+        "inEPMC": "Y",
+        "hasPDF": "Y"
+      }
+    ]
+  }
+}

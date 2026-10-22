@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article article-type="research-article">
+  <body>
+    <sec sec-type="methods">
+      <title>Methods</title>
+      <p>Methods paragraph 1: we processed batch 1 with the same pipeline and recorded quality-control metrics for every sample.</p>
+      <p>Methods paragraph 2: we processed batch 2 with the same pipeline and recorded quality-control metrics for every sample.</p>
+      <p>Methods paragraph 3: we processed batch 3 with the same pipeline and recorded quality-control metrics for every sample.</p>
+      <p>Methods paragraph 4: we processed batch 4 with the same pipeline and recorded quality-control metrics for every sample.</p>
+      <p>Methods paragraph 5: we processed batch 5 with the same pipeline and recorded quality-control metrics for every sample.</p>
+      <p>Methods paragraph 6: we processed batch 6 with the same pipeline and recorded quality-control metrics for every sample.</p>
+    </sec>
+    <sec sec-type="results">
+      <title>Results</title>
+      <p>Results paragraph 1: the effect remained significant after adjustment for the prespecified covariates in the analysis.</p>
+      <p>Results paragraph 2: the effect remained significant after adjustment for the prespecified covariates in the analysis.</p>
+      <p>Results paragraph 3: the effect remained significant after adjustment for the prespecified covariates in the analysis.</p>
+      <p>Results paragraph 4: the effect remained significant after adjustment for the prespecified covariates in the analysis.</p>
+      <p>Results paragraph 5: the effect remained significant after adjustment for the prespecified covariates in the analysis.</p>
+    </sec>
+    <sec sec-type="limitations">
+      <title>Limitations</title>
+      <p>Limitation paragraph 1: the cohort was not population-based, so the estimate may not generalize to other settings.</p>
+      <p>Limitation paragraph 2: the cohort was not population-based, so the estimate may not generalize to other settings.</p>
+      <p>Limitation paragraph 3: the cohort was not population-based, so the estimate may not generalize to other settings.</p>
+      <p>Limitation paragraph 4: the cohort was not population-based, so the estimate may not generalize to other settings.</p>
+      <p>Limitation paragraph 5: the cohort was not population-based, so the estimate may not generalize to other settings.</p>
+    </sec>
+  </body>
+</article>

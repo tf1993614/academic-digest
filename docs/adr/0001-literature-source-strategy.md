@@ -38,3 +38,17 @@ Europe PMC 仍是预印本聚合的补充源，与这些源并行而不是替代
 之后）。期刊白名单加分暂缓：
 当前没有 `journal_filter` 配置、默认不限期刊，等给出名单后再接入 PubMed/Europe PMC
 的 `JOURNAL` 过滤并按白名单加分。这不改变数据源选择，只细化候选池的排序与配额。
+
+## Amendment 2026-10-22（Issue 07）
+
+OA 全文不改变“PubMed 主源、EPMC 补充”的发现策略，只作用于入选日报的论文。全文
+解析顺序固定为 Europe PMC `fullTextXML` → arXiv HTML/PDF → bioRxiv/medRxiv/
+Research Square 预印本 PDF → Unpaywall 最佳 OA 位置；每个来源一条 `attempt`，全部
+失败返回 `no_oa` 而不是异常，日报降级为“仅基于摘要”。Unpaywall 需要联系邮箱，
+配置留空时完全跳过该来源；邮箱与请求 URL 不进入候选池、日报或日志。全文只抽取
+方法/结果/局限段落，按 4/3/4 段与 4000/3000/2000 字符截断（优先在句号处），
+`length` 为保留段落的总字符数；没有显式 Limitations 小节时只从
+Discussion/Conclusion 取作者声明的局限，Methods/Results 的顺带提及不提升为局限。
+PDF 解析用 PyMuPDF（AGPL-3.0，仅本机自用；分发前需重新评估），HTML 用
+beautifulsoup4 + lxml。按标题匹配预印本版本与 DOI→arXiv 交叉检索不在本 issue
+内，留给日报契约阶段。

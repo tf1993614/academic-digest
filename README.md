@@ -2,10 +2,10 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 05：GitHub 发现：22 条查询 + 新库/活跃库 + 本地打分**（在 Issue 01–04 的采集骨架上，加入 GitHub 新库、活跃库与 G6 区块（AI 工具 / Agent Harness））。后续的 OA 全文、日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
+当前实现到 **Issue 07：OA 全文能力**（在 Issue 01–05 的采集、去重、排序与 GitHub 发现骨架上，加入 Europe PMC / arXiv / bioRxiv / Research Square / Unpaywall 的 OA 全文定位与方法/结果/局限段落抽取）。后续的 Issue 06 GitHub release 跟踪、日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)（前序：[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -25,7 +25,14 @@ python3 scripts/collect.py \
   --out /tmp/candidates.json \
   --state-db /tmp/state.sqlite3
 
-# 3. 跑测试（全部通过 CLI 子进程，离线、固定 --now）
+# 3. 抓取并解析一篇 OA 全文；同样只读 fixture，不联网
+python3 scripts/fulltext.py \
+  --config tests/fixtures/fulltext/config.yaml \
+  --fixtures tests/fixtures/fulltext/epmc \
+  --doi 10.1000/oa-epmc.1 \
+  --out /tmp/fulltext.json
+
+# 4. 跑测试（全部通过 CLI 子进程，离线、固定 --now）
 python3 -m pytest
 ```
 
@@ -50,7 +57,12 @@ GITHUB_TOKEN=test python3 scripts/collect.py \
   --state-db /tmp/github.sqlite3
 ```
 
-也可以使用模块入口：`python3 -m academic_digest collect ...` 与
+OA 全文样例在 `tests/fixtures/fulltext/`：`epmc/`（EPMC OA XML）、
+`arxiv-html/`、`arxiv-pdf/`、`biorxiv/`、`researchsquare/`（PDF）、
+`unpaywall/`（定位 OA 版本）与 `no-oa/`（Unpaywall 明确无 OA）。
+
+也可以使用模块入口：`python3 -m academic_digest collect ...`、
+`python3 -m academic_digest fulltext ...` 与
 `python3 -m academic_digest doctor ...`。
 
 ## 命令
@@ -238,6 +250,42 @@ G6 官方库（`anthropics/claude-code`、`openai/codex`、
 [06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)。活跃库
 按 star 增量排序尚未实现，当前按上面的规则分排序。
 
+### `fulltext`
+
+```text
+fulltext --config PATH [--fixtures DIR] (--doi DOI | --arxiv ID) [--out PATH]
+```
+
+给定 DOI 或 arXiv ID，按固定顺序找 OA 全文并抽取方法/结果/局限段落：
+
+1. Europe PMC `fullTextXML`（先用 DOI 查 PMC id，再取 OA XML）；
+2. arXiv HTML（`arxiv.org/html/<id>`），失败或没有可用章节时再试 arXiv PDF；
+3. DOI 属于 bioRxiv/medRxiv（`10.1101/`）或 Research Square（`10.21203/`）时
+   试对应预印本 PDF；
+4. Unpaywall 的 `best_oa_location` / `oa_locations`（需要
+   `fulltext.unpaywall.email`；留空时完全跳过这一步，不记为失败）。
+
+`--fixtures DIR` 下按 `<source>/...` 读取录制响应：
+`europepmc/doi-search.json` + `europepmc/fulltext.xml`、`arxiv/fulltext.html` 或
+`arxiv/fulltext.pdf`、`biorxiv|medrxiv|researchsquare/fulltext.pdf`、
+`unpaywall/location.json` + `unpaywall/fulltext.pdf|html`。fixture 模式下绝不联网。
+
+输出 JSON 含 `status`（`oa` / `no_oa`）、`oa`、`source`、`format`、`doi`、
+`arxiv_id`、`url`、`length`、`methods`、`results`、`limitations`、`reason` 与
+`attempts`。`attempts` 按来源记录：同一来源内部的 HTML→PDF 回退或多条 OA 候选只
+产生一条记录；`no_oa` 的 `reason` 汇总各来源的 miss 原因。找不到全文时退出码仍为
+0，日报据此标注“无 OA 全文，仅基于摘要”。只有配置/参数错误（2）或输出写入失败
+（1）才非零退出。
+
+`fulltext` 是单篇命令；`collect` 不调用它。日报写入阶段只对“今日必读”top 3 逐篇
+调用（Issue 08）。本 ticket 的输入只有 DOI / arXiv ID；按标题匹配预印本版本与
+DOI→arXiv 交叉检索留到日报契约阶段，当前只按 DOI 前缀匹配 bioRxiv/medRxiv/
+Research Square 的预印本 PDF。
+
+`length` 是三个段落数组的总字符数；方法、结果、局限分别最多 4/3/4 段，并按
+4000/3000/2000 字符截断，截断点优先落在窗口后半段的句号处；句号不合适时退回词边界。PDF 用
+PyMuPDF（AGPL-3.0，仅本机自用），HTML 用 beautifulsoup4 + lxml。
+
 ### `doctor`
 
 ```text
@@ -297,6 +345,9 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
   7 天 / 5 星 / 1 条，以及 7 天 / 30 星 / 2 条）；`github.g6.max_items` 默认 2。
 - `github.readme_limit`：每次最多读多少个 README，默认 20；按 new / active / G6
   三个区块轮流分配，每个区块先取自己最好的 `max_items + 3` 个候选。
+- `fulltext.unpaywall.email`：Unpaywall API 要求的联系邮箱；可留空。留空时
+  `fulltext` 跳过 Unpaywall，仍会尝试 Europe PMC、arXiv 与预印本 PDF。邮箱只作为
+  请求参数与 User-Agent 的一部分，不写入日报或日志。
 - `pool.max_items`：候选池总数上限，默认 30，必须不少于 `topics` 数量
   （保证每个非空组至少 1 条）；候选不足时不补空条目。
 - `paths.state_db` / `paths.candidates`：相对路径按配置文件所在目录解析。
@@ -372,10 +423,37 @@ tests/fixtures/
 │   ├── github/search/new/0.json … 3.json
 │   ├── github/search/active/0.json … 3.json
 │   └── github/readme/acme__cell-atlas.md
+├── fulltext/                # OA 全文：五种来源 + no_oa
+│   ├── config.yaml          # 共享配置；fixture 目录按场景分开
+│   ├── config-no-email.yaml # 未配置 Unpaywall：不产生该来源的 attempt
+│   ├── epmc/europepmc/
+│   │   ├── doi-search.json
+│   │   └── fulltext.xml
+│   ├── arxiv-html/arxiv/fulltext.html
+│   ├── arxiv-pdf/arxiv/fulltext.pdf
+│   ├── biorxiv/biorxiv/fulltext.pdf
+│   ├── medrxiv/medrxiv/fulltext.pdf
+│   ├── researchsquare/researchsquare/fulltext.pdf
+│   ├── unpaywall/unpaywall/
+│   │   ├── location.json
+│   │   └── fulltext.pdf
+│   ├── unpaywall-html/unpaywall/
+│   │   ├── location.json
+│   │   └── fulltext.html
+│   ├── truncation/europepmc/  # 段落数上限（4/3/4）
+│   │   ├── doi-search.json
+│   │   └── fulltext.xml
+│   ├── truncation-chars/europepmc/  # 4000/3000/2000 字符句号截断
+│   │   ├── doi-search.json
+│   │   └── fulltext.xml
+│   └── no-oa/
+│       ├── europepmc/doi-search.json
+│       └── unpaywall/location.json
 └── configs/                 # 坏配置
     ├── arxiv-lookback.yaml       # lookback.arxiv < 4
     ├── arxiv-no-categories.yaml  # 启用 arxiv 但缺分类
     ├── bad-topics.yaml
+    ├── bad-unpaywall-email.yaml  # fulltext.unpaywall.email 不是邮箱
     ├── broken.yaml
     ├── empty-terms.yaml
     ├── no-pubmed.yaml
@@ -419,8 +497,8 @@ scripts/review-patch.sh   # -> out/review/current.diff 等
 
 规则见 `docs/agents/code-review.md`，审查侧的判断标准见 `CODING_STANDARDS.md`。
 
-唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `doctor`，
-断言退出码、stderr 与输出文件，不导入内部实现。所有测试离线且固定
+唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `fulltext` /
+`doctor`，断言退出码、stderr 与输出文件，不导入内部实现。所有测试离线且固定
 `--now`。
 
 `push` 命令（Issue 09）落地前，“已推送”状态由测试直接向 SQLite `pushes`

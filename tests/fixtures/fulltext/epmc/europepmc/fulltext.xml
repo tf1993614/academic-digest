@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article">
+  <front>
+    <article-meta>
+      <title-group>
+        <article-title>Single-cell multi-omics of the aging brain</article-title>
+      </title-group>
+    </article-meta>
+  </front>
+  <body>
+    <sec id="s1" sec-type="introduction">
+      <title>Introduction</title>
+      <p>Aging reshapes the cellular composition of the mammalian brain, but the
+        molecular programs that drive this process remain incompletely mapped.</p>
+    </sec>
+    <sec id="s2" sec-type="materials|methods">
+      <title>Materials and methods</title>
+      <p>We performed single-cell RNA sequencing on 12,000 cells from aged and
+        young mouse brains and applied a multi-omics integration pipeline.</p>
+      <p>Libraries were prepared with the 10x Genomics platform and sequenced on
+        an Illumina NovaSeq 6000 instrument.</p>
+    </sec>
+    <sec id="s3" sec-type="results">
+      <title>Results</title>
+      <p>Aged brains showed a 2.4-fold increase in senescent microglia and
+        reduced oligodendrocyte progenitor numbers.</p>
+    </sec>
+    <sec id="s4" sec-type="discussion">
+      <title>Discussion</title>
+      <p>These results suggest that senescence programs shape the aging brain
+        microenvironment and may be reversible.</p>
+      <sec id="s4-1" sec-type="limitations">
+        <title>Limitations</title>
+        <p>Our study has limitations: only two age groups were profiled, and the
+          findings may not generalize to human tissue.</p>
+      </sec>
+    </sec>
+  </body>
+</article>

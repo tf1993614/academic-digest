@@ -28,6 +28,14 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 - Caps come from `github.new.max_items` (default 1), `github.active.max_items` (2), and `github.g6.max_items` (2). A repository selected as new never takes an active slot; a repository returned by a G6 query appears only in the G6 block, with G6 provenance even when a discovery query also returned it; a short section is never padded. `found` counts eligible repositories before the caps and before the cross-section exclusions. A failed run keeps `github.passes` (queries and partial item counts) so the attempt is auditable.
 - Fixtures: `github/search/{new,active}/{query-index}.json` follows query order, so query construction is observable in `github.passes.<pass>.queries`; READMEs are optional files at `github/readme/{owner}__{repo}.md`.
 
+## Full text
+
+- Resolution order is fixed: Europe PMC OA XML, arXiv HTML then PDF, the bioRxiv/medRxiv/Research Square preprint PDF, then Unpaywall's best OA location. Each source records one `Attempt`; internal fallbacks (HTML→PDF, multiple OA candidates) collapse into that source's entry. The overall result is `no_oa` with a reason and exit code 0, never an exception.
+- `fulltext.unpaywall.email` is optional: without it the Unpaywall attempt is skipped and the other sources still run. The email must not appear in the digest output; a live Unpaywall failure is sanitized because the request URL carries `email=...`.
+- Extraction keeps methods/results/limitations only, deduplicated and capped at 4/3/4 paragraphs and 4000/3000/2000 characters, truncated at a sentence boundary in the second half of the budget when one exists, otherwise at a word boundary. `length` is the sum of the kept paragraphs; the two truncation fixtures pin the paragraph and character caps. When no explicit Limitations section exists, only Discussion/Conclusion prose may supply an author limitation; Methods/Results prose is not promoted by keyword.
+- Every Europe PMC search hit must carry the requested DOI before its PMC id is used; a DOI-less neighbouring record is skipped.
+- Fixture layout mirrors the source: `europepmc/doi-search.json` + `fulltext.xml`, `arxiv/fulltext.html|pdf`, `<preprint>/fulltext.pdf`, `unpaywall/location.json` + `fulltext.pdf|html`. Binary fixtures go through `base.read_or_fetch_bytes`; `--fixtures` never touches the network.
+
 ## Config
 
 - Validate before any network request; raise `ConfigError(field, message)` with a dotted field.
@@ -35,8 +43,8 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 
 ## Tests
 
-- Test at the CLI seam: subprocess `collect` / `doctor`, asserting exit code, stderr, and output files.
-- Tests stay offline and deterministic: pass `--fixtures` and a fixed `--now`; no sleeps or wall-clock dependencies.
+- Test at the CLI seam: subprocess `collect` / `fulltext` / `doctor`, asserting exit code, stderr, and output files.
+- Tests stay offline and deterministic: pass `--fixtures` and a fixed `--now`; no sleeps or wall-clock dependencies. `fulltext` has no date logic, so its tests rely on `--fixtures` alone.
 - Add a test whenever a documented ordering, marker, default, or switch changes.
 
 ## Docs

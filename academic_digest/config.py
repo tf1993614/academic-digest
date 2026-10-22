@@ -102,11 +102,14 @@ _TOP_LEVEL_KEYS = {
     "paths",
     "arxiv",
     "github",
+    "fulltext",
 }
 _TOPIC_KEYS = {"name", "label", "terms", "exclude", "max_items"}
 _POOL_KEYS = {"max_items"}
 _PATH_KEYS = {"state_db", "candidates"}
 _ARXIV_KEYS = {"categories"}
+_FULLTEXT_KEYS = {"unpaywall"}
+_UNPAYWALL_KEYS = {"email"}
 _GITHUB_KEYS = {
     "token_env",
     "g6_topic",
@@ -168,6 +171,13 @@ class GithubConfig:
 
 
 @dataclass(frozen=True)
+class FullTextConfig:
+    """OA full-text lookup settings; the email is optional."""
+
+    unpaywall_email: str
+
+
+@dataclass(frozen=True)
 class Config:
     path: Path
     timezone: str
@@ -176,6 +186,7 @@ class Config:
     sources: Mapping[str, bool]
     arxiv_categories: tuple[str, ...]
     github: GithubConfig
+    fulltext: FullTextConfig
     pool_max_items: int
     state_db: Path
     candidates_path: Path
@@ -216,6 +227,7 @@ def load_config(path: Path) -> Config:
     arxiv_categories = _parse_arxiv(raw.get("arxiv"), sources)
     topics = _parse_topics(raw.get("topics"))
     github = _parse_github(raw.get("github"), topics)
+    fulltext = _parse_fulltext(raw.get("fulltext"))
     pool_max_items = _parse_pool(raw.get("pool"), len(topics))
     state_db, candidates_path = _parse_paths(raw.get("paths"), path.parent)
     if sources.get("github"):
@@ -229,6 +241,7 @@ def load_config(path: Path) -> Config:
         sources=sources,
         arxiv_categories=arxiv_categories,
         github=github,
+        fulltext=fulltext,
         pool_max_items=pool_max_items,
         state_db=state_db,
         candidates_path=candidates_path,
@@ -420,6 +433,34 @@ def _require_github_token(token_env: str) -> None:
             f"{token_env} is not set; a GitHub token is required for repository "
             "discovery (put it in the local secrets file and export it before running)",
         )
+
+
+def _parse_fulltext(value: Any) -> FullTextConfig:
+    """Parse the optional ``fulltext`` section.
+
+    The Unpaywall email is optional so fixture runs and Europe PMC/arXiv-only
+    setups do not need one; without it the Unpaywall lookup is skipped and the
+    digest falls back to the abstract.
+    """
+
+    if value is None:
+        return FullTextConfig(unpaywall_email="")
+    mapping = _require_mapping(value, "fulltext")
+    _reject_unknown(mapping, _FULLTEXT_KEYS, "fulltext")
+    unpaywall = mapping.get("unpaywall")
+    if unpaywall is None:
+        return FullTextConfig(unpaywall_email="")
+    email_mapping = _require_mapping(unpaywall, "fulltext.unpaywall")
+    _reject_unknown(email_mapping, _UNPAYWALL_KEYS, "fulltext.unpaywall")
+    email = email_mapping.get("email", "")
+    if email is None:
+        return FullTextConfig(unpaywall_email="")
+    if not isinstance(email, str):
+        raise ConfigError("fulltext.unpaywall.email", "must be a string")
+    email = email.strip()
+    if email and ("@" not in email or email.startswith("@") or email.endswith("@")):
+        raise ConfigError("fulltext.unpaywall.email", "must be an email address")
+    return FullTextConfig(unpaywall_email=email)
 
 
 def _parse_topics(value: Any) -> tuple[Topic, ...]:

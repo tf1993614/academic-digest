@@ -35,14 +35,29 @@ class SourceResult:
         return payload
 
 
-def read_fixture(root: Path, relative: str) -> str:
-    """Read a recorded response, turning a missing file into a source failure."""
-
+def _fixture_path(root: Path, relative: str) -> Path:
     path = Path(root) / relative
     if not path.is_file():
         raise SourceError(f"missing fixture: {relative}")
+    return path
+
+
+def read_fixture(root: Path, relative: str) -> str:
+    """Read a recorded response, turning a missing file into a source failure."""
+
+    path = _fixture_path(root, relative)
     try:
         return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SourceError(f"cannot read fixture {relative}: {exc}") from exc
+
+
+def read_fixture_bytes(root: Path, relative: str) -> bytes:
+    """Read a recorded binary response (a PDF, for example)."""
+
+    path = _fixture_path(root, relative)
+    try:
+        return path.read_bytes()
     except OSError as exc:
         raise SourceError(f"cannot read fixture {relative}: {exc}") from exc
 
@@ -54,6 +69,16 @@ def read_or_fetch(
 
     if fixtures_root is not None:
         return read_fixture(fixtures_root, relative)
+    return fetch()
+
+
+def read_or_fetch_bytes(
+    fixtures_root: Path | None, relative: str, fetch: Callable[[], bytes]
+) -> bytes:
+    """Binary sibling of ``read_or_fetch``."""
+
+    if fixtures_root is not None:
+        return read_fixture_bytes(fixtures_root, relative)
     return fetch()
 
 
@@ -99,6 +124,44 @@ def get_text(
 ) -> str:
     """GET a URL and return its body, turning network failures into source errors."""
 
+    return _request(
+        url,
+        params,
+        timeout=timeout,
+        user_agent=user_agent,
+        error=error,
+        headers=headers,
+    ).text
+
+
+def get_bytes(
+    url: str,
+    params: Mapping[str, str],
+    *,
+    timeout: int,
+    user_agent: str,
+    error: str,
+) -> bytes:
+    """Binary sibling of ``get_text``, for PDFs and other downloads."""
+
+    return _request(
+        url,
+        params,
+        timeout=timeout,
+        user_agent=user_agent,
+        error=error,
+    ).content
+
+
+def _request(
+    url: str,
+    params: Mapping[str, str],
+    *,
+    timeout: int,
+    user_agent: str,
+    error: str,
+    headers: Mapping[str, str] | None = None,
+) -> Any:
     try:
         import requests
     except ImportError as exc:  # pragma: no cover - requests is a declared dependency
@@ -117,4 +180,4 @@ def get_text(
         response.raise_for_status()
     except Exception as exc:  # requests raises several unrelated subclasses
         raise SourceError(f"{error}: {exc}") from exc
-    return response.text
+    return response

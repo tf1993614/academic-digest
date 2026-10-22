@@ -65,6 +65,22 @@ def run_collect(
     )
 
 
+def run_fulltext(cli, paths, fixture, *args, config=None, out=None):
+    """Run ``fulltext`` against one fixture scenario through the CLI seam."""
+
+    root = FIXTURES / "fulltext" / fixture
+    return cli(
+        "fulltext",
+        "--config",
+        config or FIXTURES / "fulltext" / "config.yaml",
+        "--fixtures",
+        root,
+        *args,
+        "--out",
+        out or paths["out"],
+    )
+
+
 def enable_sources(root: Path, *names: str) -> None:
     """Turn sources on in a copied fixture's config before running the CLI."""
 

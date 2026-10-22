@@ -1,0 +1,16 @@
+{
+  "version": "6.9",
+  "hitCount": 1,
+  "resultList": {
+    "result": [
+      {
+        "id": "PMC9999999",
+        "source": "PMC",
+        "pmcid": "PMC9999999",
+        "doi": "10.1000/truncation.1",
+        "title": "A paper with many paragraphs",
+        "isOpenAccess": "Y"
+      }
+    ]
+  }
+}

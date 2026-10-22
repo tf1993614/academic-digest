@@ -1,0 +1,20 @@
+{
+  "doi": "10.1000/unpaywall-html.1",
+  "is_oa": true,
+  "best_oa_location": {
+    "url": "https://repository.example.org/html-article",
+    "url_for_pdf": null,
+    "host_type": "repository",
+    "version": "publishedVersion",
+    "license": "cc-by"
+  },
+  "oa_locations": [
+    {
+      "url": "https://repository.example.org/html-article",
+      "url_for_pdf": null,
+      "host_type": "repository",
+      "version": "publishedVersion",
+      "license": "cc-by"
+    }
+  ]
+}

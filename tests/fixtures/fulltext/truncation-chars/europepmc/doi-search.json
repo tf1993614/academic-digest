@@ -1,0 +1,16 @@
+{
+  "version": "6.9",
+  "hitCount": 1,
+  "resultList": {
+    "result": [
+      {
+        "id": "PMC8888888",
+        "source": "PMC",
+        "pmcid": "PMC8888888",
+        "doi": "10.1000/truncation-chars.1",
+        "title": "A paper with very long sections",
+        "isOpenAccess": "Y"
+      }
+    ]
+  }
+}

@@ -11,6 +11,9 @@ requires-python = ">=3.11"
 dependencies = [
     "PyYAML>=6.0",
     "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "lxml>=4.9",
+    "PyMuPDF>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -20,7 +23,7 @@ dev = ["pytest>=7", "mypy>=1.8", "pyflakes>=3.0"]
 academic-digest = "academic_digest.cli:main"
 
 [tool.setuptools]
-packages = ["academic_digest", "academic_digest.sources"]
+packages = ["academic_digest", "academic_digest.fulltext", "academic_digest.sources"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

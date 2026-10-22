@@ -1,0 +1,23 @@
+timezone: Asia/Shanghai
+
+lookback:
+  pubmed: 2
+
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - senescence
+
+sources:
+  pubmed: true
+
+# Unpaywall requires a contact email; fixture runs never send it.
+fulltext:
+  unpaywall:
+    email: test@example.com
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

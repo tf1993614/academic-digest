@@ -1,4 +1,4 @@
-"""Command line boundary: ``collect`` and ``doctor``.
+"""Command line boundary: ``collect``, ``fulltext``, and ``doctor``.
 
 Tests and the daily skill drive these subcommands as subprocesses, so every
 diagnostic must be readable from stdout/stderr and every failure must have a
@@ -8,6 +8,7 @@ non-zero exit code.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sqlite3
 import sys
@@ -17,9 +18,11 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 from . import __version__, github
-from .collect import run as run_collect
+from .collect import run as run_collect, write_payload
 from .config import Config, load_config
 from .errors import ConfigError, SourceError
+from .fulltext import fetch as fetch_fulltext
+from .fulltext.models import FullText
 from .sources import SOURCES
 
 EXIT_OK = 0
@@ -32,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "collect":
         return _collect(args)
+    if args.command == "fulltext":
+        return _fulltext(args)
     if args.command == "doctor":
         return _doctor(args)
     parser.error("a command is required")
@@ -55,6 +60,24 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_common(doctor)
     doctor.add_argument("--out", type=Path, help="candidate JSON path to check")
     doctor.add_argument("--state-db", type=Path, help="SQLite state path to check")
+
+    fulltext = subparsers.add_parser(
+        "fulltext",
+        help="fetch an OA full text and extract methods/results/limitations",
+    )
+    fulltext.add_argument("--config", type=Path, default=Path("config.yaml"))
+    fulltext.add_argument(
+        "--fixtures",
+        type=Path,
+        help="directory of recorded responses; no network is touched",
+    )
+    fulltext.add_argument("--doi", help="DOI of the paper")
+    fulltext.add_argument("--arxiv", dest="arxiv_id", help="arXiv ID of the paper")
+    fulltext.add_argument(
+        "--out",
+        type=Path,
+        help="full-text JSON path (default: standard output)",
+    )
     return parser
 
 
@@ -105,6 +128,42 @@ def _collect(args: argparse.Namespace) -> int:
         _fail("all enabled sources failed; candidate pool is empty")
         return EXIT_FAILURE
     return EXIT_OK
+
+
+def _fulltext(args: argparse.Namespace) -> int:
+    config = _load(args.config)
+    if config is None:
+        return EXIT_CONFIG
+    doi = (args.doi or "").strip()
+    arxiv_id = (args.arxiv_id or "").strip()
+    if not doi and not arxiv_id:
+        _fail("one of --doi or --arxiv is required")
+        return EXIT_CONFIG
+
+    result = fetch_fulltext(
+        doi=doi,
+        arxiv_id=arxiv_id,
+        config=config,
+        fixtures_root=args.fixtures,
+    )
+    payload = result.to_dict()
+    if args.out:
+        try:
+            write_payload(args.out, payload)
+        except OSError as exc:
+            _fail(f"cannot write full-text output: {exc}")
+            return EXIT_FAILURE
+        print(_fulltext_summary(result, args.out))
+    else:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(_fulltext_summary(result, None), file=sys.stderr)
+    return EXIT_OK
+
+
+def _fulltext_summary(result: FullText, path: Path | None) -> str:
+    detail = result.summary()
+    location = f" -> {path}" if path is not None else ""
+    return f"[{result.status}] {detail}{location}"
 
 
 def _doctor(args: argparse.Namespace) -> int:
