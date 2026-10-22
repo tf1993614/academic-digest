@@ -11,6 +11,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from ..config import Config
 from ..errors import ConfigError, SourceError
@@ -54,7 +55,15 @@ def collect(config: Config, fixtures_root: Path | None, now: datetime) -> Source
     return SourceResult.ok(NAME, papers)
 
 
-def check_fixture(root: Path) -> str:
+def check(fixtures_root: Path | None) -> str:
+    """Run the doctor check for this source, offline when fixtures are given."""
+
+    if fixtures_root is not None:
+        return validate_fixture(fixtures_root)
+    return check_network()
+
+
+def validate_fixture(root: Path) -> str:
     """Validate the recorded PubMed search + fetch pair for ``doctor``."""
 
     search_xml = _read_fixture(root, FIXTURE_SEARCH)
@@ -63,7 +72,7 @@ def check_fixture(root: Path) -> str:
         search_root = ET.fromstring(search_xml)
     except ET.ParseError as exc:
         raise SourceError(f"invalid {FIXTURE_SEARCH}: {exc}") from exc
-    count_text = _text(search_root.find("Count"))
+    count_text = _text(_child(search_root, "Count"))
     try:
         search_count = int(count_text) if count_text else 0
     except ValueError as exc:
@@ -170,7 +179,6 @@ def _parse_article(article: ET.Element) -> Paper | None:
         doi=doi,
         pmid=pmid,
         url=url,
-        abstract_missing=not bool(abstract),
     )
 
 
@@ -264,7 +272,7 @@ def _fetch_live(config: Config, now: datetime) -> str:
             ESEARCH_URL, params=params, headers={"User-Agent": USER_AGENT}, timeout=30
         )
         search.raise_for_status()
-        ids = search.json().get("esearchresult", {}).get("idlist", [])
+        ids = _search_ids(search)
         if not ids:
             return "<PubmedArticleSet></PubmedArticleSet>"
         fetch = requests.get(
@@ -277,6 +285,11 @@ def _fetch_live(config: Config, now: datetime) -> str:
     except Exception as exc:  # requests raises several unrelated subclasses
         raise SourceError(f"PubMed request failed: {exc}") from exc
     return fetch.text
+
+
+def _search_ids(response: Any) -> list[str]:
+    payload = response.json()
+    return list(payload.get("esearchresult", {}).get("idlist", []))
 
 
 def build_query(config: Config) -> str:

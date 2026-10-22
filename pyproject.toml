@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "academic-digest"
 version = "0.1.0"
-description = "Deterministic collection and delivery for a daily Chinese academic digest"
+description = "Deterministic collection and delivery for a daily Chinese academic report"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

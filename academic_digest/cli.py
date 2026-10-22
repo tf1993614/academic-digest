@@ -20,7 +20,7 @@ from . import __version__
 from .collect import run as run_collect
 from .config import Config, load_config
 from .errors import ConfigError, SourceError
-from .sources import pubmed
+from .sources import SOURCES
 
 EXIT_OK = 0
 EXIT_FAILURE = 1
@@ -47,29 +47,28 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     collect = subparsers.add_parser("collect", help="fetch new papers into the candidate pool")
-    _add_common(collect, now=True)
+    _add_common(collect)
     collect.add_argument("--out", type=Path, help="candidate JSON path")
     collect.add_argument("--state-db", type=Path, help="SQLite state path")
 
     doctor = subparsers.add_parser("doctor", help="check configuration, sources, and paths")
-    _add_common(doctor, now=True)
+    _add_common(doctor)
     doctor.add_argument("--out", type=Path, help="candidate JSON path to check")
     doctor.add_argument("--state-db", type=Path, help="SQLite state path to check")
     return parser
 
 
-def _add_common(parser: argparse.ArgumentParser, *, now: bool) -> None:
+def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", type=Path, default=Path("config.yaml"))
     parser.add_argument(
         "--fixtures",
         type=Path,
         help="directory of recorded source responses; no network is touched",
     )
-    if now:
-        parser.add_argument(
-            "--now",
-            help="logical clock as ISO-8601 (tests pass a fixed value)",
-        )
+    parser.add_argument(
+        "--now",
+        help="logical clock as ISO-8601 (tests pass a fixed value)",
+    )
 
 
 def _collect(args: argparse.Namespace) -> int:
@@ -112,9 +111,10 @@ def _doctor(args: argparse.Namespace) -> int:
     config = _load(args.config)
     if config is None:
         return EXIT_CONFIG
+    logical_now = None
     if args.now:
         try:
-            _resolve_now(args.now, config.zone())
+            logical_now = _resolve_now(args.now, config.zone())
         except ValueError as exc:
             _fail(f"--now: {exc}")
             return EXIT_CONFIG
@@ -131,22 +131,20 @@ def _doctor(args: argparse.Namespace) -> int:
 
     ok(f"config: {config.path}")
     ok(f"timezone: {config.timezone}")
+    if logical_now is not None:
+        ok(f"clock: {logical_now.isoformat()}")
     ok(f"topics: {', '.join(topic.name for topic in config.topics)}")
     for topic in config.topics:
-        ok(f"topic {topic.name}: {len(topic.terms)} terms, max {topic.max_items}")
+        ok(
+            f"topic {topic.name} ({topic.label}): {len(topic.terms)} terms, "
+            f"max {topic.max_items}"
+        )
 
     for name in config.enabled_sources:
-        if name == pubmed.NAME:
-            if args.fixtures is not None:
-                try:
-                    ok(f"source {name}: {pubmed.check_fixture(args.fixtures)}")
-                except (SourceError, OSError) as exc:
-                    fail(f"source {name}: {exc}")
-            else:
-                try:
-                    ok(f"source {name}: {pubmed.check_network()}")
-                except SourceError as exc:
-                    fail(f"source {name}: {exc}")
+        try:
+            ok(f"source {name}: {SOURCES[name].check(args.fixtures)}")
+        except (SourceError, OSError) as exc:
+            fail(f"source {name}: {exc}")
 
     state_db = args.state_db or config.state_db
     out_path = args.out or config.candidates_path

@@ -4,7 +4,13 @@ from conftest import FIXTURES, NOW
 
 
 def doctor(cli, fixtures="walking", config=None):
-    args = ["doctor", "--config", config or FIXTURES / fixtures / "config.yaml"]
+    args = [
+        "doctor",
+        "--config",
+        config or FIXTURES / fixtures / "config.yaml",
+        "--now",
+        NOW,
+    ]
     if fixtures is not None:
         args += ["--fixtures", FIXTURES / fixtures]
     return cli(*args)
@@ -48,6 +54,8 @@ def test_doctor_reports_missing_source_fixture(cli, tmp_path):
         FIXTURES / "walking" / "config.yaml",
         "--fixtures",
         empty,
+        "--now",
+        NOW,
     )
 
     assert result.returncode != 0
@@ -89,6 +97,8 @@ def test_doctor_reports_malformed_pubmed_xml(cli, tmp_path):
         fixtures / "config.yaml",
         "--fixtures",
         fixtures,
+        "--now",
+        NOW,
     )
 
     assert result.returncode != 0

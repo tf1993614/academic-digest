@@ -26,6 +26,9 @@ def test_collect_builds_candidate_pool_from_pubmed_fixture(cli, paths):
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
 
+    assert pool["generated_at"] == NOW
+    assert pool["date"] == "2026-10-22"
+    assert pool["lookback_days"] == {"pubmed": 2}
     assert pool["sources"]["pubmed"]["status"] == "ok"
     assert pool["sources"]["pubmed"]["count"] == 2
     assert {paper["pmid"] for paper in pool["papers"]} == {"39000001", "39000002"}

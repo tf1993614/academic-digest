@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .config import Config
-from .matching import enrich
+from .matching import attach_topic
 from .models import Paper
 from .sources import SOURCES, SourceResult
 from .state import open_state
@@ -39,7 +39,7 @@ def collect(config: Config, fixtures_root: Path | None, now: datetime) -> Collec
     candidates: dict[str, Paper] = {}
     for result in results:
         for raw in result.papers:
-            paper = enrich(raw, config.topics)
+            paper = attach_topic(raw, config.topics)
             if paper is None:
                 continue
             current = candidates.get(paper.id)
@@ -58,7 +58,7 @@ def build_payload(config: Config, result: CollectResult) -> dict[str, Any]:
         "date": local_now.date().isoformat(),
         "timezone": config.timezone,
         "lookback_days": dict(config.lookback),
-        "sources": {source.name: source.to_dict() for source in result.sources},
+        "sources": sources_payload(result),
         "candidate_count": len(result.papers),
         "papers": [paper.to_dict() for paper in result.papers],
     }
@@ -76,16 +76,26 @@ def write_payload(path: Path, payload: dict[str, Any]) -> Path:
     return path
 
 
-def record_state(path: Path, result: CollectResult) -> None:
-    sources = {source.name: source.to_dict() for source in result.sources}
+def sources_payload(result: CollectResult) -> dict[str, Any]:
+    return {source.name: source.to_dict() for source in result.sources}
+
+
+def record_state(
+    path: Path,
+    result: CollectResult,
+    *,
+    started_at: datetime,
+    finished_at: datetime,
+) -> None:
+    sources = sources_payload(result)
     error = "; ".join(
         f"{source.name}: {source.error}" for source in result.sources if source.error
     )
     with open_state(path) as store:
         store.record_papers(result.papers, result.now)
         store.record_run(
-            started_at=result.now,
-            finished_at=result.now,
+            started_at=started_at,
+            finished_at=finished_at,
             status=result.status,
             command="collect",
             sources=sources,
@@ -102,9 +112,15 @@ def run(
     out_path: Path,
     state_db: Path,
 ) -> CollectResult:
+    started_at = datetime.now(timezone.utc)
     result = collect(config, fixtures_root, now)
     write_payload(out_path, build_payload(config, result))
-    record_state(state_db, result)
+    record_state(
+        state_db,
+        result,
+        started_at=started_at,
+        finished_at=datetime.now(timezone.utc),
+    )
     return result
 
 

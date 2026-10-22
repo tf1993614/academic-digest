@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 
 from .config import Topic
 from .models import Paper
 
 _MISSING_ABSTRACT_TAG = "无摘要"
+
+
+@dataclass(frozen=True)
+class TopicMatch:
+    topic: Topic
+    terms: tuple[str, ...]
+    score: int
 
 
 @lru_cache(maxsize=None)
@@ -22,7 +30,7 @@ def _hits(text: str, term: str) -> bool:
     return bool(text and _term_pattern(term).search(text))
 
 
-def match_topic(paper: Paper, topics: tuple[Topic, ...]) -> tuple[Topic, list[str], int] | None:
+def match_topic(paper: Paper, topics: tuple[Topic, ...]) -> TopicMatch | None:
     """Return the best-matching topic, its matched terms, and a rule score.
 
     Title hits weigh more than abstract hits. Ties go to the first configured
@@ -34,7 +42,7 @@ def match_topic(paper: Paper, topics: tuple[Topic, ...]) -> tuple[Topic, list[st
     abstract = paper.abstract or ""
     haystack = f"{title}\n{abstract}"
 
-    best: tuple[Topic, list[str], int] | None = None
+    best: TopicMatch | None = None
     for topic in topics:
         if any(_hits(haystack, term) for term in topic.exclude):
             continue
@@ -42,12 +50,12 @@ def match_topic(paper: Paper, topics: tuple[Topic, ...]) -> tuple[Topic, list[st
         if not matched:
             continue
         score = sum(3 if _hits(title, term) else 1 for term in matched)
-        if best is None or score > best[2]:
-            best = (topic, matched, score)
+        if best is None or score > best.score:
+            best = TopicMatch(topic=topic, terms=tuple(matched), score=score)
     return best
 
 
-def enrich(paper: Paper, topics: tuple[Topic, ...]) -> Paper | None:
+def attach_topic(paper: Paper, topics: tuple[Topic, ...]) -> Paper | None:
     """Attach group, tags, score, and the missing-abstract marker in place.
 
     Returns ``None`` when no configured group matches, so irrelevant records
@@ -57,16 +65,15 @@ def enrich(paper: Paper, topics: tuple[Topic, ...]) -> Paper | None:
     matched = match_topic(paper, topics)
     if matched is None:
         return None
-    topic, terms, score = matched
 
-    tags = list(terms)
+    tags = list(matched.terms)
     abstract = (paper.abstract or "").strip()
     paper.abstract = abstract
     paper.abstract_missing = not bool(abstract)
     if paper.abstract_missing:
         tags.append(_MISSING_ABSTRACT_TAG)
 
-    paper.group = topic.name
+    paper.group = matched.topic.name
     paper.tags = tags
-    paper.score = score
+    paper.score = matched.score
     return paper

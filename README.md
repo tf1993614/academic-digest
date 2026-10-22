@@ -77,6 +77,9 @@ collect --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db 
 没有摘要的论文仍会进入候选池：`abstract` 为空、`abstract_missing` 为
 `true`，`tags` 末尾带 `无摘要`。
 
+`score` 与排序目前是骨架级规则（标题命中权重高于摘要，日期与 id 做稳定
+tie-break）；Issue 04 会替换为完整的相关性排序与分组配额。
+
 ### `doctor`
 
 ```text
@@ -110,7 +113,8 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 - `timezone`：IANA 时区，例如 `Asia/Shanghai`。
 - `lookback.<source>`：每个源的回看天数，正整数。
 - `topics`：非空列表；每项含 `name`、`label`、`terms`、可选 `exclude`、
-  `max_items`。`name` 唯一，`terms` 非空。
+  `max_items`。`name` 唯一，`terms` 非空。`max_items` 在当前骨架中只做校验与
+  doctor 展示，分组配额在 Issue 04 才真正生效。
 - `sources`：数据源开关；当前支持 `pubmed`。
 - `pool.max_items`：候选池上限，默认 30。
 - `paths.state_db` / `paths.candidates`：相对路径按配置文件所在目录解析。
