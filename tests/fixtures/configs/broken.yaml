@@ -1,0 +1,6 @@
+timezone: Asia/Shanghai
+lookback:
+  pubmed: 2
+topics:
+  - name: G1
+    terms: [aging, multi-omics

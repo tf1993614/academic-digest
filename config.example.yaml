@@ -1,0 +1,45 @@
+timezone: Asia/Shanghai
+
+# How far back each source looks when a scheduled run is late.
+lookback:
+  pubmed: 2
+
+# Keyword groups. Each paper enters the candidate pool under the group with
+# the most hits (title hits weigh three times an abstract hit).
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - ageing
+      - senescence
+      - multi-omics
+      - multiomics
+      - single-cell multi-omics
+    exclude: []
+    max_items: 6
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - scRNA-seq
+      - spatial transcriptomics
+      - MERFISH
+      - in situ amplification
+      - isoform-resolved
+      - CITE-seq
+      - RNA-protein co-assay
+      - cell-cell communication
+    exclude: []
+    max_items: 4
+
+sources:
+  pubmed: true
+
+pool:
+  max_items: 30
+
+# Relative to this file's directory.
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

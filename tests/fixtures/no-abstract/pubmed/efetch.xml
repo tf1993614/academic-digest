@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="Publisher" Owner="NLM">
+      <PMID Version="1">39000003</PMID>
+      <Article PubModel="Electronic">
+        <Journal>
+          <ISSN IssnType="Electronic">0000-0003</ISSN>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <Year>2026</Year>
+              <Month>Oct</Month>
+              <Day>22</Day>
+            </PubDate>
+          </JournalIssue>
+          <Title>GeroScience</Title>
+          <ISOAbbreviation>GeroScience</ISOAbbreviation>
+        </Journal>
+        <ArticleTitle>A multi-omics aging atlas without an abstract</ArticleTitle>
+        <ELocationID EIdType="doi" ValidYN="Y">10.1000/abstractless.3</ELocationID>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Chen</LastName>
+            <ForeName>Ming</ForeName>
+            <Initials>M</Initials>
+          </Author>
+        </AuthorList>
+        <ArticleDate DateType="Electronic">
+          <Year>2026</Year>
+          <Month>10</Month>
+          <Day>22</Day>
+        </ArticleDate>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="doi">10.1000/abstractless.3</ArticleId>
+        <ArticleId IdType="pubmed">39000003</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>

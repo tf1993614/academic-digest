@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "academic-digest"
+version = "0.1.0"
+description = "Deterministic collection and delivery for a daily Chinese academic digest"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "PyYAML>=6.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "mypy>=1.8", "pyflakes>=3.0"]
+
+[project.scripts]
+academic-digest = "academic_digest.cli:main"
+
+[tool.setuptools]
+packages = ["academic_digest", "academic_digest.sources"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+disable_error_code = ["import-untyped"]

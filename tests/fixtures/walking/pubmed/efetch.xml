@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="Publisher" Owner="NLM">
+      <PMID Version="1">39000001</PMID>
+      <Article PubModel="Print-Electronic">
+        <Journal>
+          <ISSN IssnType="Electronic">0000-0001</ISSN>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <Year>2026</Year>
+              <Month>Oct</Month>
+              <Day>21</Day>
+            </PubDate>
+          </JournalIssue>
+          <Title>Nature Aging</Title>
+          <ISOAbbreviation>Nat Aging</ISOAbbreviation>
+        </Journal>
+        <ArticleTitle>Single-cell multi-omics reveals aging trajectories in human tissues</ArticleTitle>
+        <ELocationID EIdType="doi" ValidYN="Y">10.1000/aging-omics.1</ELocationID>
+        <Abstract>
+          <AbstractText Label="BACKGROUND">Aging is a multi-omics process that reshapes tissue composition.</AbstractText>
+          <AbstractText Label="RESULTS">We profiled single-cell transcriptomes across ages and identified senescence programs.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Zhang</LastName>
+            <ForeName>Wei</ForeName>
+            <Initials>W</Initials>
+          </Author>
+          <Author ValidYN="Y">
+            <LastName>Li</LastName>
+            <ForeName>Na</ForeName>
+            <Initials>N</Initials>
+          </Author>
+        </AuthorList>
+        <ArticleDate DateType="Electronic">
+          <Year>2026</Year>
+          <Month>10</Month>
+          <Day>20</Day>
+        </ArticleDate>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="doi">10.1000/aging-omics.1</ArticleId>
+        <ArticleId IdType="pubmed">39000001</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="Publisher" Owner="NLM">
+      <PMID Version="1">39000002</PMID>
+      <Article PubModel="Electronic">
+        <Journal>
+          <ISSN IssnType="Electronic">0000-0002</ISSN>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <Year>2026</Year>
+              <Month>Oct</Month>
+              <Day>22</Day>
+            </PubDate>
+          </JournalIssue>
+          <Title>Cell Systems</Title>
+          <ISOAbbreviation>Cell Syst</ISOAbbreviation>
+        </Journal>
+        <ArticleTitle>Spatial transcriptomics maps immune niches in human lymph nodes</ArticleTitle>
+        <ELocationID EIdType="doi" ValidYN="Y">10.1000/spatial-atlas.2</ELocationID>
+        <Abstract>
+          <AbstractText>We combined spatial transcriptomics with single-cell profiles to resolve immune niches.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Wang</LastName>
+            <ForeName>Bo</ForeName>
+            <Initials>B</Initials>
+          </Author>
+        </AuthorList>
+        <ArticleDate DateType="Electronic">
+          <Year>2026</Year>
+          <Month>10</Month>
+          <Day>21</Day>
+        </ArticleDate>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="doi">10.1000/spatial-atlas.2</ArticleId>
+        <ArticleId IdType="pubmed">39000002</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>
