@@ -136,3 +136,11 @@ def test_doctor_reports_malformed_europepmc_json(cli, tmp_path):
     assert result.returncode != 0
     assert "europepmc" in result.stderr
     assert "invalid Europe PMC JSON" in result.stderr
+
+
+def test_doctor_requires_the_pubmed_source_key(cli):
+    result = doctor(cli, config=FIXTURES / "configs" / "no-pubmed.yaml")
+
+    assert result.returncode != 0
+    assert "sources.pubmed" in result.stderr
+    assert "required" in result.stderr

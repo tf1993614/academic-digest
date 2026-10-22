@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="Publisher" Owner="NLM">
+      <PMID Version="1">39000009</PMID>
+      <Article PubModel="Electronic">
+        <Journal>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <Year>2026</Year>
+              <Month>Oct</Month>
+              <Day>21</Day>
+            </PubDate>
+          </JournalIssue>
+          <Title>bioRxiv</Title>
+        </Journal>
+        <ArticleTitle>Spatial transcriptomics of aging tissues in a preprint indexed by PubMed</ArticleTitle>
+        <ELocationID EIdType="doi" ValidYN="Y">10.1101/2026.10.19.999999</ELocationID>
+        <Abstract>
+          <AbstractText>A PubMed abstract for a preprint about aging and spatial transcriptomics.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Doe</LastName>
+            <ForeName>Jane</ForeName>
+            <Initials>J</Initials>
+          </Author>
+        </AuthorList>
+        <ArticleDate DateType="Electronic">
+          <Year>2026</Year>
+          <Month>10</Month>
+          <Day>21</Day>
+        </ArticleDate>
+        <PublicationTypeList>
+          <PublicationType UI="D000076942">Preprint</PublicationType>
+        </PublicationTypeList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="doi">10.1101/2026.10.19.999999</ArticleId>
+        <ArticleId IdType="pubmed">39000009</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>

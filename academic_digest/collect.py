@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import AbstractSet, Any
 
 from .config import Config
-from .dedupe import is_excluded, merge_duplicates
+from .dedupe import is_pushed, merge_duplicates
 from .matching import attach_topic
 from .models import Paper
 from .sources import SOURCES, SourceResult
@@ -36,7 +36,7 @@ def collect(
     fixtures_root: Path | None,
     now: datetime,
     *,
-    excluded_keys: AbstractSet[str] = frozenset(),
+    pushed_keys: AbstractSet[str],
 ) -> CollectResult:
     results: list[SourceResult] = []
     for name in config.enabled_sources:
@@ -47,7 +47,7 @@ def collect(
     candidates: list[Paper] = []
     for paper in merge_duplicates(raw):
         enriched = attach_topic(paper, config.topics)
-        if enriched is None or is_excluded(enriched, excluded_keys):
+        if enriched is None or is_pushed(enriched, pushed_keys):
             continue
         candidates.append(enriched)
 
@@ -122,7 +122,7 @@ def run(
             config,
             fixtures_root,
             now,
-            excluded_keys=store.pushed_keys(),
+            pushed_keys=store.pushed_keys(),
         )
         write_payload(out_path, build_payload(config, result))
         record_state(

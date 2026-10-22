@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Mapping
 
-from .dedupe import identifier_keys
+from .dedupe import pushed_item_keys
 from .models import Paper
 
 SCHEMA_VERSION = 2
@@ -75,7 +75,6 @@ class StateStore:
         ``pmid:...`` later gains a DOI.
         """
 
-        keys: set[str] = set()
         rows = self._conn.execute(
             """
             SELECT pushes.item_id, papers.doi, papers.pmid, papers.arxiv_id
@@ -83,10 +82,15 @@ class StateStore:
             LEFT JOIN papers ON papers.id = pushes.item_id
             """
         ).fetchall()
-        for item_id, doi, pmid, arxiv_id in rows:
-            keys.add(str(item_id))
-            keys.update(identifier_keys(doi=doi or "", pmid=pmid or "", arxiv_id=arxiv_id or ""))
-        return frozenset(keys)
+        return pushed_item_keys(
+            (
+                str(item_id),
+                doi or "",
+                pmid or "",
+                arxiv_id or "",
+            )
+            for item_id, doi, pmid, arxiv_id in rows
+        )
 
     def record_papers(self, papers: list[Paper], seen_at: datetime) -> None:
         stamp = seen_at.isoformat()

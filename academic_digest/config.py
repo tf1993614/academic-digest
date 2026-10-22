@@ -96,8 +96,8 @@ def _parse_sources(value: Any) -> dict[str, bool]:
         if not isinstance(enabled, bool):
             raise ConfigError(field, "must be true or false")
         sources[name] = enabled
-    if not sources:
-        raise ConfigError("sources", "at least one source must be configured")
+    if "pubmed" not in sources:
+        raise ConfigError("sources.pubmed", "is required (set true or false)")
     if not any(sources.values()):
         raise ConfigError("sources", "at least one source must be enabled")
     return sources

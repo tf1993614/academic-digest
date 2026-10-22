@@ -11,14 +11,20 @@ from __future__ import annotations
 import html
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from ..config import Config
-from ..errors import ConfigError, SourceError
+from ..errors import SourceError
 from ..models import Paper, normalize_doi, paper_id
-from .base import SourceResult, read_fixture, search_terms
+from .base import (
+    SourceResult,
+    get_text,
+    lookback_window,
+    read_fixture,
+    search_terms,
+)
 
 NAME = "europepmc"
 FIXTURE_SEARCH = "europepmc/search.json"
@@ -62,28 +68,19 @@ def validate_fixture(root: Path) -> str:
 def check_network() -> str:
     """Make one lightweight request so doctor can diagnose connectivity."""
 
-    try:
-        import requests
-    except ImportError as exc:  # pragma: no cover - requests is a declared dependency
-        raise SourceError("requests is not installed") from exc
-
-    params = {
-        "query": "CRISPR",
-        "format": "json",
-        "resultType": "lite",
-        "pageSize": "1",
-    }
-    try:
-        response = requests.get(
-            SEARCH_URL,
-            params=params,
-            headers={"User-Agent": USER_AGENT},
-            timeout=10,
-        )
-        response.raise_for_status()
-        parse_search(response.text)
-    except Exception as exc:  # requests raises several unrelated subclasses
-        raise SourceError(f"cannot reach Europe PMC REST API: {exc}") from exc
+    payload = get_text(
+        SEARCH_URL,
+        {
+            "query": "CRISPR",
+            "format": "json",
+            "resultType": "lite",
+            "pageSize": "1",
+        },
+        timeout=10,
+        user_agent=USER_AGENT,
+        error="cannot reach Europe PMC REST API",
+    )
+    parse_search(payload)
     return "Europe PMC REST API reachable"
 
 
@@ -112,16 +109,17 @@ def parse_search(payload_text: str) -> list[Paper]:
 
 
 def _parse_record(record: dict[str, Any]) -> Paper | None:
-    title = _clean(record.get("title"))
+    title = _clean_html(record.get("title"))
     if not title:
         return None
 
     source_code = _text(record.get("source")).upper()
     doi = normalize_doi(_text(record.get("doi")))
     pmid = _text(record.get("pmid"))
-    if not pmid and source_code == "MED":
-        pmid = _text(record.get("id"))
-    is_preprint = source_code == "PPR" or "preprint" in _text(record.get("pubType")).lower()
+    identifier = _text(record.get("id"))
+    if not pmid and source_code == "MED" and identifier.isdigit():
+        pmid = identifier
+    is_preprint = _is_preprint(record, source_code)
 
     venue = _venue(record)
     if is_preprint and not venue:
@@ -144,6 +142,21 @@ def _parse_record(record: dict[str, Any]) -> Paper | None:
         url=_record_url(source_code, _text(record.get("id")), doi),
         is_preprint=is_preprint,
     )
+
+
+def _is_preprint(record: dict[str, Any], source_code: str) -> bool:
+    if source_code == "PPR":
+        return True
+    if "preprint" in _text(record.get("pubType")).lower():
+        return True
+    type_list = record.get("pubTypeList")
+    if isinstance(type_list, dict):
+        values = type_list.get("pubType")
+        if isinstance(values, str):
+            values = [values]
+        if isinstance(values, list):
+            return any("preprint" in _text(value).lower() for value in values)
+    return False
 
 
 def _venue(record: dict[str, Any]) -> str:
@@ -209,10 +222,6 @@ def _normalize_date(value: Any) -> str:
     return match.group(1) if match else ""
 
 
-def _clean(value: Any) -> str:
-    return _WHITESPACE.sub(" ", _text(value)).strip()
-
-
 def _clean_html(value: Any) -> str:
     # Europe PMC returns abstracts with markup such as <h4>Background</h4>;
     # replace tags with a space so section labels stay readable.
@@ -228,40 +237,25 @@ def _text(value: Any) -> str:
 
 
 def _fetch_live(config: Config, now: datetime) -> str:
-    try:
-        import requests
-    except ImportError as exc:  # pragma: no cover - requests is a declared dependency
-        raise SourceError("requests is not installed") from exc
-
-    params = {
-        "query": build_query(config, now),
-        "format": "json",
-        "resultType": "core",
-        "pageSize": str(PAGE_SIZE),
-        "sort": "P_PDATE_D desc",
-    }
-    try:
-        response = requests.get(
-            SEARCH_URL,
-            params=params,
-            headers={"User-Agent": USER_AGENT},
-            timeout=30,
-        )
-        response.raise_for_status()
-    except Exception as exc:  # requests raises several unrelated subclasses
-        raise SourceError(f"Europe PMC request failed: {exc}") from exc
-    return response.text
+    return get_text(
+        SEARCH_URL,
+        {
+            "query": build_query(config, now),
+            "format": "json",
+            "resultType": "core",
+            "pageSize": str(PAGE_SIZE),
+            "sort": "P_PDATE_D desc",
+        },
+        timeout=30,
+        user_agent=USER_AGENT,
+        error="Europe PMC request failed",
+    )
 
 
 def build_query(config: Config, now: datetime) -> str:
-    terms = search_terms(config)
-    if not terms:
-        raise ConfigError("topics", "no searchable terms")
-    lookback = config.lookback.get("europepmc", 2)
-    start = (now.date() - timedelta(days=lookback)).isoformat()
-    end = now.date().isoformat()
-    term_clause = " OR ".join(f'"{term}"' for term in terms)
+    start, end = lookback_window(config, "europepmc", now)
+    term_clause = " OR ".join(f'"{term}"' for term in search_terms(config))
     return (
-        f"({term_clause}) AND (FIRST_PDATE:[{start} TO {end}]) "
+        f"({term_clause}) AND (FIRST_PDATE:[{start.isoformat()} TO {end.isoformat()}]) "
         "AND (SRC:MED OR SRC:PPR)"
     )

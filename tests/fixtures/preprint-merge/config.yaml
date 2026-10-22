@@ -1,0 +1,26 @@
+timezone: Asia/Shanghai
+
+lookback:
+  pubmed: 2
+  europepmc: 2
+
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - ageing
+      - multi-omics
+    exclude: []
+    max_items: 6
+
+sources:
+  pubmed: true
+  europepmc: true
+
+pool:
+  max_items: 30
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

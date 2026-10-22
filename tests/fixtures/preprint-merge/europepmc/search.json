@@ -1,0 +1,23 @@
+{
+  "version": "6.9",
+  "hitCount": 1,
+  "resultList": {
+    "result": [
+      {
+        "id": "PPR9999999",
+        "source": "PPR",
+        "doi": "10.1101/2026.10.19.999999",
+        "title": "Spatial transcriptomics of aging tissues in a preprint indexed by PubMed",
+        "authorString": "Doe J.",
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-21",
+        "pubTypeList": {"pubType": ["Preprint"]},
+        "bookOrReportDetails": {
+          "publisher": "bioRxiv",
+          "yearOfPublication": 2026
+        },
+        "abstractText": "Europe PMC abstract for the same preprint."
+      }
+    ]
+  }
+}

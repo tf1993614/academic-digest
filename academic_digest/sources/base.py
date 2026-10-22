@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from ..config import Config
 from ..errors import SourceError
@@ -62,3 +63,38 @@ def search_terms(config: Config) -> list[str]:
             seen.add(term)
             terms.append(term)
     return terms
+
+
+def lookback_window(config: Config, source: str, now: datetime) -> tuple[date, date]:
+    """Inclusive publication-date window for one source."""
+
+    days = config.lookback[source]
+    return now.date() - timedelta(days=days), now.date()
+
+
+def get_text(
+    url: str,
+    params: Mapping[str, str],
+    *,
+    timeout: int,
+    user_agent: str,
+    error: str,
+) -> str:
+    """GET a URL and return its body, turning network failures into source errors."""
+
+    try:
+        import requests
+    except ImportError as exc:  # pragma: no cover - requests is a declared dependency
+        raise SourceError("requests is not installed") from exc
+
+    try:
+        response = requests.get(
+            url,
+            params=params,
+            headers={"User-Agent": user_agent},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+    except Exception as exc:  # requests raises several unrelated subclasses
+        raise SourceError(f"{error}: {exc}") from exc
+    return response.text

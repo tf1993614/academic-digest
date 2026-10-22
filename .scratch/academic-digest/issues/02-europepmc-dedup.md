@@ -15,10 +15,13 @@
 ## Comments
 
 - 2026-10-22：已实现。`collect` 增加 Europe PMC 源（`resultType=core`，fixture 为
-  `europepmc/search.json`）；跨源按 DOI/PMID/arXiv 强标识去重，PubMed 的摘要与
-  期刊优先，EPMC 预印本保留 `is_preprint` 与 `source`；状态库新增 `pushes` 表，
-  已推送条目在候选池截断前排除；单源失败时其余源继续产出，并在 `sources` 与
+  `europepmc/search.json`）；跨源按 DOI/PMID/arXiv 强标识去重（同一 DOI 即使
+  一侧没有 PMID 也能合并），PubMed 的摘要与期刊优先，EPMC 补上 PubMed 缺失的
+  摘要；合并后的预印本保留 `is_preprint`，只有所有版本都是预印本时才标记。
+  状态库新增 `pushes` 表，已推送条目在候选池截断前排除；标题哈希条目后来获得
+  DOI（或 PMID）后仍能匹配。单源失败时其余源继续产出，并在 `sources` 与
   stderr 标出失败原因。`doctor` 同步校验 EPMC fixture / 连通性。新增
-  `multisource` fixture 覆盖重复 DOI/PMID、预印本、EPMC-only 与来源计数。
-  验收：`python3 -m pytest`（17 passed，全部经 CLI 子进程、离线、固定 `--now`）；
+  `multisource`、`epmc-abstract`、`preprint-merge` fixture，覆盖重复 DOI/PMID、
+  预印本合并、缺失摘要补全、EPMC-only 与来源计数。
+  验收：`python3 -m pytest`（21 passed，全部经 CLI 子进程、离线、固定 `--now`）；
   `mypy` / `pyflakes` 无问题。

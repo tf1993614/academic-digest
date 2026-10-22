@@ -96,7 +96,40 @@ def test_collect_reads_europepmc_and_marks_preprints(cli, paths):
     assert "<h4>" not in preprint["abstract"]
 
 
+def test_europepmc_fills_a_missing_pubmed_abstract(cli, paths):
+    result = collect(cli, paths, fixture="epmc-abstract")
+
+    assert result.returncode == 0, result.stderr
+    pool = json.loads(paths["out"].read_text(encoding="utf-8"))
+    assert pool["candidate_count"] == 1
+
+    paper = pool["papers"][0]
+    assert paper["id"] == "doi:10.1000/abstractless.3"
+    assert paper["source"] == "pubmed"
+    assert paper["venue"] == "GeroScience"
+    assert paper["abstract"] == "Europe PMC supplies the missing abstract about multi-omics aging."
+    assert paper["abstract_missing"] is False
+    assert "无摘要" not in paper["tags"]
+
+
+def test_merged_preprint_keeps_marker_and_pubmed_fields(cli, paths):
+    result = collect(cli, paths, fixture="preprint-merge")
+
+    assert result.returncode == 0, result.stderr
+    pool = json.loads(paths["out"].read_text(encoding="utf-8"))
+    assert pool["candidate_count"] == 1
+
+    paper = pool["papers"][0]
+    assert paper["id"] == "doi:10.1101/2026.10.19.999999"
+    assert paper["is_preprint"] is True
+    assert paper["source"] == "pubmed"
+    assert paper["venue"] == "bioRxiv"
+    assert "PubMed abstract" in paper["abstract"]
+    assert "Europe PMC abstract" not in paper["abstract"]
+
+
 def test_same_doi_across_sources_appears_once_with_pubmed_fields(cli, paths):
+    # The EPMC copy of 39000001 has no PMID, so only the DOI links the records.
     result = collect(cli, paths, fixture="multisource")
 
     assert result.returncode == 0, result.stderr
@@ -128,6 +161,7 @@ def test_pushed_item_is_excluded_from_the_next_candidate_pool(cli, paths):
     first_pool = json.loads(paths["out"].read_text(encoding="utf-8"))
     assert first_pool["candidate_count"] == 4
 
+    # Issue 09 adds the push writer; until then seed the pushed row directly.
     connection = sqlite3.connect(paths["db"])
     try:
         connection.execute(
@@ -217,3 +251,47 @@ def test_one_broken_source_still_produces_candidates(
     finally:
         connection.close()
     assert status == "ok"
+
+
+def test_pushed_title_only_item_stays_excluded_after_it_gains_a_doi(
+    cli, paths, tmp_path
+):
+    fixtures = tmp_path / "drift"
+    shutil.copytree(FIXTURES / "multisource", fixtures)
+    search_path = fixtures / "europepmc" / "search.json"
+    payload = json.loads(search_path.read_text(encoding="utf-8"))
+    preprint = next(
+        record
+        for record in payload["resultList"]["result"]
+        if record["source"] == "PPR"
+    )
+    doi = preprint.pop("doi")
+    search_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    first = collect(cli, paths, fixtures_dir=fixtures)
+    assert first.returncode == 0, first.stderr
+    first_pool = json.loads(paths["out"].read_text(encoding="utf-8"))
+    pushed = next(paper for paper in first_pool["papers"] if paper["is_preprint"])
+    assert pushed["id"].startswith("title:")
+
+    connection = sqlite3.connect(paths["db"])
+    try:
+        connection.execute(
+            "INSERT INTO pushes (item_id, digest_date, pushed_at) VALUES (?, ?, ?)",
+            (pushed["id"], "2026-10-22", "2026-10-22T08:00:00+08:00"),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    preprint["doi"] = doi
+    search_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    second_out = paths["tmp"] / "drift.json"
+    second = collect(cli, paths, fixtures_dir=fixtures, out=second_out)
+
+    assert second.returncode == 0, second.stderr
+    pool = json.loads(second_out.read_text(encoding="utf-8"))
+    ids = {paper["id"] for paper in pool["papers"]}
+    assert f"doi:{doi}" not in ids
+    assert pool["candidate_count"] == 3

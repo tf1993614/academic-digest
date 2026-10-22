@@ -15,10 +15,15 @@ from typing import Any
 
 _WHITESPACE = re.compile(r"\s+")
 _DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE)
+_ARXIV_VERSION = re.compile(r"v\d+$")
 
 
 def normalize_doi(value: str) -> str:
     return _DOI_PREFIX.sub("", value.strip()).strip().lower()
+
+
+def normalize_arxiv_id(value: str) -> str:
+    return _ARXIV_VERSION.sub("", value.strip())
 
 
 def normalize_title(value: str) -> str:
@@ -43,8 +48,7 @@ def paper_id(
     if pmid:
         return f"pmid:{pmid.strip()}"
     if arxiv_id:
-        stripped = re.sub(r"v\d+$", "", arxiv_id.strip())
-        return f"arxiv:{stripped}"
+        return f"arxiv:{normalize_arxiv_id(arxiv_id)}"
     digest = sha1(f"{normalize_title(title)}|{year}".encode("utf-8")).hexdigest()[:16]
     return f"title:{digest}"
 

@@ -7,16 +7,22 @@ the same parser.
 
 from __future__ import annotations
 
+import json
 import re
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from ..config import Config
-from ..errors import ConfigError, SourceError
+from ..errors import SourceError
 from ..models import Paper, normalize_doi, paper_id
-from .base import SourceResult, read_fixture, search_terms
+from .base import (
+    SourceResult,
+    get_text,
+    lookback_window,
+    read_fixture,
+    search_terms,
+)
 
 NAME = "pubmed"
 FIXTURE_SEARCH = "pubmed/esearch.xml"
@@ -84,21 +90,13 @@ def validate_fixture(root: Path) -> str:
 def check_network() -> str:
     """Make one lightweight request so doctor can diagnose connectivity."""
 
-    try:
-        import requests
-    except ImportError as exc:  # pragma: no cover - requests is a declared dependency
-        raise SourceError("requests is not installed") from exc
-
-    try:
-        response = requests.get(
-            EINFO_URL,
-            params={"db": "pubmed", "retmode": "json"},
-            headers={"User-Agent": USER_AGENT},
-            timeout=10,
-        )
-        response.raise_for_status()
-    except Exception as exc:  # requests raises several unrelated subclasses
-        raise SourceError(f"cannot reach PubMed E-utilities: {exc}") from exc
+    get_text(
+        EINFO_URL,
+        {"db": "pubmed", "retmode": "json"},
+        timeout=10,
+        user_agent=USER_AGENT,
+        error="cannot reach PubMed E-utilities",
+    )
     return "PubMed E-utilities reachable"
 
 
@@ -179,6 +177,15 @@ def _parse_article(article: ET.Element) -> Paper | None:
         doi=doi,
         pmid=pmid,
         url=url,
+        is_preprint=_is_preprint(body),
+    )
+
+
+def _is_preprint(body: ET.Element) -> bool:
+    type_list = _child(body, "PublicationTypeList")
+    return any(
+        "preprint" in _text(node).lower()
+        for node in _children(type_list, "PublicationType")
     )
 
 
@@ -241,52 +248,44 @@ def _doi(article: ET.Element, body: ET.Element) -> str:
 
 
 def _fetch_live(config: Config, now: datetime) -> str:
+    start_date, end_date = lookback_window(config, "pubmed", now)
+    search_text = get_text(
+        ESEARCH_URL,
+        {
+            "db": "pubmed",
+            "term": build_query(config),
+            "datetype": "edat",
+            "mindate": start_date.strftime("%Y/%m/%d"),
+            "maxdate": end_date.strftime("%Y/%m/%d"),
+            "retmode": "json",
+            "retmax": "100",
+        },
+        timeout=30,
+        user_agent=USER_AGENT,
+        error="PubMed request failed",
+    )
+    ids = _search_ids(search_text)
+    if not ids:
+        return "<PubmedArticleSet></PubmedArticleSet>"
+    return get_text(
+        EFETCH_URL,
+        {"db": "pubmed", "id": ",".join(ids), "retmode": "xml"},
+        timeout=30,
+        user_agent=USER_AGENT,
+        error="PubMed request failed",
+    )
+
+
+def _search_ids(payload_text: str) -> list[str]:
     try:
-        import requests
-    except ImportError as exc:  # pragma: no cover - requests is a declared dependency
-        raise SourceError("requests is not installed") from exc
-
-    lookback = config.lookback.get("pubmed", 2)
-    start_date = now.date() - timedelta(days=lookback)
-    params = {
-        "db": "pubmed",
-        "term": build_query(config),
-        "datetype": "edat",
-        "mindate": start_date.strftime("%Y/%m/%d"),
-        "maxdate": now.date().strftime("%Y/%m/%d"),
-        "retmode": "json",
-        "retmax": "100",
-    }
-    try:
-        search = requests.get(
-            ESEARCH_URL, params=params, headers={"User-Agent": USER_AGENT}, timeout=30
-        )
-        search.raise_for_status()
-        ids = _search_ids(search)
-        if not ids:
-            return "<PubmedArticleSet></PubmedArticleSet>"
-        fetch = requests.get(
-            EFETCH_URL,
-            params={"db": "pubmed", "id": ",".join(ids), "retmode": "xml"},
-            headers={"User-Agent": USER_AGENT},
-            timeout=30,
-        )
-        fetch.raise_for_status()
-    except Exception as exc:  # requests raises several unrelated subclasses
-        raise SourceError(f"PubMed request failed: {exc}") from exc
-    return fetch.text
-
-
-def _search_ids(response: Any) -> list[str]:
-    payload = response.json()
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"invalid PubMed search JSON: {exc}") from exc
     return list(payload.get("esearchresult", {}).get("idlist", []))
 
 
 def build_query(config: Config) -> str:
-    terms = search_terms(config)
-    if not terms:
-        raise ConfigError("topics", "no searchable terms")
-    return " OR ".join(f'"{term}"[tiab]' for term in terms)
+    return " OR ".join(f'"{term}"[tiab]' for term in search_terms(config))
 
 
 def _text(node: ET.Element | None) -> str:

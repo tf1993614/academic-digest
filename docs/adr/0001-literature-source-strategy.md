@@ -5,3 +5,12 @@
 **Considered options**：OpenAlex 做主源（否决：额度 + cursor 限制）；Semantic Scholar 做主源（否决：匿名 429）；Crossref 做主源（否决：无摘要）。
 
 **Consequences**：每条论文需要按 DOI > PMID > arXiv ID > 标题哈希去重；Europe PMC 不能单独承担“今天”的新鲜度，必须与 PubMed / arXiv RSS / Research Square RSS 并用。
+
+## Amendment 2026-10-22（Issue 02）
+
+Europe PMC 仍是补充源：与 PubMed 并行查询，使用 `FIRST_PDATE` 短窗口 +
+`SRC:MED`/`SRC:PPR`，不单独承担“今天”的新鲜度；合并同一论文时 PubMed 的摘要与
+期刊优先，EPMC 只补缺失字段并保留预印本标记与来源。候选 `id` 仍按
+DOI > PMID > arXiv ID > 标题哈希；跨源匹配时只要共享任一强标识就视为同一篇论文
+（避免一侧缺 DOI 时重复），标题哈希仅在没有强标识时使用。这是对原 Consequences
+的细化，不改变“PubMed 主源、EPMC 补充”的判断。

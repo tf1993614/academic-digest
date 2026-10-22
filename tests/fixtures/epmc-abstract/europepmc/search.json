@@ -1,0 +1,22 @@
+{
+  "version": "6.9",
+  "hitCount": 1,
+  "resultList": {
+    "result": [
+      {
+        "id": "39000003",
+        "source": "MED",
+        "doi": "10.1000/abstractless.3",
+        "title": "A multi-omics aging atlas without a PubMed abstract",
+        "authorString": "Chen M.",
+        "journalInfo": {
+          "journal": {"title": "GeroScience (Europe PMC copy)"}
+        },
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {"pubType": ["Journal Article"]},
+        "abstractText": "Europe PMC supplies the missing abstract about multi-omics aging."
+      }
+    ]
+  }
+}

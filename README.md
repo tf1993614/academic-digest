@@ -53,9 +53,11 @@ collect --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db 
 Europe PMC 的 `search`（`resultType=core`）抓取。PubMed 摘要只从 XML 解析
 （JSON 模式会静默丢掉摘要）。
 
-跨源去重按 DOI > PMID > arXiv ID 匹配：任一强标识相同就合并为一条，
-PubMed 的摘要与期刊优先，其余字段只补空；没有强标识时才退回“标题 + 年份”
-哈希。Europe PMC 的预印本保留 `is_preprint: true` 与 `source: europepmc`。
+PubMed 仍是主源，Europe PMC 用来补充预印本与缺失摘要。跨源去重按
+DOI > PMID > arXiv ID 匹配：任一强标识相同就合并为一条，PubMed 的摘要与
+期刊优先，其余字段只补空；没有强标识时才退回“标题 + 年份”哈希。同一预印本
+同时出现在 PubMed 与 EPMC 时保留 `is_preprint: true`；合并组里只要有一个已发表
+版本，就不再标记为预印本。Europe PMC 的预印本保留 `source: europepmc`。
 状态库 `pushes` 表里的条目不会再进入候选池（跨天去重）。
 
 单个源失败时其余源继续产出候选，退出码仍为 0；失败原因写进
@@ -138,7 +140,8 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 - `topics`：非空列表；每项含 `name`、`label`、`terms`、可选 `exclude`、
   `max_items`。`name` 唯一，`terms` 非空。`max_items` 在当前骨架中只做校验与
   doctor 展示，分组配额在 Issue 04 才真正生效。
-- `sources`：数据源开关；当前支持 `pubmed` 与 `europepmc`，至少要启用一个。
+- `sources`：数据源开关；当前支持 `pubmed` 与 `europepmc`。必须显式写出
+  `sources.pubmed`（可设 true/false），且至少要启用一个源。
 - `pool.max_items`：候选池上限，默认 30。
 - `paths.state_db` / `paths.candidates`：相对路径按配置文件所在目录解析。
 
@@ -166,10 +169,25 @@ tests/fixtures/
 │   │   └── efetch.xml
 │   └── europepmc/
 │       └── search.json
+├── epmc-abstract/           # PubMed 缺摘要，由 EPMC 补上
+│   ├── config.yaml
+│   ├── pubmed/
+│   │   ├── esearch.xml
+│   │   └── efetch.xml
+│   └── europepmc/
+│       └── search.json
+├── preprint-merge/          # PubMed 预印本与 EPMC PPR 共用同一 DOI
+│   ├── config.yaml
+│   ├── pubmed/
+│   │   ├── esearch.xml
+│   │   └── efetch.xml
+│   └── europepmc/
+│       └── search.json
 └── configs/                 # 坏配置
     ├── bad-topics.yaml
     ├── broken.yaml
-    └── empty-terms.yaml
+    ├── empty-terms.yaml
+    └── no-pubmed.yaml
 ```
 
 后续源沿用同一约定：`<fixtures>/<source>/<recorded-response>`。
@@ -182,7 +200,7 @@ SQLite 位于 `paths.state_db`（默认 `state/academic-digest.sqlite3`）：
   `first_seen` / `last_seen`。同一论文重跑只更新 `last_seen`，不会插入重复行。
 - `pushes`：成功推送的条目，主键为 `(item_id, topic, channel, digest_date)`。
   `collect` 在排名与截断之前用它排除已推送条目；同一篇论文后续换用另一种
-  标识（例如从 PMID 变成 DOI）也能通过 `papers` 行展开匹配。
+  标识（例如从 PMID 变成 DOI，或从标题哈希变成 DOI）也能匹配。
 - `runs`：每次 `collect` 一行，记录起止时间、状态、各源结果、候选数与错误摘要。
 
 ## 开发
@@ -196,3 +214,6 @@ python3 -m mypy academic_digest
 唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `doctor`，
 断言退出码、stderr 与输出文件，不导入内部实现。所有测试离线且固定
 `--now`。
+
+`push` 命令（Issue 09）落地前，“已推送”状态由测试直接向 SQLite `pushes`
+表写入一行作为前置数据；断言仍只来自 CLI 输出，不导入内部实现。
