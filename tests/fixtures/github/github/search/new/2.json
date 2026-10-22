@@ -1,0 +1,26 @@
+{
+  "total_count": 1,
+  "incomplete_results": false,
+  "items": [
+    {
+      "full_name": "acme/claude-runner",
+      "name": "claude-runner",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/claude-runner",
+      "description": "Claude Code plugin runner",
+      "stargazers_count": 900,
+      "language": "TypeScript",
+      "created_at": "2026-10-19T08:00:00Z",
+      "pushed_at": "2026-10-22T05:00:00Z",
+      "updated_at": "2026-10-22T05:00:00Z",
+      "topics": [
+        "claude-code"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    }
+  ]
+}

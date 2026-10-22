@@ -100,3 +100,51 @@ class Paper:
             "is_preprint": self.is_preprint,
             "oa_url": self.oa_url,
         }
+
+
+@dataclass
+class Repo:
+    """One GitHub repository candidate for the new, active, or G6 block.
+
+    ``positioning`` is the one-line what-it-is summary (description, or the
+    README's opening paragraph when the description is empty), and ``why``
+    names the query and matched keywords, so the digest never has to guess why
+    a repository was selected.
+    """
+
+    full_name: str
+    url: str
+    description: str
+    positioning: str
+    why: str
+    stars: int
+    language: str
+    created_at: str
+    pushed_at: str
+    topics: list[str]
+    group: str
+    query: str
+    tags: list[str]
+    relevance: int
+    score: int
+    readme_url: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "full_name": self.full_name,
+            "url": self.url,
+            "description": self.description,
+            "positioning": self.positioning,
+            "why": self.why,
+            "stars": self.stars,
+            "language": self.language,
+            "created_at": self.created_at,
+            "pushed_at": self.pushed_at,
+            "topics": self.topics,
+            "group": self.group,
+            "query": self.query,
+            "tags": self.tags,
+            "relevance": self.relevance,
+            "score": self.score,
+            "readme_url": self.readme_url,
+        }

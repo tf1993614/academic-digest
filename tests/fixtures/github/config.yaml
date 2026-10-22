@@ -1,0 +1,58 @@
+timezone: Asia/Shanghai
+
+topics:
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - spatial transcriptomics
+      - MERFISH
+    exclude: []
+    max_items: 4
+  - name: G3
+    label: 基础模型与表征
+    terms:
+      - foundation model
+    exclude: []
+    max_items: 6
+  - name: G6
+    label: AI 工具 / Agent Harness
+    terms:
+      - claude code
+      - codex
+      - deepseek harness
+      - agent harness
+    exclude: []
+    max_items: 6
+
+sources:
+  pubmed: false
+  github: true
+
+github:
+  token_env: GITHUB_TOKEN
+  g6_topic: G6
+  new:
+    days: 7
+    min_stars: 5
+    max_items: 1
+  active:
+    days: 7
+    min_stars: 30
+    max_items: 2
+  g6:
+    max_items: 2
+  queries:
+    G2:
+      - topic:single-cell
+      - '"spatial transcriptomics" in:name,description,readme'
+  g6_queries:
+    - topic:claude-code
+    - '"deepseek harness" in:name,description,readme'
+
+pool:
+  max_items: 30
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

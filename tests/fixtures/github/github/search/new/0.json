@@ -1,0 +1,107 @@
+{
+  "total_count": 5,
+  "incomplete_results": false,
+  "items": [
+    {
+      "full_name": "acme/cell-atlas",
+      "name": "cell-atlas",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/cell-atlas",
+      "description": "Single-cell atlas toolkit",
+      "stargazers_count": 42,
+      "language": "Python",
+      "created_at": "2026-10-20T08:00:00Z",
+      "pushed_at": "2026-10-21T09:00:00Z",
+      "updated_at": "2026-10-21T09:00:00Z",
+      "topics": [
+        "single-cell",
+        "bioinformatics"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/too-old",
+      "name": "too-old",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/too-old",
+      "description": "Single-cell pipeline",
+      "stargazers_count": 50,
+      "language": "Python",
+      "created_at": "2026-09-01T08:00:00Z",
+      "pushed_at": "2026-10-21T09:00:00Z",
+      "updated_at": "2026-10-21T09:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/few-stars",
+      "name": "few-stars",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/few-stars",
+      "description": "Single-cell viewer",
+      "stargazers_count": 2,
+      "language": "Python",
+      "created_at": "2026-10-20T08:00:00Z",
+      "pushed_at": "2026-10-21T09:00:00Z",
+      "updated_at": "2026-10-21T09:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/forked",
+      "name": "forked",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/forked",
+      "description": "Single-cell fork",
+      "stargazers_count": 100,
+      "language": "Python",
+      "created_at": "2026-10-20T08:00:00Z",
+      "pushed_at": "2026-10-21T09:00:00Z",
+      "updated_at": "2026-10-21T09:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": true,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/archived",
+      "name": "archived",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/archived",
+      "description": "Single-cell archive",
+      "stargazers_count": 40,
+      "language": "Python",
+      "created_at": "2026-10-20T08:00:00Z",
+      "pushed_at": "2026-10-21T09:00:00Z",
+      "updated_at": "2026-10-21T09:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": true,
+      "default_branch": "main"
+    }
+  ]
+}

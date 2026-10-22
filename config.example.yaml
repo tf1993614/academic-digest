@@ -52,6 +52,10 @@ sources:
   # so they stay off unless a run needs full coverage.
   biorxiv: false
   medrxiv: false
+  # GitHub discovery needs a token in the environment named by
+  # `github.token_env` below. It is off in this demo because the demo topics
+  # only define G1/G2 (the G6 block needs an AI-tool group).
+  github: false
 
 # arXiv RSS feeds to read. One request per category, three seconds apart.
 arxiv:
@@ -62,6 +66,36 @@ arxiv:
     - q-bio.QM
     - q-bio.GN
     - q-bio.MN
+
+# GitHub repository discovery. Omitting this block already uses the documented
+# defaults: the 22 discovery queries grouped by topic plus the 12-query Claude
+# Code / Codex / DSH list, 7-day windows with 5/30-star floors, and caps of
+# 1 new / 2 active / 2 G6 repos. Uncomment to tune any of them. `g6_topic` and
+# `g6_queries` need an AI-tool topic (such as G6) in `topics`; without one the G6
+# block is skipped.
+# github:
+#   token_env: GITHUB_TOKEN
+#   g6_topic: G6
+#   new:
+#     days: 7
+#     min_stars: 5
+#     max_items: 1
+#   active:
+#     days: 7
+#     min_stars: 30
+#     max_items: 2
+#   g6:
+#     max_items: 2
+#   readme_limit: 20
+#   queries:
+#     G1:
+#       - topic:aging
+#     G2:
+#       - topic:single-cell
+#       - '"spatial transcriptomics" in:name,description,readme'
+#   g6_queries:
+#     - topic:claude-code
+#     - '"deepseek harness" in:name,description,readme'
 
 # Candidate pool cap; it must be at least the number of topics so every
 # non-empty group can keep a paper. A short pool is never padded.

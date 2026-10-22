@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
 
-from . import __version__
+from . import __version__, github
 from .collect import run as run_collect
 from .config import Config, load_config
 from .errors import ConfigError, SourceError
@@ -142,7 +142,11 @@ def _doctor(args: argparse.Namespace) -> int:
 
     for name in config.enabled_sources:
         try:
-            ok(f"source {name}: {SOURCES[name].check(config, args.fixtures)}")
+            if name == github.NAME:
+                message = github.check(config, args.fixtures)
+            else:
+                message = SOURCES[name].check(config, args.fixtures)
+            ok(f"source {name}: {message}")
         except (SourceError, OSError) as exc:
             fail(f"source {name}: {exc}")
 

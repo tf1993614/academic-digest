@@ -27,7 +27,9 @@ def _term_pattern(term: str) -> re.Pattern[str]:
     return re.compile(rf"(?<![0-9A-Za-z]){re.escape(term)}(?![0-9A-Za-z])", re.IGNORECASE)
 
 
-def _hits(text: str, term: str) -> bool:
+def matches(text: str, term: str) -> bool:
+    """Whether ``term`` appears in ``text`` as a whole word."""
+
     return bool(text and _term_pattern(term).search(text))
 
 
@@ -45,12 +47,12 @@ def match_topic(paper: Paper, topics: tuple[Topic, ...]) -> TopicMatch | None:
 
     best: TopicMatch | None = None
     for topic in topics:
-        if any(_hits(haystack, term) for term in topic.exclude):
+        if any(matches(haystack, term) for term in topic.exclude):
             continue
-        matched = [term for term in topic.terms if _hits(haystack, term)]
+        matched = [term for term in topic.terms if matches(haystack, term)]
         if not matched:
             continue
-        relevance = sum(3 if _hits(title, term) else 1 for term in matched)
+        relevance = sum(3 if matches(title, term) else 1 for term in matched)
         if best is None or relevance > best.relevance:
             best = TopicMatch(topic=topic, terms=tuple(matched), relevance=relevance)
     return best

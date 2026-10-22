@@ -1,0 +1,146 @@
+{
+  "total_count": 7,
+  "incomplete_results": false,
+  "items": [
+    {
+      "full_name": "acme/scanpy-plus",
+      "name": "scanpy-plus",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/scanpy-plus",
+      "description": "Single-cell analysis toolkit",
+      "stargazers_count": 900,
+      "language": "Python",
+      "created_at": "2024-01-01T08:00:00Z",
+      "pushed_at": "2026-10-21T10:00:00Z",
+      "updated_at": "2026-10-21T10:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/spatial-hub",
+      "name": "spatial-hub",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/spatial-hub",
+      "description": "Spatial transcriptomics hub",
+      "stargazers_count": 300,
+      "language": "Python",
+      "created_at": "2024-02-01T08:00:00Z",
+      "pushed_at": "2026-10-20T10:00:00Z",
+      "updated_at": "2026-10-20T10:00:00Z",
+      "topics": [
+        "spatial-transcriptomics"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/atlas-web",
+      "name": "atlas-web",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/atlas-web",
+      "description": "MERFISH browser",
+      "stargazers_count": 40,
+      "language": "JavaScript",
+      "created_at": "2024-03-01T08:00:00Z",
+      "pushed_at": "2026-10-22T01:00:00Z",
+      "updated_at": "2026-10-22T01:00:00Z",
+      "topics": [
+        "merfish"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/aging-cell",
+      "name": "aging-cell",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/aging-cell",
+      "description": "Single-cell aging atlas",
+      "stargazers_count": 50,
+      "language": "Python",
+      "created_at": "2024-04-01T08:00:00Z",
+      "pushed_at": "2026-10-22T02:00:00Z",
+      "updated_at": "2026-10-22T02:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/cell-atlas",
+      "name": "cell-atlas",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/cell-atlas",
+      "description": "Single-cell atlas toolkit",
+      "stargazers_count": 42,
+      "language": "Python",
+      "created_at": "2026-10-20T08:00:00Z",
+      "pushed_at": "2026-10-21T09:00:00Z",
+      "updated_at": "2026-10-21T09:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/low-stars",
+      "name": "low-stars",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/low-stars",
+      "description": "Single-cell notebook",
+      "stargazers_count": 10,
+      "language": "Python",
+      "created_at": "2024-05-01T08:00:00Z",
+      "pushed_at": "2026-10-21T10:00:00Z",
+      "updated_at": "2026-10-21T10:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    },
+    {
+      "full_name": "acme/stale",
+      "name": "stale",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/stale",
+      "description": "Single-cell legacy toolkit",
+      "stargazers_count": 5000,
+      "language": "Python",
+      "created_at": "2024-06-01T08:00:00Z",
+      "pushed_at": "2026-09-30T10:00:00Z",
+      "updated_at": "2026-09-30T10:00:00Z",
+      "topics": [
+        "single-cell"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    }
+  ]
+}

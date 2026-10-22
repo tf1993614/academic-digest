@@ -1,0 +1,26 @@
+{
+  "total_count": 1,
+  "incomplete_results": false,
+  "items": [
+    {
+      "full_name": "acme/dsh-tools",
+      "name": "dsh-tools",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/dsh-tools",
+      "description": "DeepSeek Harness utilities",
+      "stargazers_count": 40,
+      "language": "Python",
+      "created_at": "2026-10-20T08:00:00Z",
+      "pushed_at": "2026-10-22T06:00:00Z",
+      "updated_at": "2026-10-22T06:00:00Z",
+      "topics": [
+        "deepseek"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    }
+  ]
+}

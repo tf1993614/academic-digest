@@ -15,15 +15,17 @@ NOW = "2026-10-22T08:00:00+08:00"
 def cli():
     """Run the CLI as a user would: a fresh subprocess, never imported internals."""
 
-    def run(*args, cwd=ROOT):
-        env = os.environ.copy()
-        env["PYTHONPATH"] = str(ROOT) + (
-            os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    def run(*args, cwd=ROOT, env=None):
+        child_env = os.environ.copy()
+        child_env["PYTHONPATH"] = str(ROOT) + (
+            os.pathsep + child_env["PYTHONPATH"] if child_env.get("PYTHONPATH") else ""
         )
+        if env:
+            child_env.update(env)
         return subprocess.run(
             [sys.executable, "-m", "academic_digest", *map(str, args)],
             cwd=cwd,
-            env=env,
+            env=child_env,
             capture_output=True,
             text=True,
             timeout=60,
@@ -41,7 +43,9 @@ def paths(tmp_path):
     }
 
 
-def run_collect(cli, paths, fixture, *, config=None, out=None, fixtures_dir=None, now=NOW):
+def run_collect(
+    cli, paths, fixture, *, config=None, out=None, fixtures_dir=None, now=NOW, env=None
+):
     """Run ``collect`` against a fixture tree through the CLI seam."""
 
     root = Path(fixtures_dir) if fixtures_dir else FIXTURES / fixture
@@ -57,6 +61,7 @@ def run_collect(cli, paths, fixture, *, config=None, out=None, fixtures_dir=None
         out or paths["out"],
         "--state-db",
         paths["db"],
+        env=env,
     )
 
 

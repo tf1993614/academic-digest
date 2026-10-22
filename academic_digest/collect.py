@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import AbstractSet, Any
 
+from . import github
 from .config import Config
 from .dedupe import is_pushed, merge_duplicates
 from .matching import attach_topic
@@ -22,6 +23,7 @@ class CollectResult:
     now: datetime
     papers: list[Paper]
     sources: list[SourceResult]
+    github: github.Discovery | None = None
 
     @property
     def all_failed(self) -> bool:
@@ -40,7 +42,12 @@ def collect(
     pushed_keys: AbstractSet[str],
 ) -> CollectResult:
     results: list[SourceResult] = []
+    discovery: github.Discovery | None = None
     for name in config.enabled_sources:
+        if name == github.NAME:
+            discovery = github.discover(config, fixtures_root, now)
+            results.append(discovery.result)
+            continue
         module = SOURCES[name]
         results.append(module.collect(config, fixtures_root, now))
 
@@ -58,12 +65,14 @@ def collect(
         pool_max=config.pool_max_items,
         today=config.local_date(now),
     )
-    return CollectResult(now=now, papers=papers, sources=results)
+    return CollectResult(
+        now=now, papers=papers, sources=results, github=discovery
+    )
 
 
 def build_payload(config: Config, result: CollectResult) -> dict[str, Any]:
     local_date = config.local_date(result.now)
-    return {
+    payload: dict[str, Any] = {
         "schema_version": 1,
         "generated_at": result.now.isoformat(),
         "date": local_date.isoformat(),
@@ -73,6 +82,9 @@ def build_payload(config: Config, result: CollectResult) -> dict[str, Any]:
         "candidate_count": len(result.papers),
         "papers": [paper.to_dict() for paper in result.papers],
     }
+    if result.github is not None:
+        payload["github"] = result.github.to_dict()
+    return payload
 
 
 def write_payload(path: Path, payload: dict[str, Any]) -> Path:

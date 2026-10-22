@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -16,6 +17,68 @@ DEFAULT_MAX_ITEMS = 30
 DEFAULT_STATE_DB = "state/academic-digest.sqlite3"
 DEFAULT_CANDIDATES = "out/candidates.json"
 
+# GitHub's discovery recipe, split by keyword group. These are the 22 queries
+# that feed the new/active repository passes; ``DEFAULT_G6_QUERIES`` feeds the
+# AI-tool block. A config may override either list.
+DEFAULT_GITHUB_QUERIES: Mapping[str, tuple[str, ...]] = {
+    "G1": (
+        "topic:aging",
+        "topic:multi-omics",
+    ),
+    "G2": (
+        "topic:single-cell",
+        "topic:spatial-transcriptomics",
+        "topic:single-cell-analysis",
+        '"spatial transcriptomics" in:name,description,readme',
+        '"cell type annotation" in:name,description,readme',
+        '"batch effect correction" in:name,description,readme',
+        "MERFISH in:name,description,readme",
+        "CITE-seq in:name,description,readme",
+        '"cell-cell communication" in:name,description,readme',
+    ),
+    "G3": (
+        '"single-cell foundation model" in:name,description,readme',
+        "CellVQ in:name,description,readme",
+        "ESM-2 in:name,description,readme",
+    ),
+    "G4": (
+        "topic:gene-regulatory-network",
+        '"perturbation prediction" in:name,description,readme',
+        '"protein imputation" in:name,description,readme',
+    ),
+    "G5": (
+        "topic:knowledge-graph",
+        "topic:graph-neural-network",
+        '"virtual cell" in:name,description,readme',
+        "LLM single-cell in:name,description,readme",
+        "GraphRAG in:name,description,readme",
+    ),
+}
+DEFAULT_G6_QUERIES: tuple[str, ...] = (
+    "topic:claude-code",
+    '"claude code" in:name,description,readme',
+    "topic:codex",
+    '"codex cli" in:name,description,readme',
+    '"openai codex" in:name,description,readme',
+    "topic:deepseek-harness",
+    '"deepseek harness" in:name,description,readme',
+    '"DSH harness" in:name,description,readme',
+    "topic:ai-coding-agent",
+    "topic:coding-agent",
+    '"agent harness" in:name,description,readme',
+    '"terminal agent" in:name,description,readme',
+)
+DEFAULT_G6_TOPIC = "G6"
+DEFAULT_GITHUB_TOKEN_ENV = "GITHUB_TOKEN"
+DEFAULT_NEW_DAYS = 7
+DEFAULT_NEW_MIN_STARS = 5
+DEFAULT_NEW_MAX_ITEMS = 1
+DEFAULT_ACTIVE_DAYS = 7
+DEFAULT_ACTIVE_MIN_STARS = 30
+DEFAULT_ACTIVE_MAX_ITEMS = 2
+DEFAULT_G6_MAX_ITEMS = 2
+DEFAULT_README_LIMIT = 20
+
 KNOWN_SOURCES = (
     "pubmed",
     "europepmc",
@@ -23,10 +86,13 @@ KNOWN_SOURCES = (
     "researchsquare",
     "biorxiv",
     "medrxiv",
+    "github",
 )
 # arXiv merges Friday-Monday submissions into one announcement, so a window
-# shorter than four days silently loses the weekend batch.
+# shorter than four days silently loses the weekend batch. GitHub carries its
+# own new/active windows under ``github.new.days`` and ``github.active.days``.
 MIN_LOOKBACK = {"arxiv": 4}
+_SOURCES_WITHOUT_LOOKBACK = {"github"}
 _TOP_LEVEL_KEYS = {
     "timezone",
     "lookback",
@@ -35,11 +101,24 @@ _TOP_LEVEL_KEYS = {
     "pool",
     "paths",
     "arxiv",
+    "github",
 }
 _TOPIC_KEYS = {"name", "label", "terms", "exclude", "max_items"}
 _POOL_KEYS = {"max_items"}
 _PATH_KEYS = {"state_db", "candidates"}
 _ARXIV_KEYS = {"categories"}
+_GITHUB_KEYS = {
+    "token_env",
+    "g6_topic",
+    "new",
+    "active",
+    "g6",
+    "readme_limit",
+    "queries",
+    "g6_queries",
+}
+_GITHUB_WINDOW_KEYS = {"days", "min_stars", "max_items"}
+_GITHUB_G6_KEYS = {"max_items"}
 
 
 @dataclass(frozen=True)
@@ -52,6 +131,43 @@ class Topic:
 
 
 @dataclass(frozen=True)
+class DiscoveryWindow:
+    """One GitHub discovery pass: how far back, how many stars, how many slots."""
+
+    days: int
+    min_stars: int
+    max_items: int
+
+
+@dataclass(frozen=True)
+class GithubConfig:
+    token_env: str
+    g6_topic: str
+    new: DiscoveryWindow
+    active: DiscoveryWindow
+    g6_max_items: int
+    readme_limit: int
+    # Keyword group -> server-side discovery queries, in configuration order.
+    queries: Mapping[str, tuple[str, ...]]
+    g6_queries: tuple[str, ...]
+
+    def query_pairs(self, topics: tuple[Topic, ...]) -> list[tuple[str, str]]:
+        """Every discovery query with the group it belongs to.
+
+        Groups follow the configured topic order so a reordered YAML mapping
+        still records and replays its requests in the same order.
+        """
+
+        pairs = [
+            (topic.name, query)
+            for topic in topics
+            for query in self.queries.get(topic.name, ())
+        ]
+        pairs.extend((self.g6_topic, query) for query in self.g6_queries)
+        return pairs
+
+
+@dataclass(frozen=True)
 class Config:
     path: Path
     timezone: str
@@ -59,6 +175,7 @@ class Config:
     topics: tuple[Topic, ...]
     sources: Mapping[str, bool]
     arxiv_categories: tuple[str, ...]
+    github: GithubConfig
     pool_max_items: int
     state_db: Path
     candidates_path: Path
@@ -98,8 +215,11 @@ def load_config(path: Path) -> Config:
     lookback = _parse_lookback(raw.get("lookback"), sources)
     arxiv_categories = _parse_arxiv(raw.get("arxiv"), sources)
     topics = _parse_topics(raw.get("topics"))
+    github = _parse_github(raw.get("github"), topics)
     pool_max_items = _parse_pool(raw.get("pool"), len(topics))
     state_db, candidates_path = _parse_paths(raw.get("paths"), path.parent)
+    if sources.get("github"):
+        _require_github_token(github.token_env)
 
     return Config(
         path=path,
@@ -108,6 +228,7 @@ def load_config(path: Path) -> Config:
         topics=topics,
         sources=sources,
         arxiv_categories=arxiv_categories,
+        github=github,
         pool_max_items=pool_max_items,
         state_db=state_db,
         candidates_path=candidates_path,
@@ -132,7 +253,7 @@ def _parse_sources(value: Any) -> dict[str, bool]:
 
 
 def _parse_lookback(value: Any, sources: Mapping[str, bool]) -> dict[str, int]:
-    mapping = _require_mapping(value, "lookback")
+    mapping = _require_mapping(value if value is not None else {}, "lookback")
     lookback: dict[str, int] = {}
     for name, days in mapping.items():
         field = f"lookback.{name}"
@@ -148,7 +269,7 @@ def _parse_lookback(value: Any, sources: Mapping[str, bool]) -> dict[str, int]:
             )
         lookback[name] = days
     for name, enabled in sources.items():
-        if enabled and name not in lookback:
+        if enabled and name not in lookback and name not in _SOURCES_WITHOUT_LOOKBACK:
             raise ConfigError(f"lookback.{name}", f"is required when the {name} source is enabled")
     return lookback
 
@@ -170,6 +291,135 @@ def _parse_arxiv(value: Any, sources: Mapping[str, bool]) -> tuple[str, ...]:
         mapping.get("categories"), "arxiv.categories", allow_empty=False
     )
     return tuple(dict.fromkeys(categories))
+
+
+def _parse_github(value: Any, topics: tuple[Topic, ...]) -> GithubConfig:
+    """Parse the optional ``github`` section, filling the documented defaults."""
+
+    topic_names = tuple(topic.name for topic in topics)
+    mapping = _require_mapping(value if value is not None else {}, "github")
+    _reject_unknown(mapping, _GITHUB_KEYS, "github")
+
+    token_env = _require_string(
+        mapping.get("token_env", DEFAULT_GITHUB_TOKEN_ENV), "github.token_env"
+    )
+    g6_topic = _require_string(
+        mapping.get("g6_topic", DEFAULT_G6_TOPIC), "github.g6_topic"
+    )
+    new = _parse_github_window(
+        mapping.get("new"),
+        "github.new",
+        DiscoveryWindow(
+            days=DEFAULT_NEW_DAYS,
+            min_stars=DEFAULT_NEW_MIN_STARS,
+            max_items=DEFAULT_NEW_MAX_ITEMS,
+        ),
+    )
+    active = _parse_github_window(
+        mapping.get("active"),
+        "github.active",
+        DiscoveryWindow(
+            days=DEFAULT_ACTIVE_DAYS,
+            min_stars=DEFAULT_ACTIVE_MIN_STARS,
+            max_items=DEFAULT_ACTIVE_MAX_ITEMS,
+        ),
+    )
+    g6_max_items = _parse_g6_max_items(mapping.get("g6"))
+    readme_limit = _positive_int(
+        mapping.get("readme_limit", DEFAULT_README_LIMIT), "github.readme_limit"
+    )
+    queries = _parse_github_queries(mapping.get("queries"), topic_names)
+    g6_queries = _parse_g6_queries(
+        mapping.get("g6_queries"), g6_topic, topic_names
+    )
+
+    return GithubConfig(
+        token_env=token_env,
+        g6_topic=g6_topic,
+        new=new,
+        active=active,
+        g6_max_items=g6_max_items,
+        readme_limit=readme_limit,
+        queries=queries,
+        g6_queries=g6_queries,
+    )
+
+
+def _parse_github_window(
+    value: Any, field: str, default: DiscoveryWindow
+) -> DiscoveryWindow:
+    if value is None:
+        return default
+    mapping = _require_mapping(value, field)
+    _reject_unknown(mapping, _GITHUB_WINDOW_KEYS, field)
+    return DiscoveryWindow(
+        days=_positive_int(mapping.get("days", default.days), f"{field}.days"),
+        min_stars=_non_negative_int(
+            mapping.get("min_stars", default.min_stars), f"{field}.min_stars"
+        ),
+        max_items=_non_negative_int(
+            mapping.get("max_items", default.max_items), f"{field}.max_items"
+        ),
+    )
+
+
+def _parse_g6_max_items(value: Any) -> int:
+    if value is None:
+        return DEFAULT_G6_MAX_ITEMS
+    mapping = _require_mapping(value, "github.g6")
+    _reject_unknown(mapping, _GITHUB_G6_KEYS, "github.g6")
+    return _non_negative_int(
+        mapping.get("max_items", DEFAULT_G6_MAX_ITEMS), "github.g6.max_items"
+    )
+
+
+def _parse_github_queries(
+    value: Any, topic_names: tuple[str, ...]
+) -> dict[str, tuple[str, ...]]:
+    if value is None:
+        # Only groups the config actually defines can be discovered.
+        return {
+            group: queries
+            for group, queries in DEFAULT_GITHUB_QUERIES.items()
+            if group in topic_names
+        }
+    mapping = _require_mapping(value, "github.queries")
+    queries: dict[str, tuple[str, ...]] = {}
+    for group, items in mapping.items():
+        field = f"github.queries.{group}"
+        if not isinstance(group, str) or group not in topic_names:
+            raise ConfigError(
+                field,
+                f"unknown topic (known: {', '.join(topic_names)})",
+            )
+        queries[group] = tuple(
+            _string_list(items, field, allow_empty=False)
+        )
+    return queries
+
+
+def _parse_g6_queries(
+    value: Any, g6_topic: str, topic_names: tuple[str, ...]
+) -> tuple[str, ...]:
+    if value is None:
+        # Without an AI-tool group the G6 section has nowhere to go.
+        return DEFAULT_G6_QUERIES if g6_topic in topic_names else ()
+    queries = tuple(_string_list(value, "github.g6_queries", allow_empty=True))
+    if queries and g6_topic not in topic_names:
+        raise ConfigError(
+            "github.g6_topic",
+            f"must name a configured topic (known: {', '.join(topic_names)})",
+        )
+    return queries
+
+
+def _require_github_token(token_env: str) -> None:
+    if not os.environ.get(token_env, "").strip():
+        raise ConfigError(
+            "github.token",
+            f"{token_env} is not set; a GitHub token is required for repository "
+            "discovery (put it in the local secrets file and export it before running)",
+        )
 
 
 def _parse_topics(value: Any) -> tuple[Topic, ...]:
@@ -264,6 +514,12 @@ def _require_string(value: Any, field: str) -> str:
 def _positive_int(value: Any, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ConfigError(field, "must be a positive integer")
+    return value
+
+
+def _non_negative_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ConfigError(field, "must be a non-negative integer")
     return value
 
 

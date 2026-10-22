@@ -2,10 +2,10 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 04：相关性排序 + 分组配额 + top 30 候选池**（在 Issue 01/02/03 的采集骨架上，把候选池从骨架排序换成完整的规则打分、分组配额与总上限）。后续的 GitHub、OA 全文、日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
+当前实现到 **Issue 05：GitHub 发现：22 条查询 + 新库/活跃库 + 本地打分**（在 Issue 01–04 的采集骨架上，加入 GitHub 新库、活跃库与 G6 区块（AI 工具 / Agent Harness））。后续的 OA 全文、日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)（前序：[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)（前序：[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -38,6 +38,18 @@ python3 -m pytest
 `tests/fixtures/ranking-freshness/`（新鲜度与同分排序）与
 `tests/fixtures/ranking-default-quota/`（每组默认 6 条）。
 
+GitHub 发现样例在 `tests/fixtures/github/`（只开启 GitHub，不含论文），运行时需要
+一个非空的 `GITHUB_TOKEN`；fixture 模式不会真的请求 GitHub：
+
+```bash
+GITHUB_TOKEN=test python3 scripts/collect.py \
+  --config tests/fixtures/github/config.yaml \
+  --fixtures tests/fixtures/github \
+  --now 2026-10-22T08:00:00+08:00 \
+  --out /tmp/github.json \
+  --state-db /tmp/github.sqlite3
+```
+
 也可以使用模块入口：`python3 -m academic_digest collect ...` 与
 `python3 -m academic_digest doctor ...`。
 
@@ -59,6 +71,10 @@ collect --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db 
 的 `search`（`resultType=core`）、arXiv 的 RSS 与 API、Research Square 的 RSS，以及按需
 开启的 bioRxiv/medRxiv `details` API 抓取。PubMed 摘要只从 XML 解析
 （JSON 模式会静默丢掉摘要）。
+
+启用 `sources.github` 时还会调用 GitHub Search API 抓取新库、活跃库与 G6 区块
+（AI 工具 / Agent Harness）的仓库；搜索请求串行、约 2 秒一次，带 User-Agent 与
+token。仓库不进入 `papers`，而是写入顶层 `github` 区块（见“GitHub 发现”）。
 
 PubMed 仍是主源，Europe PMC 用来补充预印本与缺失摘要。跨源去重按
 DOI > PMID > arXiv ID 匹配：任一强标识相同就合并为一条，PubMed 的摘要与
@@ -86,7 +102,8 @@ DOI > PMID > arXiv ID 匹配：任一强标识相同就合并为一条，PubMed 
 `sources.<name>.error` 和 stderr。只有全部启用源都失败才退出 1。
 
 `collect` 的 JSON 顶层包含 `schema_version`、`generated_at`、`date`、
-`timezone`、`lookback_days`、`sources`、`candidate_count` 和 `papers`。
+`timezone`、`lookback_days`、`sources`、`candidate_count` 和 `papers`；启用
+GitHub 时还有一个 `github` 区块。
 `sources` 逐源给出计数与失败状态：
 
 ```json
@@ -150,6 +167,77 @@ tie-break，因此固定 fixture 与 `--now` 每次得到完全相同的顺序�
 后再接入 PubMed/Europe PMC 的 `JOURNAL` 过滤并按白名单加分，见
 [11-journal-whitelist.md](.scratch/academic-digest/issues/11-journal-whitelist.md)。
 
+### GitHub 发现
+
+`sources.github: true` 时，`collect` 用 22 条发现查询（G1–G5）与 12 条 G6 查询
+各跑两遍 GitHub Search：
+
+- **新库**：`created:>7天前` + `stars:>=5`，每天最多 1 条；
+- **活跃库**：`pushed:>7天前` + `stars:>=30`，每天最多 2 条；
+- **G6 区块（AI 工具 / Agent Harness）**：Claude Code / Codex / DeepSeek Harness
+  等 12 条查询，最多 2 条，单独成块，不占论文席位。
+
+两遍都用 `sort=updated&order=desc`，只取第一页（`per_page=100`）；`sort=updated`
+翻页会错乱，增量场景只看第一页。搜索请求串行、间隔约 2 秒（认证后 30 次/分钟），
+每次带 User-Agent 与 token。token 从 `github.token_env`（默认 `GITHUB_TOKEN`）
+读取；启用 GitHub 却没有该环境变量时，配置校验在发请求前失败（退出码 2）。
+
+查询结果在本地过滤：fork、archived、stars 不足、`created` / `pushed` 落在窗口
+外的仓库都丢弃。仓库的分组来自返回它的查询，因此不会因为“没命中关键词”被丢掉。
+本地打分：
+
+- **相关性**（`relevance`）：该组关键词命中 full name / description / topics
+  每个 +3，只命中 README 的每个 +1。README 从 `raw.githubusercontent.com` 读取，
+  不占 API 配额；三个区块先各取自己最好的几个候选，再按 `github.readme_limit`
+  （默认 20）的总额度轮流分配读取，避免高分活跃库把新库/G6 的 README 挤掉。
+  没进入预算的候选仍参与选择，只是没有 README 加分。
+- **分数**（`score`）：相关性 + `round(2 × log10(stars))` + 最近 push 加分
+  （当天 +2、昨天 +1）。排序依次按 `score`、`stars`、`pushed_at`、`full_name`。
+
+每条仓库含 `full_name`、`url`、`description`、`positioning`（一句话定位；描述为空
+时取 README 首段）、`why`（命中的查询与关键词）、`stars`、`language`、
+`created_at`、`pushed_at`、`topics`、`group`、`query`、`tags`、`relevance`、
+`score` 与 `readme_url`。`new` / `active` / `g6` 三个区块都受上限约束，不足时不补
+空条目；已经作为新库出现的仓库不会重复占用活跃库席位，被 G6 查询命中的仓库
+只进 G6 区块（`found` 仍按各区块的合格候选数统计）。`positioning` 依次取仓库
+描述、README 首段，两者都没有时写成 `owner/repo（无描述）`，保证字段非空。
+
+启用 GitHub 时，`collect` 的顶层多一个 `github` 区块：
+
+```json
+"github": {
+  "passes": {
+    "new": {
+      "since": "2026-10-15",
+      "min_stars": 5,
+      "params": {"sort": "updated", "order": "desc", "per_page": 100},
+      "queries": ["topic:single-cell created:>2026-10-15 stars:>=5", "…"],
+      "results": 12
+    },
+    "active": {"since": "2026-10-15", "min_stars": 30, "queries": ["…"], "results": 9}
+  },
+  "limits": {"new": 1, "active": 2, "g6": 2},
+  "found": {"new": 2, "active": 5, "g6": 3},
+  "new": [{"full_name": "acme/cell-atlas"}],
+  "active": [],
+  "g6": []
+}
+```
+
+`passes.<pass>.queries` 是本次实际构造的完整查询（含日期与 star 门槛），用于审计；
+`found` 是上限截断前、也早于跨区块独占的合格仓库数（被 G6 命中的仓库仍计入
+new/active 的 `found`）。状态库不记录仓库，`sources.github` 只给 `status` 与入选
+总数；搜索失败时其余源照常产出候选。
+
+34 条查询各跑两遍 = 68 次搜索，按 2 秒间隔约 2–3 分钟。这会超过 spec 里
+“采集 30–90 秒”的目标，是有意取舍：22+12 条查询与 30 次/分钟的认证限速决定了
+请求数，整体运行仍在 2–4 分钟内。
+
+G6 官方库（`anthropics/claude-code`、`openai/codex`、
+`deepseek-ai/deepseek-harness`）的 release 跟踪在
+[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)。活跃库
+按 star 增量排序尚未实现，当前按上面的规则分排序。
+
 ### `doctor`
 
 ```text
@@ -160,11 +248,13 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 
 - `--fixtures DIR`：解析 `DIR/pubmed/esearch.xml` + `DIR/pubmed/efetch.xml`、
   `DIR/europepmc/search.json`、`DIR/arxiv/rss/<category>.xml`、
-  `DIR/researchsquare/rss.xml`，以及启用时的 `DIR/biorxiv/details-0.json` /
-  `DIR/medrxiv/details-0.json`；缺文件或内容损坏时非零退出。
+  `DIR/researchsquare/rss.xml`，启用时的 `DIR/biorxiv/details-0.json` /
+  `DIR/medrxiv/details-0.json`，以及启用 GitHub 时的
+  `DIR/github/search/{new,active}/<index>.json`（README 可选，位于
+  `DIR/github/readme/<owner>__<repo>.md`）；缺文件或内容损坏时非零退出。
 - 不带 `--fixtures`：向每个启用源各发一个轻量请求检查连通性（PubMed
   E-utilities、Europe PMC REST API、arXiv RSS、Research Square RSS、
-  bioRxiv/medRxiv API）。
+  bioRxiv/medRxiv API、GitHub `/rate_limit`，并报告剩余 search 配额）。
 
 坏配置会以非零退出，并在 stderr 指出具体字段，例如
 `[fail] topics: must be a non-empty list`。
@@ -191,11 +281,22 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
   `max_items`。`name` 唯一，`terms` 非空。`max_items` 是该组在候选池里的席位
   上限（例如 G2 为 4）；每个有候选的组仍至少保留其最高分的一条。
 - `sources`：数据源开关；支持 `pubmed`、`europepmc`、`arxiv`、
-  `researchsquare`、`biorxiv`、`medrxiv`。必须显式写出 `sources.pubmed`
+  `researchsquare`、`biorxiv`、`medrxiv`、`github`。必须显式写出 `sources.pubmed`
   （可设 true/false），且至少要启用一个源；未写出的源视为关闭，
-  因此 bioRxiv/medRxiv 默认关闭。
+  因此 bioRxiv/medRxiv 默认关闭。GitHub 不需要 `lookback`，它用自己的
+  `github.new.days` / `github.active.days`。
 - `arxiv.categories`：启用 arXiv 时必填的非空分类列表（例如 `cs.LG`、
   `q-bio.QM`），每个分类读一个 RSS；不启用时可省略。
+- `github.token_env`：读取 GitHub token 的环境变量名，默认 `GITHUB_TOKEN`；
+  启用 `sources.github` 时必须能读到非空值，否则配置校验失败。token 不写入
+  Prompt、日志或候选池。
+- `github.queries`：组名到检索词的映射，默认是 22 条 G1–G5 发现查询，只保留配置
+  里实际存在的组。`github.g6_queries` 是 G6 区块的 12 条生态查询，
+  `github.g6_topic` 指定它们归入哪个组（默认 `G6`；没有该组时省略默认 G6 查询）。
+- `github.new` / `github.active`：各含 `days`、`min_stars` 与 `max_items`（默认
+  7 天 / 5 星 / 1 条，以及 7 天 / 30 星 / 2 条）；`github.g6.max_items` 默认 2。
+- `github.readme_limit`：每次最多读多少个 README，默认 20；按 new / active / G6
+  三个区块轮流分配，每个区块先取自己最好的 `max_items + 3` 个候选。
 - `pool.max_items`：候选池总数上限，默认 30，必须不少于 `topics` 数量
   （保证每个非空组至少 1 条）；候选不足时不补空条目。
 - `paths.state_db` / `paths.candidates`：相对路径按配置文件所在目录解析。
@@ -266,6 +367,11 @@ tests/fixtures/
 ├── ranking-default-quota/   # 未写 max_items：默认每组 6 条
 │   ├── config.yaml
 │   └── europepmc/search.json
+├── github/                  # GitHub 新库/活跃库/G6：录制搜索响应 + 可选 README
+│   ├── config.yaml          # 仅 GitHub；2 条发现查询 + 2 条 G6 查询
+│   ├── github/search/new/0.json … 3.json
+│   ├── github/search/active/0.json … 3.json
+│   └── github/readme/acme__cell-atlas.md
 └── configs/                 # 坏配置
     ├── arxiv-lookback.yaml       # lookback.arxiv < 4
     ├── arxiv-no-categories.yaml  # 启用 arxiv 但缺分类

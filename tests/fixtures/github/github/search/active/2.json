@@ -1,0 +1,26 @@
+{
+  "total_count": 1,
+  "incomplete_results": false,
+  "items": [
+    {
+      "full_name": "acme/codex-tool",
+      "name": "codex-tool",
+      "owner": {
+        "login": "acme"
+      },
+      "html_url": "https://github.com/acme/codex-tool",
+      "description": "OpenAI Codex CLI wrapper",
+      "stargazers_count": 500,
+      "language": "Go",
+      "created_at": "2024-07-01T08:00:00Z",
+      "pushed_at": "2026-10-21T11:00:00Z",
+      "updated_at": "2026-10-21T11:00:00Z",
+      "topics": [
+        "codex"
+      ],
+      "fork": false,
+      "archived": false,
+      "default_branch": "main"
+    }
+  ]
+}

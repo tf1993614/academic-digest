@@ -95,6 +95,7 @@ def get_text(
     timeout: int,
     user_agent: str,
     error: str,
+    headers: Mapping[str, str] | None = None,
 ) -> str:
     """GET a URL and return its body, turning network failures into source errors."""
 
@@ -103,11 +104,14 @@ def get_text(
     except ImportError as exc:  # pragma: no cover - requests is a declared dependency
         raise SourceError("requests is not installed") from exc
 
+    request_headers = {"User-Agent": user_agent}
+    if headers:
+        request_headers.update(headers)
     try:
         response = requests.get(
             url,
             params=params,
-            headers={"User-Agent": user_agent},
+            headers=request_headers,
             timeout=timeout,
         )
         response.raise_for_status()
