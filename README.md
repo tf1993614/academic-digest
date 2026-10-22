@@ -2,10 +2,10 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 07：OA 全文能力**，并补上 **Issue 06：GitHub release 跟踪**（在 Issue 01–05 的采集、去重、排序与 GitHub 发现骨架上，加入关注库与 Claude Code / Codex / DSH 官方库的 release）。后续的 Issue 08 日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
+当前实现到 **Issue 08：日报与 selection 契约**，并补上 **Issue 07：OA 全文能力** 与 **Issue 06：GitHub release 跟踪**（在 Issue 01–05 的采集、去重、排序与 GitHub 发现骨架上，加入预印本版本匹配、关注库与 Claude Code / Codex / DSH 官方库的 release，以及 `3 + 7` 日报的离线校验）。后续的 Server酱 推送按 `.scratch/academic-digest/issues/` 继续补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -32,7 +32,13 @@ python3 scripts/fulltext.py \
   --doi 10.1000/oa-epmc.1 \
   --out /tmp/fulltext.json
 
-# 4. 跑测试（全部通过 CLI 子进程，离线、固定 --now）
+# 4. 校验模型写的 selection 与日报（离线，只读三个文件）
+python3 scripts/digest.py check \
+  --candidates tests/fixtures/digest/valid/candidates.json \
+  --selection tests/fixtures/digest/valid/selection.json \
+  --digest tests/fixtures/digest/valid/digest.md
+
+# 5. 跑测试（全部通过 CLI 子进程，离线、固定 --now）
 python3 -m pytest
 ```
 
@@ -63,11 +69,16 @@ repo + 3 个官方库的录制 release；把上面两条命令里的 `tests/fixt
 
 OA 全文样例在 `tests/fixtures/fulltext/`：`epmc/`（EPMC OA XML）、
 `arxiv-html/`、`arxiv-pdf/`、`biorxiv/`、`researchsquare/`（PDF）、
-`unpaywall/`（定位 OA 版本）与 `no-oa/`（Unpaywall 明确无 OA）。
+`unpaywall/`（定位 OA 版本）、`no-oa/`（Unpaywall 明确无 OA），以及
+`title-match/` / `title-mismatch/` / `arxiv-title/`（按标题匹配预印本与
+DOI→arXiv 交叉检索）。
+
+日报样例在 `tests/fixtures/digest/`：`valid/` 是合格的 3 + 7 日报（含 GitHub 三种
+模式与 G6），`empty/` 是标题 + 页脚的空日报。
 
 也可以使用模块入口：`python3 -m academic_digest collect ...`、
-`python3 -m academic_digest fulltext ...` 与
-`python3 -m academic_digest doctor ...`。
+`python3 -m academic_digest fulltext ...`、`python3 -m academic_digest digest check ...`
+与 `python3 -m academic_digest doctor ...`。
 
 ## 命令
 
@@ -322,10 +333,10 @@ new / active / G6 仓库，release 的入选数看 `releases.starred` 与 `g6_re
 ### `fulltext`
 
 ```text
-fulltext --config PATH [--fixtures DIR] (--doi DOI | --arxiv ID) [--out PATH]
+fulltext --config PATH [--fixtures DIR] (--doi DOI | --arxiv ID | --title TITLE) [--out PATH]
 ```
 
-给定 DOI 或 arXiv ID，按固定顺序找 OA 全文并抽取方法/结果/局限段落：
+给定 DOI、arXiv ID 或标题，按固定顺序找 OA 全文并抽取方法/结果/局限段落：
 
 1. Europe PMC `fullTextXML`（先用 DOI 查 PMC id，再取 OA XML）；
 2. arXiv HTML（`arxiv.org/html/<id>`），失败或没有可用章节时再试 arXiv PDF；
@@ -333,6 +344,17 @@ fulltext --config PATH [--fixtures DIR] (--doi DOI | --arxiv ID) [--out PATH]
    试对应预印本 PDF；
 4. Unpaywall 的 `best_oa_location` / `oa_locations`（需要
    `fulltext.unpaywall.email`；留空时完全跳过这一步，不记为失败）。
+
+`--title` 是可选的补充输入，用来提高今日必读的全文覆盖率，不改变输出 key：
+
+- 无论是否给出 `--title`，DOI 形如 `10.48550/arXiv.<id>` 时都直接映射到 arXiv ID，
+  无需额外请求；
+- 给出 `--title` 时，先用标题对 arXiv API 做精确匹配（`ti:"<title>"`），再按
+  标题查 Europe PMC 的 `TITLE:"<title>"`；只有规范化后标题完全一致的记录才会被
+  接受，近似标题会被忽略。由此得到的 arXiv ID / 预印本 DOI（bioRxiv、medRxiv、
+  Research Square、arXiv DOI）会在 arXiv 与 Unpaywall 之间尝试，因此期刊 DOI
+  也能找到对应的预印本全文。匹配失败只是少一条候选路径，不新增 `attempts`，
+  也不影响 `no_oa` 的退出码 0。
 
 `--fixtures DIR` 下按 `<source>/...` 读取录制响应：
 `europepmc/doi-search.json` + `europepmc/fulltext.xml`、`arxiv/fulltext.html` 或
@@ -347,13 +369,117 @@ fulltext --config PATH [--fixtures DIR] (--doi DOI | --arxiv ID) [--out PATH]
 （1）才非零退出。
 
 `fulltext` 是单篇命令；`collect` 不调用它。日报写入阶段只对“今日必读”top 3 逐篇
-调用（Issue 08）。本 ticket 的输入只有 DOI / arXiv ID；按标题匹配预印本版本与
-DOI→arXiv 交叉检索留到日报契约阶段，当前只按 DOI 前缀匹配 bioRxiv/medRxiv/
-Research Square 的预印本 PDF。
+调用，并传入候选的 `title`，让预印本版本匹配生效；`quick_scan` 只使用候选池摘要，
+不再调用全文。`--title` 可由已有 `--doi` / `--arxiv` 补充，也可以单独给出（例如
+候选只有标题时）。
 
 `length` 是三个段落数组的总字符数；方法、结果、局限分别最多 4/3/4 段，并按
 4000/3000/2000 字符截断，截断点优先落在窗口后半段的句号处；句号不合适时退回词边界。PDF 用
 PyMuPDF（AGPL-3.0，仅本机自用），HTML 用 beautifulsoup4 + lxml。
+
+### `digest check`
+
+```text
+digest check --candidates PATH --selection PATH --digest PATH
+```
+
+写作阶段由会话模型读 `candidates.json`，写出 `selection.json` 与 `digest.md`；
+`digest check` 只读这三个文件，拒绝结构或配额不合格的结果。它不读配置、不联网、
+不访问状态库，也不需要 secrets，因此可以在 `push` 之前独立运行。
+
+退出码：`0` 合格；`1` 内容不合格、JSON/Markdown 无法解析或文件不可读；`2` 缺参数
+或参数非法。第一条违规写到 stderr，前缀是 `[fail] selection: …`、
+`[fail] digest: …` 或（候选池本身损坏时）`[fail] candidates: …`。
+
+**`selection.json`**（模型写，`digest check` 读）：
+
+```json
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "papers": [
+    {
+      "id": "doi:10.1000/digest-g1-1",
+      "group": "G1",
+      "section": "must_read",
+      "reason": "一句入选理由",
+      "fulltext": "oa",
+      "limitations_source": ["author", "model"]
+    }
+  ]
+}
+```
+
+- `section`：`must_read` / `quick_scan`；`fulltext`：`oa` / `abstract_only`。
+- `quick_scan` 只能是 `abstract_only`；`must_read` 的 `limitations_source` 必须含
+  `model`，且整个列表是 `author` / `model` 的非空子集。
+- `id` 必须存在于 `candidates.papers`，`group` 必须与候选一致；同一 id 不能重复。
+- 目标数量：`must_read = min(3, n)`、`quick_scan = min(7, n - 实际 must_read)`，
+  总数 `min(10, n)`，不补空。G2 最多 4 篇；除 G2/G6 外，候选池里出现的每个组至少
+  要有一篇入选。G6 论文最多 1 篇且只能进 `quick_scan`，所以当候选池里少于 3 篇
+  非 G6 论文时，`must_read` 允许少于 `min(3, n)`。G2 的 4 篇上限或 G6 的 1 篇
+  上限导致无法达到 `quick_scan` 目标时，也允许少于目标；除此之外必须补齐。
+- GitHub/G6 的选择不写进 `selection.json`：它们由 `candidates.json` 的 `github.*`
+  决定，模型原样写进日报。
+
+**`digest.md`** 的固定结构：
+
+```markdown
+# 学术速递 · 2026-10-22
+> 关键词：… ｜ 新论文 N 篇，精选 M 篇 ｜ GitHub K 个
+
+## 今日必读
+### 1. <标题>
+- 标签：`tag1` `tag2`
+- 摘要：3–5 句
+- 局限性：1–3 条
+- 方法精读：2–4 句
+- [原文](url) · [PDF](oa_url)
+
+## 其它速览
+- **<标题>** — `tag1` `tag2` · 摘要：1–2 句 · 局限性：1 句 · [链接](url)
+
+## GitHub
+### 新项目
+- **owner/repo** ⭐ N · 语言 · 最近更新 · 定位 · why · [链接](url)
+### 活跃项目
+- …
+### 关注项目的新 release
+- **owner/repo vX.Y** · 日期 · 更新要点 · [链接](url)
+
+## AI 工具 / Agent Harness
+- **owner/repo vX.Y**（官方 release，日期）· 更新要点 · [链接](url)
+- **owner/repo** ⭐ N · 语言 · 最近更新 · 定位 · why · [链接](url)
+
+---
+来源：pubmed ok (2) ｜ europepmc failed (…)
+候选：30 ｜ 入选：10 ｜ 生成：2026-10-22T08:00:00+08:00
+```
+
+`digest check` 的校验要点：
+
+- 标题日期与 `candidates.date` 一致；`来源：` 覆盖 `candidates.sources` 的每个源与
+  状态，且源名/状态必须出现在 `来源：` 到 `候选：` 之间；`候选：N` 等于
+  `candidate_count`，`入选：M` 等于 selection 的论文数，`生成：` 是可解析的
+  ISO8601 时间；页脚不得出现 `sctp` / `SendKey` / `GITHUB_TOKEN` /
+  `Authorization` 等密钥模式。
+- 今日必读每条必须有 `- 标签：`、`- 摘要：`、`- 局限性：`、`- 方法精读：` 与
+  `[原文]` 链接；其它速览每条一行，必须含 `摘要：`、`局限性：`、标签与链接。
+- `fulltext: oa` 的今日必读，方法精读不得写“无 OA 全文，仅基于摘要”；`fulltext:
+  abstract_only` 的今日必读必须写 `- 方法精读：无 OA 全文，仅基于摘要`。
+- 日报里的论文标题必须与候选 `title` 逐字一致（不翻译），同一标题只出现一次；
+  今日必读 / 其它速览的标题集合必须分别等于 selection 的两个分组。
+- `## GitHub` 逐项包含 `candidates.github` 的 `new`、`active`、
+  `releases.starred`，`## AI 工具 / Agent Harness` 包含 `g6` 与 `g6_releases`；
+  为空时省略对应区块。`g6` 的条数受 `candidates.github.limits.g6`（默认 2）约束，
+  `g6_releases` 每个官方库最多一条且不占这 2 条名额。每条 repo 必须写出
+  owner/repo、stars、语言、最近更新（`pushed_at` 的本地日期）、定位、why 与链接；
+  `language` 允许为空（GitHub 未识别语言时 `collect` 输出空串），此时语言一栏可写
+  占位符。release 必须写出 repo+tag、日期、更新要点与链接。
+
+`digest check` 不检查正文长度、32KB 拆分或 pending/未推送数；这些属于 Issue 09
+的 `push`。
 
 ### `doctor`
 
@@ -383,7 +509,7 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 | 退出码 | 含义 |
 |---|---|
 | `0` | 成功 |
-| `1` | 源、状态库、输出文件或自检失败 |
+| `1` | 源、状态库、输出文件、自检或日报校验失败 |
 | `2` | 配置或参数错误（尚未发起任何网络请求） |
 
 ## 配置
@@ -531,9 +657,35 @@ tests/fixtures/
 │   ├── truncation-chars/europepmc/  # 4000/3000/2000 字符句号截断
 │   │   ├── doi-search.json
 │   │   └── fulltext.xml
-│   └── no-oa/
-│       ├── europepmc/doi-search.json
-│       └── unpaywall/location.json
+│   ├── no-oa/
+│   │   ├── europepmc/doi-search.json
+│   │   └── unpaywall/location.json
+│   ├── title-match/          # 按标题找到另一个 DOI 的 bioRxiv 预印本
+│   │   ├── europepmc/title-search.json
+│   │   └── biorxiv/fulltext.pdf
+│   ├── title-mismatch/       # 只有近似标题：不得被接受
+│   │   ├── europepmc/title-search.json
+│   │   └── biorxiv/fulltext.pdf
+│   └── arxiv-title/          # DOI→arXiv 交叉检索与 10.48550 DOI 直映
+│       ├── arxiv/title-search.atom
+│       └── arxiv/fulltext.html
+├── digest/
+│   ├── valid/                # 合格：3 + 7、G2 = 4、GitHub/G6 齐全
+│   │   ├── candidates.json
+│   │   ├── selection.json
+│   │   └── digest.md
+│   ├── empty/                # 空候选：标题 + 页脚也合格
+│   │   ├── candidates.json
+│   │   ├── selection.json
+│   │   └── digest.md
+│   ├── g6-short-pool/        # 只有 1 篇非 G6 论文：must_read 可为 1
+│   │   ├── candidates.json
+│   │   ├── selection.json
+│   │   └── digest.md
+│   └── g6-quick-only/        # 非 G6 论文全塞进其它速览：必须失败
+│       ├── candidates.json
+│       ├── selection.json
+│       └── digest.md
 └── configs/                 # 坏配置
     ├── arxiv-lookback.yaml       # lookback.arxiv < 4
     ├── arxiv-no-categories.yaml  # 启用 arxiv 但缺分类
@@ -583,8 +735,8 @@ scripts/review-patch.sh   # -> out/review/current.diff 等
 规则见 `docs/agents/code-review.md`，审查侧的判断标准见 `CODING_STANDARDS.md`。
 
 唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `fulltext` /
-`doctor`，断言退出码、stderr 与输出文件，不导入内部实现。所有测试离线且固定
-`--now`。
+`digest check` / `doctor`，断言退出码、stderr 与输出文件，不导入内部实现。所有
+测试离线且固定 `--now`；`digest check` 与 `fulltext --fixtures` 不触碰网络。
 
 `push` 命令（Issue 09）落地前，“已推送”状态由测试直接向 SQLite `pushes`
 表写入一行作为前置数据；断言仍只来自 CLI 输出，不导入内部实现。

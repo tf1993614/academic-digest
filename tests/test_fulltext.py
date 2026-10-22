@@ -208,7 +208,7 @@ def test_fulltext_requires_a_target(cli, paths):
     )
 
     assert result.returncode == 2
-    assert "--doi or --arxiv" in result.stderr
+    assert "--doi, --arxiv or --title" in result.stderr
 
 
 def test_invalid_unpaywall_email_fails_before_any_fetch(cli, paths):
@@ -464,3 +464,120 @@ def test_arxiv_miss_falls_through_to_the_preprint_pdf(cli, paths, tmp_path):
         "miss",
         "ok",
     ]
+
+
+def test_title_matches_a_preprint_version_with_a_different_doi(cli, paths):
+    result = cli(
+        "fulltext",
+        "--config",
+        CONFIG,
+        "--fixtures",
+        FIXTURES / "fulltext" / "title-match",
+        "--title",
+        "Aging brains at single-cell resolution",
+        "--out",
+        paths["out"],
+    )
+
+    assert result.returncode == 0, result.stderr
+    data = _result(paths)
+
+    assert data["status"] == "oa"
+    assert data["source"] == "biorxiv"
+    assert data["doi"] == "10.1101/2026.10.20.777777"
+    assert data["url"] == (
+        "https://www.biorxiv.org/content/10.1101/2026.10.20.777777.full.pdf"
+    )
+    assert [attempt["source"] for attempt in data["attempts"]] == ["biorxiv"]
+
+
+def test_title_matching_requires_an_exact_title(cli, paths):
+    result = cli(
+        "fulltext",
+        "--config",
+        CONFIG,
+        "--fixtures",
+        FIXTURES / "fulltext" / "title-mismatch",
+        "--title",
+        "Aging brains at single-cell resolution",
+        "--out",
+        paths["out"],
+    )
+
+    assert result.returncode == 0, result.stderr
+    data = _result(paths)
+
+    assert data["status"] == "no_oa"
+    assert data["attempts"] == []
+
+
+def test_a_doi_finds_its_arxiv_version_through_the_title(cli, paths):
+    result = cli(
+        "fulltext",
+        "--config",
+        CONFIG,
+        "--fixtures",
+        FIXTURES / "fulltext" / "arxiv-title",
+        "--doi",
+        "10.1000/journal.1",
+        "--title",
+        "Single-cell foundation models for perturbation prediction",
+        "--out",
+        paths["out"],
+    )
+
+    assert result.returncode == 0, result.stderr
+    data = _result(paths)
+
+    assert data["status"] == "oa"
+    assert data["source"] == "arxiv"
+    assert data["arxiv_id"] == "2610.44444"
+    assert data["url"] == "https://arxiv.org/html/2610.44444"
+    assert [attempt["source"] for attempt in data["attempts"]] == [
+        "europepmc",
+        "arxiv",
+    ]
+
+
+def test_an_arxiv_doi_maps_directly_to_the_arxiv_id(cli, paths):
+    result = cli(
+        "fulltext",
+        "--config",
+        CONFIG,
+        "--fixtures",
+        FIXTURES / "fulltext" / "arxiv-title",
+        "--doi",
+        "10.48550/arXiv.2610.44444",
+        "--out",
+        paths["out"],
+    )
+
+    assert result.returncode == 0, result.stderr
+    data = _result(paths)
+
+    assert data["status"] == "oa"
+    assert data["source"] == "arxiv"
+    assert data["arxiv_id"] == "2610.44444"
+
+
+def test_a_title_only_lookup_returns_no_oa_when_nothing_matches(cli, paths, tmp_path):
+    empty = tmp_path / "empty-fixtures"
+    empty.mkdir()
+
+    result = cli(
+        "fulltext",
+        "--config",
+        CONFIG,
+        "--fixtures",
+        empty,
+        "--title",
+        "Nothing matches this title",
+        "--out",
+        paths["out"],
+    )
+
+    assert result.returncode == 0, result.stderr
+    data = _result(paths)
+
+    assert data["status"] == "no_oa"
+    assert data["attempts"] == []

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Learning to Read Across Single-Cell Atlases</title>
+  </head>
+  <body>
+    <article class="ltx_document">
+      <h1 class="ltx_title ltx_title_document">Learning to Read Across Single-Cell Atlases</h1>
+      <div class="ltx_authors">Wei Zhang, Na Li</div>
+
+      <section class="ltx_section">
+        <h2 class="ltx_title ltx_title_section">Abstract</h2>
+        <p class="ltx_p">We study representation transfer across single-cell atlases from several tissues.</p>
+      </section>
+
+      <section class="ltx_section">
+        <h2 class="ltx_title ltx_title_section">1 Introduction</h2>
+        <p class="ltx_p">Understanding cell states across tissues is a central problem in computational biology.</p>
+      </section>
+
+      <section class="ltx_section">
+        <h2 class="ltx_title ltx_title_section">2 Methods</h2>
+        <p class="ltx_p">We trained a graph neural network on 12,000 single-cell profiles using a contrastive objective.</p>
+        <p class="ltx_p">The encoder uses a two-layer message-passing network and a batch-correction layer.</p>
+        <section class="ltx_subsection">
+          <h3 class="ltx_title ltx_title_subsection">2.1 Evaluation</h3>
+          <p class="ltx_p">We evaluated the model with five-fold cross-validation across three tissues.</p>
+        </section>
+      </section>
+
+      <section class="ltx_section">
+        <h2 class="ltx_title ltx_title_section">3 Results</h2>
+        <p class="ltx_p">The model achieved an AUROC of 0.91 on the held-out cohort, outperforming the baseline by 6 points.</p>
+      </section>
+
+      <section class="ltx_section">
+        <h2 class="ltx_title ltx_title_section">4 Discussion</h2>
+        <p class="ltx_p">Our results show that transfer improves rare-cell detection in held-out tissues.</p>
+        <section class="ltx_subsection">
+          <h3 class="ltx_title ltx_title_subsection">4.1 Limitations</h3>
+          <p class="ltx_p">A limitation of this work is that only three tissues were profiled, so generalization to other organs remains untested.</p>
+        </section>
+      </section>
+
+      <section class="ltx_section">
+        <h2 class="ltx_title ltx_title_section">References</h2>
+        <p class="ltx_p">Methods for single-cell analysis. Nature 2020.</p>
+      </section>
+    </article>
+  </body>
+</html>

@@ -81,6 +81,22 @@ def run_fulltext(cli, paths, fixture, *args, config=None, out=None):
     )
 
 
+def run_digest(cli, case):
+    """Run ``digest check`` against a fixture directory through the CLI seam."""
+
+    root = Path(case)
+    return cli(
+        "digest",
+        "check",
+        "--candidates",
+        root / "candidates.json",
+        "--selection",
+        root / "selection.json",
+        "--digest",
+        root / "digest.md",
+    )
+
+
 def enable_sources(root: Path, *names: str) -> None:
     """Turn sources on in a copied fixture's config before running the CLI."""
 

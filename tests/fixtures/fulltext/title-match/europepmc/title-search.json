@@ -1,0 +1,22 @@
+{
+  "version": "6.9",
+  "hitCount": 2,
+  "resultList": {
+    "result": [
+      {
+        "id": "PPR222222",
+        "source": "PPR",
+        "doi": "10.21203/rs.3.rs-2222222/v1",
+        "title": "Aging brains at single-cell resolution: a commentary",
+        "abstractText": "A commentary that shares the query words but not the title."
+      },
+      {
+        "id": "PPR111111",
+        "source": "PPR",
+        "doi": "10.1101/2026.10.20.777777",
+        "title": "Aging brains at single-cell resolution",
+        "abstractText": "The preprint version of the journal article."
+      }
+    ]
+  }
+}

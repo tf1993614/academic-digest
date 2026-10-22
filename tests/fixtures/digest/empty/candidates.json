@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-22T08:00:00+08:00",
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "lookback_days": {
+    "pubmed": 2
+  },
+  "sources": {
+    "pubmed": {
+      "status": "ok",
+      "count": 0
+    }
+  },
+  "candidate_count": 0,
+  "papers": []
+}

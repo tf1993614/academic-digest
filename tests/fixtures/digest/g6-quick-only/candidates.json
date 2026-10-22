@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-22T08:00:00+08:00",
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "lookback_days": {
+    "pubmed": 2,
+    "europepmc": 2
+  },
+  "sources": {
+    "pubmed": {
+      "status": "ok",
+      "count": 1
+    },
+    "europepmc": {
+      "status": "ok",
+      "count": 1
+    }
+  },
+  "candidate_count": 2,
+  "papers": [
+    {
+      "id": "doi:10.1000/digest-g1-1",
+      "group": "G1",
+      "source": "europepmc",
+      "title": "Aging multi-omics atlas of the mouse brain",
+      "authors": [
+        "Wei Zhang"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g1-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g1-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": "https://example.org/oa/digest-g1-1.pdf"
+    },
+    {
+      "id": "doi:10.1000/digest-g6-1",
+      "group": "G6",
+      "source": "europepmc",
+      "title": "Claude Code agent harness evaluation",
+      "authors": [
+        "Wei Zhang"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g6-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g6-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    }
+  ]
+}

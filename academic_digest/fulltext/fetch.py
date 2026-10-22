@@ -1,4 +1,4 @@
-"""Resolve a DOI or arXiv ID to an OA full text and extract key sections.
+"""Resolve a DOI, arXiv ID, or title to an OA full text and extract sections.
 
 Source order follows the spec: Europe PMC OA XML, arXiv HTML/PDF, the
 bioRxiv/medRxiv/Research Square preprint PDF, then Unpaywall's best OA
@@ -6,6 +6,12 @@ location. Every source failure is recorded as an attempt and the next source is
 tried; when nothing yields text the result is a ``no_oa`` status rather than an
 exception, because full text is an enhancement and must never block the daily
 digest.
+
+An optional ``title`` widens the resolution order for the day's must-read
+papers: a DOI that is itself an arXiv DOI maps directly to its arXiv ID, while
+a title is matched verbatim against the arXiv API and Europe PMC to discover a
+preprint version with a different DOI or an arXiv ID. The alternate DOIs are
+tried before Unpaywall and never add a new output key.
 
 Unpaywall needs a contact email. When none is configured its attempt is
 skipped, and a live lookup failure is reported without the request URL: that
@@ -16,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -23,13 +30,14 @@ from typing import Any, Callable
 
 from ..config import Config
 from ..errors import SourceError
-from ..models import normalize_arxiv_id, normalize_doi
+from ..models import normalize_arxiv_id, normalize_doi, normalize_title
 from ..sources.base import (
     get_bytes,
     get_text,
     read_or_fetch,
     read_or_fetch_bytes,
 )
+from ..sources.rss import child, children, element_text, local_name
 from .extract import extract_html, extract_pdf, extract_xml
 from .models import Attempt, Extracted, FullText, FullTextError
 
@@ -39,6 +47,7 @@ EPMC_FULLTEXT_URL = (
     "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 )
 EPMC_ARTICLE_URL = "https://europepmc.org/articles/{pmcid}"
+ARXIV_API_URL = "https://export.arxiv.org/api/query"
 ARXIV_HTML_URL = "https://arxiv.org/html/{arxiv_id}"
 ARXIV_PDF_URL = "https://arxiv.org/pdf/{arxiv_id}"
 UNPAYWALL_URL = "https://api.unpaywall.org/v2/{doi}"
@@ -47,12 +56,19 @@ MEDRXIV_PDF_URL = "https://www.medrxiv.org/content/{doi}.full.pdf"
 RESEARCHSQUARE_PDF_URL = (
     "https://www.researchsquare.com/article/{article}/latest.pdf"
 )
+ARXIV_DOI_PREFIX = "10.48550/arxiv."
+TITLE_LOOKUP_RESULTS = 5
 
 _FIXTURE_EPMC_SEARCH = "europepmc/doi-search.json"
+_FIXTURE_EPMC_TITLE_SEARCH = "europepmc/title-search.json"
 _FIXTURE_EPMC_FULLTEXT = "europepmc/fulltext.xml"
 _FIXTURE_ARXIV_HTML = "arxiv/fulltext.html"
 _FIXTURE_ARXIV_PDF = "arxiv/fulltext.pdf"
+_FIXTURE_ARXIV_TITLE_SEARCH = "arxiv/title-search.atom"
 _FIXTURE_UNPAYWALL = "unpaywall/location.json"
+
+_ABS_PATH = re.compile(r"/abs/([^/?#\s]+)")
+_TRAILING_PUNCTUATION = re.compile(r"[\s.。]+$")
 
 
 @dataclass(frozen=True)
@@ -96,6 +112,7 @@ def fetch(
     *,
     doi: str = "",
     arxiv_id: str = "",
+    title: str = "",
     config: Config,
     fixtures_root: Path | None,
 ) -> FullText:
@@ -103,7 +120,24 @@ def fetch(
 
     doi = normalize_doi(doi)
     arxiv_id = normalize_arxiv_id(arxiv_id)
+    title = (title or "").strip()
     attempts: list[Attempt] = []
+
+    # A DOI may itself name an arXiv paper; that is a free DOI→arXiv match.
+    if not arxiv_id:
+        arxiv_id = _arxiv_id_from_doi(doi)
+
+    alternate_dois: list[str] = []
+    if title:
+        if not arxiv_id:
+            arxiv_id = _arxiv_id_by_title(title, fixtures_root)
+        alternate_dois = _alternate_dois_by_title(title, doi, fixtures_root)
+        if not arxiv_id:
+            for alternate in alternate_dois:
+                derived = _arxiv_id_from_doi(alternate)
+                if derived:
+                    arxiv_id = derived
+                    break
 
     if doi:
         result = _attempt(
@@ -119,27 +153,166 @@ def fetch(
         if result is not None:
             return result
 
-    if doi:
-        for server in _preprint_sources(doi):
-            result = _attempt(
-                server.name,
-                attempts,
-                partial(_preprint_pdf, doi, server, fixtures_root),
-            )
-            if result is not None:
-                return result
+    preprint_dois = _preprint_dois(doi, alternate_dois)
+    for server in _preprint_servers(preprint_dois):
+        result = _attempt(
+            server.name,
+            attempts,
+            partial(_preprint_pdfs, server, preprint_dois, fixtures_root),
+        )
+        if result is not None:
+            return result
 
+    unpaywall_doi = doi or (preprint_dois[0] if preprint_dois else "")
+    if unpaywall_doi:
         email = config.fulltext.unpaywall_email
         if email:
             result = _attempt(
                 "unpaywall",
                 attempts,
-                partial(_unpaywall, doi, email, fixtures_root),
+                partial(_unpaywall, unpaywall_doi, email, fixtures_root),
             )
             if result is not None:
                 return result
 
     return _no_oa(doi, arxiv_id, attempts)
+
+
+def _arxiv_id_from_doi(doi: str) -> str:
+    if not doi.startswith(ARXIV_DOI_PREFIX):
+        return ""
+    return normalize_arxiv_id(doi[len(ARXIV_DOI_PREFIX) :])
+
+
+def _title_key(value: str) -> str:
+    return _TRAILING_PUNCTUATION.sub("", normalize_title(value))
+
+
+def _arxiv_id_by_title(title: str, fixtures_root: Path | None) -> str:
+    """Exact-title arXiv lookup, used for the DOI→arXiv cross-search.
+
+    arXiv's API has no DOI field, so the title is the bridge. Only an entry
+    whose normalized title matches verbatim is accepted, so a fuzzy result
+    cannot be mistaken for the paper.
+    """
+
+    try:
+        text = read_or_fetch(
+            fixtures_root,
+            _FIXTURE_ARXIV_TITLE_SEARCH,
+            partial(
+                _fetch_text,
+                ARXIV_API_URL,
+                {
+                    "search_query": f'ti:"{title}"',
+                    "start": "0",
+                    "max_results": str(TITLE_LOOKUP_RESULTS),
+                },
+                timeout=30,
+                error="arXiv title lookup failed",
+            ),
+        )
+    except (SourceError, OSError):
+        return ""
+
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError:
+        return ""
+    if local_name(root.tag) != "feed":
+        return ""
+    key = _title_key(title)
+    for entry in children(root, "entry"):
+        entry_title = element_text(child(entry, "title"))
+        if not entry_title or _title_key(entry_title) != key:
+            continue
+        match = _ABS_PATH.search(element_text(child(entry, "id")))
+        if match:
+            return normalize_arxiv_id(match.group(1))
+    return ""
+
+
+def _alternate_dois_by_title(
+    title: str, current_doi: str, fixtures_root: Path | None
+) -> list[str]:
+    """DOIs of title-matching Europe PMC records, best preprint versions first."""
+
+    try:
+        text = read_or_fetch(
+            fixtures_root,
+            _FIXTURE_EPMC_TITLE_SEARCH,
+            partial(
+                _fetch_text,
+                EPMC_SEARCH_URL,
+                {
+                    "query": f'TITLE:"{title}"',
+                    "format": "json",
+                    "resultType": "core",
+                    "pageSize": "10",
+                },
+                timeout=30,
+                error="Europe PMC title lookup failed",
+            ),
+        )
+    except (SourceError, OSError):
+        return []
+
+    try:
+        payload = _json_object(text, "Europe PMC title search")
+    except FullTextError:
+        return []
+    result_list = payload.get("resultList")
+    records = result_list.get("result") if isinstance(result_list, dict) else None
+    if not isinstance(records, list):
+        return []
+
+    key = _title_key(title)
+    found: list[str] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if _title_key(str(record.get("title") or "")) != key:
+            continue
+        value = normalize_doi(str(record.get("doi") or ""))
+        if value and value != current_doi and value not in found:
+            found.append(value)
+    return found
+
+
+def _preprint_dois(doi: str, alternate_dois: list[str]) -> list[str]:
+    candidates: list[str] = []
+    for value in ([doi] if doi else []) + alternate_dois:
+        if value and value not in candidates and _is_preprint_doi(value):
+            candidates.append(value)
+    return candidates
+
+
+def _is_preprint_doi(doi: str) -> bool:
+    return any(server.matches(doi) for server in _PREPRINT_SERVERS)
+
+
+def _preprint_servers(dois: list[str]) -> list[PreprintServer]:
+    return [
+        server
+        for server in _PREPRINT_SERVERS
+        if any(server.matches(doi) for doi in dois)
+    ]
+
+
+def _preprint_pdfs(
+    server: PreprintServer, dois: list[str], fixtures_root: Path | None
+) -> FullText:
+    """Try one server for every matching DOI and keep one attempt per server."""
+
+    problems: list[str] = []
+    for doi in dois:
+        if not server.matches(doi):
+            continue
+        try:
+            return _preprint_pdf(doi, server, fixtures_root)
+        except (FullTextError, SourceError, OSError) as exc:
+            problems.append(f"{doi}: {exc}")
+    raise FullTextError("; ".join(problems) or f"no {server.name} DOI to try")
 
 
 def _attempt(
@@ -333,10 +506,6 @@ def _arxiv(arxiv_id: str, fixtures_root: Path | None) -> FullText:
         problems.append(f"PDF: {exc}")
 
     raise FullTextError("; ".join(problems))
-
-
-def _preprint_sources(doi: str) -> list[PreprintServer]:
-    return [server for server in _PREPRINT_SERVERS if server.matches(doi)]
 
 
 def _preprint_pdf(

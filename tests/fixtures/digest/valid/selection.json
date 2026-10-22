@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "papers": [
+    {
+      "id": "doi:10.1000/digest-g1-1",
+      "group": "G1",
+      "section": "must_read",
+      "reason": "老化与多组学交叉，且有 OA 全文可精读",
+      "fulltext": "oa",
+      "limitations_source": [
+        "author",
+        "model"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g3-1",
+      "group": "G3",
+      "section": "must_read",
+      "reason": "单细胞基础模型的横向评测，方法价值高",
+      "fulltext": "oa",
+      "limitations_source": [
+        "model"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g5-1",
+      "group": "G5",
+      "section": "must_read",
+      "reason": "LLM 用于通路推理的新尝试",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author",
+        "model"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g1-2",
+      "group": "G1",
+      "section": "quick_scan",
+      "reason": "队列蛋白组补充老化的外周视角",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g2-1",
+      "group": "G2",
+      "section": "quick_scan",
+      "reason": "空间转录组在衰老皮层的直接应用",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author",
+        "model"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g2-2",
+      "group": "G2",
+      "section": "quick_scan",
+      "reason": "海马体细胞类型图谱补充空间维度",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g2-3",
+      "group": "G2",
+      "section": "quick_scan",
+      "reason": "空间组学的批次效应校正方法",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g2-4",
+      "group": "G2",
+      "section": "quick_scan",
+      "reason": "脑内细胞通讯与老化的关系",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g4-1",
+      "group": "G4",
+      "section": "quick_scan",
+      "reason": "图先验用于扰动预测",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g6-1",
+      "group": "G6",
+      "section": "quick_scan",
+      "reason": "Agent harness 的评测值得跟进",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author"
+      ]
+    }
+  ]
+}

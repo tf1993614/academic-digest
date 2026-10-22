@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "papers": [
+    {
+      "id": "doi:10.1000/digest-g1-1",
+      "group": "G1",
+      "section": "must_read",
+      "reason": "唯一非 G6 候选，且有 OA 全文",
+      "fulltext": "oa",
+      "limitations_source": [
+        "author",
+        "model"
+      ]
+    },
+    {
+      "id": "doi:10.1000/digest-g6-1",
+      "group": "G6",
+      "section": "quick_scan",
+      "reason": "G6 只能进其它速览",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author"
+      ]
+    }
+  ]
+}

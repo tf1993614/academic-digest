@@ -1,4 +1,4 @@
-"""Command line boundary: ``collect``, ``fulltext``, and ``doctor``.
+"""Command line boundary: ``collect``, ``fulltext``, ``digest``, and ``doctor``.
 
 Tests and the daily skill drive these subcommands as subprocesses, so every
 diagnostic must be readable from stdout/stderr and every failure must have a
@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
 
-from . import __version__, github
+from . import __version__, digest, github
 from .collect import run as run_collect, write_payload
 from .config import Config, load_config
 from .errors import ConfigError, SourceError
@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
         return _collect(args)
     if args.command == "fulltext":
         return _fulltext(args)
+    if args.command == "digest":
+        return _digest(args)
     if args.command == "doctor":
         return _doctor(args)
     parser.error("a command is required")
@@ -74,9 +76,33 @@ def _build_parser() -> argparse.ArgumentParser:
     fulltext.add_argument("--doi", help="DOI of the paper")
     fulltext.add_argument("--arxiv", dest="arxiv_id", help="arXiv ID of the paper")
     fulltext.add_argument(
+        "--title",
+        help="paper title used to match a preprint version by title",
+    )
+    fulltext.add_argument(
         "--out",
         type=Path,
         help="full-text JSON path (default: standard output)",
+    )
+
+    digest_command = subparsers.add_parser(
+        "digest",
+        help="validate the model-written selection and daily digest",
+    )
+    digest_subparsers = digest_command.add_subparsers(
+        dest="digest_command", required=True
+    )
+    check = digest_subparsers.add_parser(
+        "check", help="check selection.json and digest.md against the candidate pool"
+    )
+    check.add_argument(
+        "--candidates", type=Path, required=True, help="candidate pool JSON"
+    )
+    check.add_argument(
+        "--selection", type=Path, required=True, help="selection.json written by the model"
+    )
+    check.add_argument(
+        "--digest", type=Path, required=True, help="digest.md written by the model"
     )
     return parser
 
@@ -136,13 +162,15 @@ def _fulltext(args: argparse.Namespace) -> int:
         return EXIT_CONFIG
     doi = (args.doi or "").strip()
     arxiv_id = (args.arxiv_id or "").strip()
-    if not doi and not arxiv_id:
-        _fail("one of --doi or --arxiv is required")
+    title = (args.title or "").strip()
+    if not doi and not arxiv_id and not title:
+        _fail("one of --doi, --arxiv or --title is required")
         return EXIT_CONFIG
 
     result = fetch_fulltext(
         doi=doi,
         arxiv_id=arxiv_id,
+        title=title,
         config=config,
         fixtures_root=args.fixtures,
     )
@@ -164,6 +192,22 @@ def _fulltext_summary(result: FullText, path: Path | None) -> str:
     detail = result.summary()
     location = f" -> {path}" if path is not None else ""
     return f"[{result.status}] {detail}{location}"
+
+
+def _digest(args: argparse.Namespace) -> int:
+    try:
+        result = digest.check_files(
+            args.candidates, args.selection, args.digest
+        )
+    except digest.CheckError as exc:
+        _fail(f"{exc.area}: {exc.message}")
+        return EXIT_FAILURE
+    print(
+        "[ok] digest: "
+        f"{result.papers} papers ({result.must_read} must_read + "
+        f"{result.quick_scan} quick_scan), {result.github_items} GitHub items"
+    )
+    return EXIT_OK
 
 
 def _doctor(args: argparse.Namespace) -> int:

@@ -52,3 +52,23 @@ Discussion/Conclusion 取作者声明的局限，Methods/Results 的顺带提及
 PDF 解析用 PyMuPDF（AGPL-3.0，仅本机自用；分发前需重新评估），HTML 用
 beautifulsoup4 + lxml。按标题匹配预印本版本与 DOI→arXiv 交叉检索不在本 issue
 内，留给日报契约阶段。
+
+## Amendment 2026-10-22（Issue 08）
+
+日报写作与校验定案：会话模型读候选池后写 `selection.json` 与 `digest.md`，
+`digest check --candidates/--selection/--digest` 只读这三个文件并离线校验，不读
+配置、不联网、不访问状态库，不合格时退出 1 且只报告第一条违规。selection 固定
+`must_read` / `quick_scan` 两级：`must_read` 每条要求 `fulltext` 为 `oa` 或
+`abstract_only`、`limitations_source` 含 `model`，`quick_scan` 只能
+`abstract_only`；G2 最多 4 篇，除 G2/G6 外候选池中出现的组至少 1 篇，G6 论文最多
+1 篇且只能进其它速览，GitHub/G6 不进入 selection。目标为 `must_read = min(3, n)`、
+`quick_scan = min(7, n - must_read)`；只有 G2/G6 配额确实堵住剩余候选时才允许
+少于目标。日报逐字使用候选 `title`，今日必读用四要素与方法精读（无 OA 时写
+“无 OA 全文，仅基于摘要”），其它速览一行一条；`## GitHub` 只放
+new/active/releases.starred，`## AI 工具 / Agent Harness` 放 g6 与 g6_releases，
+均与 `candidates.github` 逐项对应、为空则省略，页脚覆盖来源状态与候选/入选计数。
+全文侧为 Issue 07 补上标题匹配：`fulltext --title` 先对 arXiv API 做精确标题查询，
+再查 Europe PMC 的 `TITLE:"…"`；`10.48550/arXiv.<id>` 直接映射 arXiv ID。匹配到的
+预印本 DOI / arXiv ID 在 arXiv 与 Unpaywall 之间加入尝试，输出 key 不变，近似标题
+一律忽略。契约与固定结构以 Issue 08 的 `## Contract` 为准；本 amendment 不改变
+“PubMed 主源、EPMC 补充”的判断，也不新增 config key。

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>arXiv Query: search_query=ti:"Single-cell foundation models for perturbation prediction"</title>
+  <entry>
+    <id>http://arxiv.org/abs/2610.44444v2</id>
+    <updated>2026-10-21T17:00:00Z</updated>
+    <published>2026-10-21T17:00:00Z</published>
+    <title>Single-cell foundation models for perturbation prediction</title>
+    <summary>The arXiv version of a paper that was published under a different DOI.</summary>
+    <link href="https://arxiv.org/abs/2610.44444v2" rel="alternate" type="text/html"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2610.55555v1</id>
+    <title>Single-cell foundation models for perturbation prediction: a survey</title>
+    <summary>A near-title match that must not be accepted as the paper.</summary>
+  </entry>
+</feed>

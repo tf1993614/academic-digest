@@ -1,0 +1,519 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-22T08:00:00+08:00",
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "lookback_days": {
+    "pubmed": 2,
+    "europepmc": 2,
+    "github": 7
+  },
+  "sources": {
+    "pubmed": {
+      "status": "ok",
+      "count": 2
+    },
+    "europepmc": {
+      "status": "ok",
+      "count": 9
+    },
+    "github": {
+      "status": "ok",
+      "count": 5
+    }
+  },
+  "candidate_count": 12,
+  "papers": [
+    {
+      "id": "doi:10.1000/digest-g1-1",
+      "group": "G1",
+      "source": "europepmc",
+      "title": "Aging multi-omics atlas of the mouse brain",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g1-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g1-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": "https://example.org/oa/digest-g1-1.pdf"
+    },
+    {
+      "id": "doi:10.1000/digest-g1-2",
+      "group": "G1",
+      "source": "europepmc",
+      "title": "Plasma proteomics of aging cohorts",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g1-2",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g1-2",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g2-1",
+      "group": "G2",
+      "source": "europepmc",
+      "title": "Spatial transcriptomics of the aging cortex",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g2-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g2-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g2-2",
+      "group": "G2",
+      "source": "europepmc",
+      "title": "Spatial cell-type mapping in the aged hippocampus",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g2-2",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g2-2",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g2-3",
+      "group": "G2",
+      "source": "europepmc",
+      "title": "Batch effect correction for spatial omics",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g2-3",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g2-3",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g2-4",
+      "group": "G2",
+      "source": "europepmc",
+      "title": "Cell-cell communication in aged brain niches",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g2-4",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g2-4",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g2-5",
+      "group": "G2",
+      "source": "europepmc",
+      "title": "MERFISH atlas of the aging midbrain",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g2-5",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g2-5",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g3-1",
+      "group": "G3",
+      "source": "europepmc",
+      "title": "Single-cell foundation model benchmark",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g3-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g3-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": "https://example.org/oa/digest-g3-1.pdf"
+    },
+    {
+      "id": "doi:10.1000/digest-g4-1",
+      "group": "G4",
+      "source": "europepmc",
+      "title": "Perturbation prediction with graph priors",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g4-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g4-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g5-1",
+      "group": "G5",
+      "source": "europepmc",
+      "title": "Large language model agents for pathway reasoning",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g5-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g5-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g5-2",
+      "group": "G5",
+      "source": "europepmc",
+      "title": "Knowledge graph retrieval for virtual cell",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g5-2",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g5-2",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    },
+    {
+      "id": "doi:10.1000/digest-g6-1",
+      "group": "G6",
+      "source": "europepmc",
+      "title": "Claude Code agent harness evaluation",
+      "authors": [
+        "Wei Zhang",
+        "Na Li"
+      ],
+      "venue": "Nature Aging",
+      "date": "2026-10-21",
+      "doi": "10.1000/digest-g6-1",
+      "pmid": "",
+      "arxiv_id": "",
+      "url": "https://europepmc.org/article/MED/digest-g6-1",
+      "abstract": "A recorded abstract for the digest contract fixture.",
+      "abstract_missing": false,
+      "tags": [
+        "single-cell"
+      ],
+      "relevance": 3,
+      "score": 5,
+      "is_preprint": false,
+      "oa_url": null
+    }
+  ],
+  "github": {
+    "passes": {
+      "new": {
+        "since": "2026-10-15",
+        "min_stars": 5,
+        "queries": [],
+        "results": 2
+      },
+      "active": {
+        "since": "2026-10-15",
+        "min_stars": 30,
+        "queries": [],
+        "results": 5
+      }
+    },
+    "limits": {
+      "new": 1,
+      "active": 2,
+      "g6": 2
+    },
+    "found": {
+      "new": 2,
+      "active": 5,
+      "g6": 3
+    },
+    "new": [
+      {
+        "full_name": "acme/cell-atlas",
+        "url": "https://github.com/acme/cell-atlas",
+        "description": "Single-cell atlas toolkit",
+        "positioning": "Single-cell atlas toolkit",
+        "why": "由 G2（单细胞与空间组学）检索 topic:single-cell 返回；匹配关键词：single-cell、spatial transcriptomics",
+        "stars": 42,
+        "language": "Python",
+        "created_at": "2026-10-20T08:00:00Z",
+        "pushed_at": "2026-10-21T09:00:00Z",
+        "topics": [
+          "single-cell",
+          "bioinformatics"
+        ],
+        "group": "G2",
+        "query": "topic:single-cell created:>2026-10-15 stars:>=5",
+        "tags": [
+          "single-cell",
+          "spatial transcriptomics"
+        ],
+        "relevance": 4,
+        "score": 8,
+        "readme_url": "https://raw.githubusercontent.com/acme/cell-atlas/main/README.md"
+      }
+    ],
+    "active": [
+      {
+        "full_name": "acme/scanpy-plus",
+        "url": "https://github.com/acme/scanpy-plus",
+        "description": "Single-cell analysis toolkit",
+        "positioning": "Single-cell analysis toolkit",
+        "why": "由 G2（单细胞与空间组学）检索 topic:single-cell 返回；匹配关键词：single-cell",
+        "stars": 900,
+        "language": "Python",
+        "created_at": "2024-01-01T08:00:00Z",
+        "pushed_at": "2026-10-21T10:00:00Z",
+        "topics": [
+          "single-cell"
+        ],
+        "group": "G2",
+        "query": "topic:single-cell pushed:>2026-10-15 stars:>=30",
+        "tags": [
+          "single-cell"
+        ],
+        "relevance": 3,
+        "score": 10,
+        "readme_url": "https://raw.githubusercontent.com/acme/scanpy-plus/main/README.md"
+      },
+      {
+        "full_name": "acme/spatial-hub",
+        "url": "https://github.com/acme/spatial-hub",
+        "description": "Spatial transcriptomics hub",
+        "positioning": "Spatial transcriptomics hub",
+        "why": "由 G2（单细胞与空间组学）检索 topic:single-cell 返回；匹配关键词：spatial transcriptomics",
+        "stars": 300,
+        "language": "Python",
+        "created_at": "2024-02-01T08:00:00Z",
+        "pushed_at": "2026-10-20T10:00:00Z",
+        "topics": [
+          "spatial-transcriptomics"
+        ],
+        "group": "G2",
+        "query": "topic:single-cell pushed:>2026-10-15 stars:>=30",
+        "tags": [
+          "spatial transcriptomics"
+        ],
+        "relevance": 3,
+        "score": 8,
+        "readme_url": "https://raw.githubusercontent.com/acme/spatial-hub/main/README.md"
+      }
+    ],
+    "g6": [
+      {
+        "full_name": "acme/claude-runner",
+        "url": "https://github.com/acme/claude-runner",
+        "description": "Claude Code plugin runner",
+        "positioning": "Claude Code plugin runner",
+        "why": "由 G6（AI 工具 / Agent Harness）检索 topic:claude-code 返回；匹配关键词：claude code",
+        "stars": 900,
+        "language": "TypeScript",
+        "created_at": "2026-10-19T08:00:00Z",
+        "pushed_at": "2026-10-22T05:00:00Z",
+        "topics": [
+          "claude-code"
+        ],
+        "group": "G6",
+        "query": "topic:claude-code created:>2026-10-15 stars:>=5",
+        "tags": [
+          "claude code"
+        ],
+        "relevance": 3,
+        "score": 11,
+        "readme_url": "https://raw.githubusercontent.com/acme/claude-runner/main/README.md"
+      },
+      {
+        "full_name": "acme/codex-tool",
+        "url": "https://github.com/acme/codex-tool",
+        "description": "OpenAI Codex CLI wrapper",
+        "positioning": "OpenAI Codex CLI wrapper",
+        "why": "由 G6（AI 工具 / Agent Harness）检索 topic:claude-code 返回；匹配关键词：codex",
+        "stars": 500,
+        "language": "Go",
+        "created_at": "2024-07-01T08:00:00Z",
+        "pushed_at": "2026-10-21T11:00:00Z",
+        "topics": [
+          "codex"
+        ],
+        "group": "G6",
+        "query": "topic:claude-code pushed:>2026-10-15 stars:>=30",
+        "tags": [
+          "codex"
+        ],
+        "relevance": 3,
+        "score": 9,
+        "readme_url": "https://raw.githubusercontent.com/acme/codex-tool/main/README.md"
+      }
+    ],
+    "releases": {
+      "since": "2026-10-15",
+      "days": 7,
+      "limits": {
+        "starred": 2
+      },
+      "found": {
+        "starred": 4
+      },
+      "starred": [
+        {
+          "repo": "acme/aging-atlas",
+          "tag": "v0.3.0",
+          "name": "Aging Atlas 0.3.0",
+          "date": "2026-10-22",
+          "highlights": "- Faster cell-type annotation\n- Fix batch effect edges",
+          "url": "https://github.com/acme/aging-atlas/releases/tag/v0.3.0",
+          "prerelease": false,
+          "group": "G1",
+          "relevance": 6
+        }
+      ]
+    },
+    "g6_releases": [
+      {
+        "repo": "anthropics/claude-code",
+        "tag": "v2.0.0",
+        "name": "Claude Code 2.0.0",
+        "date": "2026-10-21",
+        "highlights": "Adds /compact and faster startup.",
+        "url": "https://github.com/anthropics/claude-code/releases/tag/v2.0.0",
+        "prerelease": false,
+        "group": "G6",
+        "relevance": 1
+      },
+      {
+        "repo": "deepseek-ai/deepseek-harness",
+        "tag": "v1.2.0",
+        "name": "DeepSeek Harness 1.2.0",
+        "date": "2026-10-19",
+        "highlights": "Plugin hot reload.",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/releases/tag/v1.2.0",
+        "prerelease": false,
+        "group": "G6",
+        "relevance": 1
+      }
+    ]
+  }
+}
