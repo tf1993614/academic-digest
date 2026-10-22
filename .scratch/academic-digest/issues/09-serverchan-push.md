@@ -10,7 +10,7 @@
 - [ ] 正文 >30KB 时按区块拆成最多 2 条，带（1/2）后缀，不从论文中间截断。
 - [ ] 成功条件为 HTTP 2xx + code 0；失败重试 2 次，仍失败写 pending 并以非零退出。
 - [ ] pending 下次运行优先重试一次；超过 2 天丢弃并记录。
-- [ ] runs 记录时间、计数、状态、错误摘要；无新内容不发且退出 0。
+- [ ] runs 记录时间、计数、状态、错误摘要；空日报默认发送提示并退出 0，可用 `send_empty: false` 关闭。
 - [ ] 测试覆盖 payload、拆分、重试、pending；真实测试推送由人工确认。
 
 ## Contract
@@ -40,14 +40,17 @@ push --config PATH [--fixtures DIR] [--now ISO8601] \
     ]
   }
   ```
-  拆分时 `messages` 按 part 顺序排列，`parts` 相同。
+  拆分时 `messages` 按 part 顺序排列，`parts` 相同。空日报且 `send_empty=true`
+  时输出那条提示消息；`send_empty=false` 时输出
+  `{"schema_version":1,"messages":[],"skipped":"empty"}`。
 - `--fixtures DIR` 回放 ServerChan 响应；第 n 次 HTTP 请求读
   `DIR/serverchan/send-<n>.json`（n 从 1 起，跨本次运行的所有消息与重试），响应形如
   `{"code":0,"message":"ok","data":{"pushid":"..."}}`。文件缺失视为传输失败。fixture
   模式不联网、不 sleep，也不需要 SendKey（不构造含 key 的 URL）。
 - `--now` 固定运行时间与 pending 年龄；缺省用系统时钟。
-- 退出码：`0` 已发送 / 空日报静默跳过 / dry-run 成功；`1` 校验失败、发送在重试后
-  仍失败、拆分不可能、状态库打开/写入失败；`2` 参数、配置或缺失 SendKey。
+- 退出码：`0` 已发送 / 空日报按 `send_empty` 发送或跳过 / dry-run 成功；`1` 校验
+  失败、发送在重试后仍失败、拆分不可能、状态库打开/写入失败；`2` 参数、配置或
+  缺失 SendKey。
 - 成功时 stdout 一行：`[ok] push: sent N message(s), recorded M paper(s)`；空日报
   跳过时为 `[ok] push: skipped empty digest`；失败写 stderr `[fail] push: …`。
 - live 发送前打开状态库；打不开时退出 1，不发送。dry-run 不打开状态库。
@@ -58,7 +61,7 @@ push --config PATH [--fixtures DIR] [--now ISO8601] \
 push:
   sendkey_env: SERVERCHAN_SENDKEY
   channel: serverchan
-  send_empty: false
+  send_empty: true
   split_bytes: 30000
   max_bytes: 32768
   max_messages: 2
@@ -72,7 +75,8 @@ push:
 - `sendkey_env`：保存 SendKey 的环境变量名；live 发送前读取，空/缺失时退出 2。
   `--dry-run` 不读取它。
 - `channel`：V1 只接受 `serverchan`。
-- `send_empty`：候选与 GitHub/G6 都为空时是否发送空日报；默认 `false`（静默）。
+- `send_empty`：候选与 GitHub/G6 都为空时是否发送空日报；默认 `true`：发送一条
+  “今日没有匹配的检索条目”的提示，设 `false` 则静默。
 - `split_bytes` ≤ `max_bytes`；`max_messages`、`title_max`、`timeout`、
   `pending_days` 为正整数；`retries`、`backoff_seconds` 为非负整数。
 - 不新增 endpoint 配置：SendKey 以 `sctp` 开头且匹配 `^sctp(\d+)t` 时使用
@@ -175,7 +179,11 @@ CREATE TABLE pending (
   `new/active/g6/releases.starred/g6_releases` 全为空。
 - 空日报且 `send_empty=false`：不发 HTTP、不写 `pending`，写
   `runs(status='skipped_empty')`，退出 0。
-- 空日报且 `send_empty=true`：发送标题 + 页脚（Issue 08 允许的空日报），正常记账。
+- 空日报且 `send_empty=true`（默认）：发送 1 条消息；`desp` 在页脚前插入
+  `今日没有匹配的检索条目`（若正文有 `> 关键词…` 前言则保留），标题与正常日报相同；
+  写 `runs(status='ok')`，`pushed_count=0`，退出 0。空提示发送失败时按普通失败
+  处理（重试、failed run、退出 1），但**不写 pending**——第二天的“今日没有条目”
+  没有再补发的意义。
 - 没有 `push` 配置：全部用默认值；live 仍要求 `sendkey_env` 指向非空值。
 - 没有 pending：跳过重试。`--fixtures` 未给出：走真实 HTTP。
 
@@ -194,7 +202,7 @@ CREATE TABLE pending (
 ### 测试
 
 - 全部离线：`--fixtures` + 固定 `--now`，不 sleep、不碰网络。
-- 覆盖：dry-run payload（title、markdown、无 key）、单条/拆分/`（1/2）`/字节上限/
+- 覆盖：dry-run payload（title、markdown、无 key、空日报 `skipped`）、单条/拆分/`（1/2）`/字节上限/
   section 不截断/超过 `max_messages` 失败、HTTP 2xx+`code=0`、失败重试、
   pending 写入与下次优先重试、>2 天丢弃、`send_empty` 两种行为、`runs` 计数与
   `pushes` 记账、密钥不出现在 stdout/stderr/状态。
@@ -205,3 +213,8 @@ CREATE TABLE pending (
 - 2026-10-22：按 `docs/agents/issue-tracker.md` 补 `## Contract`，钉死 push CLI、
   `push.*` 配置、ServerChan payload 与端点、拆分、pending/retry、`pushes`/`runs`
   记账与退出码。实现时以本节为准；真实测试推送仍需人工确认本地 SendKey。
+
+- 2026-10-22：用户确认空日报也要推送：`push.send_empty` 默认改为 `true`，空日报发送
+  一条“今日没有匹配的检索条目”的提示（带页脚），仍退出 0；设 `false` 才静默。
+  这覆盖 spec/decision record 里“默认静默”的旧默认，spec、docs/decisions.md 与
+  本 ticket 的 checklist 已同步。

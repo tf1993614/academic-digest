@@ -41,7 +41,7 @@ Status: ready-for-agent
 25. 作为研究者，我希望机器关机错过定时后，下次运行能补最近 2–7 天的内容，以便不漏。
 26. 作为研究者，我希望某个数据源失败时日报继续发，并在页脚标明哪个源失败，以便不会整天收不到。
 27. 作为研究者，我希望所有数据源都失败时不推送，并让任务看板显示失败，以便知道需要修。
-28. 作为研究者，我希望没有新内容时默认静默不发，以便不收到空的“今日无更新”。
+28. 作为研究者，我希望没有新内容时也收到一条“今日没有匹配的检索条目”，并可配置关闭，以便确认检索确实跑过。
 29. 作为研究者，我希望 Server酱 消息控制在 32KB 内，超长时按区块拆成最多 2 条，以便手机端可读。
 30. 作为研究者，我希望 Server酱 发送失败时自动重试 2 次，仍失败则留到下次优先重发，以便不丢日报。
 31. 作为研究者，我希望坏的配置（空关键词、缺 token、坏 YAML）在运行前就报错，以便不浪费一次定时。
@@ -129,7 +129,7 @@ Status: ready-for-agent
 - Server酱：POST 到 `sctapi.ftqq.com`；`sctp` 开头的 key 走对应的 `push.ft07.com` 端点；`title` 不含换行且不超过 32 字符。
 - 成功条件：HTTP 2xx 且返回 `code=0`；失败重试 2 次（指数退避），仍失败写入 pending 并退出非零。
 - pending 在下次运行优先重试一次；超过 2 天仍失败则丢弃并在 runs 中记录。
-- 无新内容且 `send_empty=false` 时不发送、退出 0，并记录“无新内容”。
+- 无新内容且 `send_empty=true`（默认）时发送一条“今日没有匹配的检索条目”的提示，退出 0；`send_empty=false` 时不发送、退出 0，并记录“无新内容”。
 - 部分源失败：继续发送，页脚标“X 源失败”；全部源失败：不发送、退出非零。
 - 状态库记录 runs：开始/结束时间、各源计数、候选数、入选数、推送结果、错误摘要；不记录密钥。
 
@@ -153,7 +153,7 @@ Status: ready-for-agent
 - **唯一 seam：CLI 边界。** 测试通过子进程运行 collect、push、doctor，断言输出文件、退出码与 stderr；不导入内部函数、不测私有实现。
 - **测试不碰网络。** collect 支持 `--fixtures`，从录制的 HTTP 响应目录读取 PubMed XML、EPMC JSON、arXiv RSS/Atom、Research Square RSS、GitHub JSON、README、PDF/XML 全文；`--now` 固定时间，避免时区与日期漂移。
 - **collect 测试**：给定 fixture 配置，断言候选池的 id 集合、跨源去重（同一 DOI 只出现一次）、G2 ≤4、非空组至少 1 条、arXiv 只取 `announce_type=new`、Research Square 摘要被读入。
-- **push 测试**：`--dry-run` 输出 ServerChan payload；断言 title 长度、markdown 内容、超长拆分、密钥脱敏、pending 写入、无新内容时不发送。
+- **push 测试**：`--dry-run` 输出 ServerChan payload；断言 title 长度、markdown 内容、超长拆分、密钥脱敏、pending 写入、无新内容时默认发送提示且 `send_empty=false` 时跳过。
 - **doctor 测试**：`--fixtures` 下所有检查通过时退出 0；缺 key/坏配置/通道 4xx 时退出非零并给出具体项。
 - **config 测试**：空 topics、坏 YAML、缺 GitHub token 时，CLI 在发请求前失败。
 - **测试工具**：pytest；fixture 文件按源分目录；断言 JSON 字段而不是整段字符串。
