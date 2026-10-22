@@ -17,6 +17,13 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 - `is_preprint` is true only when every merged version is a preprint.
 - Dedupe key priority: DOI > PMID > arXiv ID > normalized-title-plus-year.
 
+## Output contracts
+
+- The ticket's `## Contract` section (see `docs/agents/issue-tracker.md`) is the source of truth for payload keys and their placement.
+- Existing payload keys keep their meaning, type, and shape; a new datum gets a new key. Changing an existing key's semantics requires the ticket to say so and a test that pins the new behavior and the keys that must not change.
+- A ticket that names a destination block (for example G6) puts its data in that block's key (`g6_releases`), not in a sibling that only links back through a `group` field.
+- A "no update means no block" requirement is implemented where the block is produced: omit it; do not leave empty lists for a later renderer to hide.
+
 ## GitHub discovery
 
 - `academic_digest/github.py` exports `NAME`, `discover(config, fixtures_root, now)`, and `check(config, fixtures_root)`. It is deliberately outside the paper-source registry: a repository never enters `papers`.
@@ -50,7 +57,7 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 
 - Test at the CLI seam: subprocess `collect` / `fulltext` / `doctor`, asserting exit code, stderr, and output files.
 - Tests stay offline and deterministic: pass `--fixtures` and a fixed `--now`; no sleeps or wall-clock dependencies. `fulltext` has no date logic, so its tests rely on `--fixtures` alone.
-- Add a test whenever a documented ordering, marker, default, or switch changes.
+- Add a test whenever a documented ordering, marker, default, or switch changes. Every documented default (a config field that may be omitted) has a test that omits the field and asserts the documented value. Every "no update means no block" claim has a fixture with no updates that asserts the block is absent.
 
 ## Docs
 

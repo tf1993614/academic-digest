@@ -2,6 +2,13 @@
 
 Review a frozen diff, never a moving working tree. A reviewer that sees the tree change while it reads has to re-read or wait; during the 03 implementation two review subagents burned their runs polling `git diff` and never reported.
 
+## Before you freeze
+
+- Walk the ticket checklist and confirm every item has a test or fixture that fails without it.
+- Check every documented default and every "no update means no block" claim.
+- Grep `README.md`, `CODING_STANDARDS.md`, the ADR, and the ticket for every payload key you added, renamed, or removed.
+- Fix these before dispatching. A review round costs two subagent runs.
+
 ## Freeze the diff
 
 1. Stop editing. A commit is cleanest; uncommitted changes are fine as long as they stay still.
@@ -29,4 +36,5 @@ If a finding needs code changes: stop the reviewers, make the changes, re-freeze
 - Do not edit files, run the full suite, or wait for the working tree to change.
 - Run one test only when a finding needs proof.
 - Report findings; the implementation agent applies them.
+- Report hard standards violations and spec misses first; baseline smells are judgement calls, so keep them to the top two.
 - Keep the two axes separate: Standards (see `CODING_STANDARDS.md`) and Spec (the originating ticket under `.scratch/academic-digest/issues/`).

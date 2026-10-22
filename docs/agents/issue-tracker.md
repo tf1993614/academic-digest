@@ -10,6 +10,7 @@ Issues and specs for this repo live as markdown files in `.scratch/`.
 - Triage state is recorded as a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings)
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
 - Comments describe behaviour, decisions, and deviations. Counts and file listings belong to the tools that report them (`pytest -q`, `git show --stat`); a number written into a Comment goes stale as soon as the suite grows.
+- A ticket that changes the JSON payload has a `## Contract` section: the keys it adds or changes and where they sit, the existing keys whose meaning must not change, the empty/missing behavior, and the behavior when the feature is not configured.
 
 ## When a skill says "publish to the issue tracker"
 

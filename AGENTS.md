@@ -4,7 +4,9 @@
 
 ## Parallel work
 
-Run one implementation session per worktree: `git worktree add out/worktrees/<ticket>`, then work there. Each commit then covers one ticket, and the pre-commit hook checks that ticket's index.
+When more than one implementation session runs at once, give each its own worktree:
+`git worktree add out/worktrees/<ticket>`, then work there, so each commit covers one
+ticket. A single session may work in the main worktree.
 
 ## Agent skills
 
@@ -22,4 +24,4 @@ Single-context: `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
 
 ### Code review
 
-Freeze the diff before dispatching reviewers. See `docs/agents/code-review.md`.
+Self-check the ticket checklist and payload keys, freeze the diff, then dispatch reviewers. See `docs/agents/code-review.md`.
