@@ -1,0 +1,12 @@
+[
+  {
+    "tag_name": "v0.1.0",
+    "name": "Old Release 0.1.0",
+    "body": "Initial release.",
+    "published_at": "2026-10-10T02:00:00Z",
+    "created_at": "2026-10-10T02:00:00Z",
+    "html_url": "https://github.com/acme/old-release/releases/tag/v0.1.0",
+    "draft": false,
+    "prerelease": false
+  }
+]

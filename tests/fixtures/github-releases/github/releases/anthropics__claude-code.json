@@ -1,0 +1,12 @@
+[
+  {
+    "tag_name": "v2.0.0",
+    "name": "Claude Code 2.0.0",
+    "body": "Adds /compact and faster startup.",
+    "published_at": "2026-10-21T06:00:00Z",
+    "created_at": "2026-10-21T06:00:00Z",
+    "html_url": "https://github.com/anthropics/claude-code/releases/tag/v2.0.0",
+    "draft": false,
+    "prerelease": false
+  }
+]

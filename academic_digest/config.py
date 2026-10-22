@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -78,6 +79,14 @@ DEFAULT_ACTIVE_MIN_STARS = 30
 DEFAULT_ACTIVE_MAX_ITEMS = 2
 DEFAULT_G6_MAX_ITEMS = 2
 DEFAULT_README_LIMIT = 20
+# The three official G6 repositories whose releases feed the AI-tool block.
+DEFAULT_OFFICIAL_REPOS: tuple[str, ...] = (
+    "anthropics/claude-code",
+    "openai/codex",
+    "deepseek-ai/deepseek-harness",
+)
+DEFAULT_RELEASE_DAYS = 7
+DEFAULT_STARRED_RELEASE_MAX_ITEMS = 2
 
 KNOWN_SOURCES = (
     "pubmed",
@@ -112,6 +121,9 @@ _FULLTEXT_KEYS = {"unpaywall"}
 _UNPAYWALL_KEYS = {"email"}
 _GITHUB_KEYS = {
     "token_env",
+    "user",
+    "official",
+    "releases",
     "g6_topic",
     "new",
     "active",
@@ -122,6 +134,8 @@ _GITHUB_KEYS = {
 }
 _GITHUB_WINDOW_KEYS = {"days", "min_stars", "max_items"}
 _GITHUB_G6_KEYS = {"max_items"}
+_GITHUB_RELEASE_KEYS = {"days", "max_items"}
+_REPO_SLUG = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
 @dataclass(frozen=True)
@@ -143,8 +157,21 @@ class DiscoveryWindow:
 
 
 @dataclass(frozen=True)
+class ReleaseWindow:
+    """Release tracking: how far back, and how many starred releases to show."""
+
+    days: int
+    max_items: int
+
+
+@dataclass(frozen=True)
 class GithubConfig:
     token_env: str
+    # The GitHub login whose starred repositories are tracked; empty skips it.
+    user: str
+    # Official G6 repositories whose releases feed the AI-tool block.
+    official: tuple[str, ...]
+    releases: ReleaseWindow
     g6_topic: str
     new: DiscoveryWindow
     active: DiscoveryWindow
@@ -316,9 +343,12 @@ def _parse_github(value: Any, topics: tuple[Topic, ...]) -> GithubConfig:
     token_env = _require_string(
         mapping.get("token_env", DEFAULT_GITHUB_TOKEN_ENV), "github.token_env"
     )
+    user = _optional_string(mapping.get("user"), "github.user")
     g6_topic = _require_string(
         mapping.get("g6_topic", DEFAULT_G6_TOPIC), "github.g6_topic"
     )
+    official = _parse_official(mapping.get("official"), g6_topic, topic_names)
+    releases = _parse_release_window(mapping.get("releases"))
     new = _parse_github_window(
         mapping.get("new"),
         "github.new",
@@ -348,6 +378,9 @@ def _parse_github(value: Any, topics: tuple[Topic, ...]) -> GithubConfig:
 
     return GithubConfig(
         token_env=token_env,
+        user=user,
+        official=official,
+        releases=releases,
         g6_topic=g6_topic,
         new=new,
         active=active,
@@ -424,6 +457,50 @@ def _parse_g6_queries(
             f"must name a configured topic (known: {', '.join(topic_names)})",
         )
     return queries
+
+
+def _parse_official(
+    value: Any, g6_topic: str, topic_names: tuple[str, ...]
+) -> tuple[str, ...]:
+    """The official G6 repositories whose releases feed the AI-tool block.
+
+    The default is the three documented repositories, but only when the config
+    has an AI-tool topic for them to belong to.
+    """
+
+    if value is None:
+        return DEFAULT_OFFICIAL_REPOS if g6_topic in topic_names else ()
+    repos = _string_list(value, "github.official", allow_empty=True)
+    if repos and g6_topic not in topic_names:
+        raise ConfigError(
+            "github.g6_topic",
+            f"must name a configured topic (known: {', '.join(topic_names)})",
+        )
+    for index, repo in enumerate(repos):
+        if not _REPO_SLUG.fullmatch(repo):
+            raise ConfigError(
+                f"github.official[{index}]", "must be an owner/repo slug"
+            )
+    return tuple(dict.fromkeys(repos))
+
+
+def _parse_release_window(value: Any) -> ReleaseWindow:
+    if value is None:
+        return ReleaseWindow(
+            days=DEFAULT_RELEASE_DAYS,
+            max_items=DEFAULT_STARRED_RELEASE_MAX_ITEMS,
+        )
+    mapping = _require_mapping(value, "github.releases")
+    _reject_unknown(mapping, _GITHUB_RELEASE_KEYS, "github.releases")
+    return ReleaseWindow(
+        days=_positive_int(
+            mapping.get("days", DEFAULT_RELEASE_DAYS), "github.releases.days"
+        ),
+        max_items=_non_negative_int(
+            mapping.get("max_items", DEFAULT_STARRED_RELEASE_MAX_ITEMS),
+            "github.releases.max_items",
+        ),
+    )
 
 
 def _require_github_token(token_env: str) -> None:
@@ -549,6 +626,14 @@ def _reject_unknown(mapping: Mapping[str, Any], allowed: set[str], field: str) -
 def _require_string(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ConfigError(field, "must be a non-empty string")
+    return value.strip()
+
+
+def _optional_string(value: Any, field: str) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ConfigError(field, "must be a string")
     return value.strip()
 
 

@@ -69,6 +69,10 @@ _Avoid_: 热门库、trending
 用户已 star 的仓库，用于跟踪新 release。
 _Avoid_: 收藏库、starred
 
+**官方库**：
+Claude Code、Codex、DSH 的官方仓库，其 release 进入 G6 区块；不占关注库的每日 2 条名额，与关注库重叠时只出现一次。
+_Avoid_: 官方 repo、official repo
+
 **AI 工具 / Agent Harness**：
 日报中独立于论文的区块，跟踪 Claude Code、Codex、DSH 等工具及其生态的 repo 与 release；不占论文席位。
 _Avoid_: 工具推荐、AI 新闻

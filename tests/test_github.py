@@ -251,6 +251,14 @@ def test_default_queries_are_the_22_plus_12_decision_list(cli, paths, tmp_path):
         directory.mkdir(parents=True)
         for index in range(len(DISCOVERY_QUERIES) + len(G6_QUERIES)):
             (directory / f"{index}.json").write_text(empty, encoding="utf-8")
+    releases = fixtures / "github" / "releases"
+    releases.mkdir(parents=True)
+    for slug in (
+        "anthropics__claude-code",
+        "openai__codex",
+        "deepseek-ai__deepseek-harness",
+    ):
+        (releases / f"{slug}.json").write_text("[]\n", encoding="utf-8")
 
     config = {
         "timezone": "Asia/Shanghai",

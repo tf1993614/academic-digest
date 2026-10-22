@@ -18,6 +18,17 @@ yesterday +1) decides the ordering. A README comes from
 budget. The three sections are then capped (new 1, active 2, G6 2 by default)
 and never padded.
 
+The module also tracks releases. ``github.user`` names the GitHub login whose
+starred repositories are read from ``/users/{user}/starred``; their releases
+come from ``/repos/{owner}/{repo}/releases`` and at most
+``github.releases.max_items`` (2) appear in the starred release section, newest
+first. The three official G6 repositories (Claude Code, Codex, DSH) contribute
+one release each to the G6 data (``g6_releases``) when they published inside the
+window; a repository with no release is absent instead of padded, and a day
+with no release at all omits the block. Each release carries its repository,
+tag, local date, update notes (body, or title when the body is empty), link,
+pre-release marker, and the keyword group it matches.
+
 The module exports ``NAME``, ``discover`` and ``check``. It deliberately does
 not have the paper-source ``collect`` shape: repositories are not papers and
 never enter the paper candidate pool.
@@ -38,26 +49,37 @@ from typing import Any, Mapping
 from .config import Config, DiscoveryWindow, GithubConfig, Topic
 from .errors import SourceError
 from .matching import matches
-from .models import Repo
+from .models import Release, Repo
 from .sources.base import SourceResult, get_text, read_fixture
 
 NAME = "github"
 SEARCH_URL = "https://api.github.com/search/repositories"
+STARRED_URL = "https://api.github.com/users/{user}/starred"
+RELEASES_URL = "https://api.github.com/repos/{repo}/releases"
 RATE_LIMIT_URL = "https://api.github.com/rate_limit"
 RAW_README_URL = "https://raw.githubusercontent.com/{full_name}/{branch}/README.md"
 USER_AGENT = "academic-digest/0.1 (GitHub discovery)"
 # Authenticated search allows 30 requests per minute; serialise with a margin.
 REQUEST_INTERVAL = 2.0
 PER_PAGE = 100
+# The star list and the release feeds are not search requests; they only use
+# the core API quota, but they still share the serial request rhythm.
+STARRED_PER_PAGE = 100
+RELEASES_PER_PAGE = 30
 SORT = "updated"
 FIXTURE_SEARCH = "github/search/{pass_name}/{index}.json"
 FIXTURE_README = "github/readme/{slug}.md"
+FIXTURE_STARRED = "github/starred.json"
+FIXTURE_RELEASES = "github/releases/{slug}.json"
 SECTIONS = ("new", "active", "g6")
 PASS_FIELDS = {"new": "created", "active": "pushed"}
 RECENCY_TODAY = 2
 RECENCY_YESTERDAY = 1
 POPULARITY_WEIGHT = 2
 README_MAX_CHARS = 200
+# Release notes are source evidence, not digest prose; cap them so a verbose
+# release cannot dominate the candidate payload.
+RELEASE_NOTES_MAX_CHARS = 1000
 # Each section offers a few more candidates than it can show, so a README hit
 # can move a repository into a slot.
 README_SLACK = 3
@@ -86,6 +108,35 @@ class SearchPass:
 
 
 @dataclass
+class ReleaseTracking:
+    """Release tracking for the starred repositories and the official G6 repos.
+
+    ``starred`` is capped (two by default) and sorted newest first. ``official``
+    holds at most one release per configured official repository, newest first,
+    and is published as the G6 official-release list. A repository with no
+    release inside the window is simply absent: nothing is padded.
+    """
+
+    since: date
+    days: int
+    limits: dict[str, int]
+    found: dict[str, int]
+    starred: list[Release]
+    official: list[Release]
+
+    def starred_payload(self) -> dict[str, Any]:
+        """The starred-release block; official releases live under G6."""
+
+        return {
+            "since": self.since.isoformat(),
+            "days": self.days,
+            "limits": self.limits,
+            "found": self.found,
+            "starred": [release.to_dict() for release in self.starred],
+        }
+
+
+@dataclass
 class Discovery:
     """Everything the digest needs from GitHub discovery for one run."""
 
@@ -96,6 +147,7 @@ class Discovery:
     new: list[Repo]
     active: list[Repo]
     g6: list[Repo]
+    releases: ReleaseTracking | None = None
 
     @classmethod
     def failed(
@@ -112,7 +164,7 @@ class Discovery:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "passes": {
                 search_pass.name: search_pass.to_dict()
                 for search_pass in self.passes
@@ -123,6 +175,14 @@ class Discovery:
             "active": [repo.to_dict() for repo in self.active],
             "g6": [repo.to_dict() for repo in self.g6],
         }
+        if self.releases is not None:
+            if self.releases.starred:
+                payload["releases"] = self.releases.starred_payload()
+            if self.releases.official:
+                payload["g6_releases"] = [
+                    release.to_dict() for release in self.releases.official
+                ]
+        return payload
 
 
 @dataclass
@@ -143,7 +203,6 @@ class _Candidate:
     terms: tuple[str, ...]
     base_query: str
     query: str
-    metadata_terms: list[str]
     metadata_score: int
 
 
@@ -211,10 +270,33 @@ def validate_fixture(config: Config, root: Path) -> str:
                 )
             )
             total += len(_items(payload))
-    return (
+    message = (
         f"github search: {len(pairs)} queries x {len(PASS_FIELDS)} passes, "
         f"{total} recorded items"
     )
+    release_summary = _validate_releases(config, root)
+    if release_summary:
+        message += f"; {release_summary}"
+    return message
+
+
+def _validate_releases(config: Config, root: Path) -> str:
+    """Replay the recorded release feeds the configured tracking would read."""
+
+    targets = _release_targets(config.github, _starred_items(config, root))
+    if not targets:
+        return ""
+
+    records = 0
+    for full_name in targets:
+        payload = _parse_json_list(
+            read_fixture(
+                root, FIXTURE_RELEASES.format(slug=full_name.replace("/", "__"))
+            ),
+            f"GitHub releases for {full_name}",
+        )
+        records += len(payload)
+    return f"releases: {len(targets)} feeds, {records} recorded releases"
 
 
 def check_network(config: Config) -> str:
@@ -336,6 +418,7 @@ def _discover(
         limits["g6"],
     )
 
+    releases = _collect_releases(config, fixtures_root, today)
     result = SourceResult(
         name=NAME,
         status="ok",
@@ -349,6 +432,7 @@ def _discover(
         new=selected_new,
         active=selected_active,
         g6=selected_g6,
+        releases=releases,
     )
 
 
@@ -428,7 +512,7 @@ def _candidate(
 
     description = _text(item.get("description"))
     repo_topics = _strings(item.get("topics"))
-    haystack = "\n".join((full_name, description, " ".join(repo_topics)))
+    haystack = _repo_text(full_name, description, repo_topics)
     metadata_terms = _matched_terms(haystack, topic.terms)
     score = (
         3 * len(metadata_terms)
@@ -451,7 +535,6 @@ def _candidate(
         terms=topic.terms,
         base_query=base_query,
         query=query,
-        metadata_terms=metadata_terms,
         metadata_score=score,
     )
 
@@ -525,14 +608,13 @@ def _rank_key(
 def _repo(candidate: _Candidate, readme: str, today: date, config: Config) -> Repo:
     # A term weighs three when it appears in the name, description, or topics,
     # and one when it appears only in the README.
-    readme_terms = [
-        term
-        for term in _matched_terms(readme, candidate.terms)
-        if term not in candidate.metadata_terms
-    ]
-    tags = list(candidate.metadata_terms)
+    metadata_terms, readme_terms, relevance = _weighted_terms(
+        candidate.terms,
+        _repo_text(candidate.full_name, candidate.description, candidate.topics),
+        readme,
+    )
+    tags = list(metadata_terms)
     tags.extend(readme_terms)
-    relevance = 3 * len(candidate.metadata_terms) + len(readme_terms)
     score = (
         relevance
         + _popularity(candidate.stars)
@@ -580,6 +662,315 @@ def _select(repos: list[Repo], limit: int) -> list[Repo]:
         ),
     )
     return ordered[:limit]
+
+
+def _collect_releases(
+    config: Config, fixtures_root: Path | None, today: date
+) -> ReleaseTracking | None:
+    """Track releases for the starred repositories and the official G6 repos."""
+
+    github = config.github
+    if not github.user and not github.official:
+        # Neither the starred section nor the G6 official block is configured.
+        return None
+
+    since = today - timedelta(days=github.releases.days)
+    starred_items = _starred_items(config, fixtures_root)
+    metadata: dict[str, Mapping[str, Any]] = dict(starred_items)
+
+    official_set = set(github.official)
+    candidates: list[Release] = []
+    official: list[Release] = []
+    for full_name in _release_targets(github, starred_items):
+        release = _latest_release(
+            config,
+            fixtures_root,
+            full_name,
+            since,
+            today,
+            official=full_name in official_set,
+            metadata=metadata.get(full_name, {}),
+        )
+        if release is None:
+            continue
+        if full_name in official_set:
+            official.append(release)
+        else:
+            candidates.append(release)
+
+    official_index = {name: index for index, name in enumerate(github.official)}
+    official.sort(
+        key=lambda release: (
+            -_date_ordinal(release.date),
+            official_index[release.repo],
+        )
+    )
+    candidates.sort(key=_release_order)
+    return ReleaseTracking(
+        since=since,
+        days=github.releases.days,
+        limits={"starred": github.releases.max_items},
+        found={"starred": len(candidates)},
+        starred=candidates[: github.releases.max_items],
+        official=official,
+    )
+
+
+def _release_targets(
+    github: GithubConfig, starred_items: Iterable[tuple[str, Mapping[str, Any]]]
+) -> list[str]:
+    """Every release feed the run reads, once each: starred first, official last."""
+
+    targets = [full_name for full_name, _ in starred_items]
+    targets.extend(name for name in github.official if name not in targets)
+    return list(dict.fromkeys(targets))
+
+
+def _starred_items(
+    config: Config, fixtures_root: Path | None
+) -> list[tuple[str, Mapping[str, Any]]]:
+    """The starred repositories of ``github.user`` as (full_name, record) pairs."""
+
+    if not config.github.user:
+        return []
+    payload = _json_list(
+        config,
+        fixtures_root,
+        FIXTURE_STARRED,
+        url=STARRED_URL.format(user=config.github.user),
+        params={"per_page": str(STARRED_PER_PAGE)},
+        label="GitHub starred",
+        error=f"GitHub starred request for {config.github.user} failed",
+    )
+    items: list[tuple[str, Mapping[str, Any]]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise SourceError("invalid GitHub starred JSON: entries must be objects")
+        full_name = _text(item.get("full_name"))
+        if full_name:
+            items.append((full_name, item))
+    return items
+
+
+def _latest_release(
+    config: Config,
+    fixtures_root: Path | None,
+    repo: str,
+    since: date,
+    today: date,
+    *,
+    official: bool,
+    metadata: Mapping[str, Any],
+) -> Release | None:
+    """The newest release of ``repo`` inside the window, or ``None``.
+
+    GitHub returns releases newest first, but the fixtures need not, so the
+    newest eligible entry is chosen by its full publication timestamp. A draft
+    or a release without ``published_at`` has no publication date and is not
+    eligible. One release per repository keeps the digest from repeating the
+    same project.
+    """
+
+    payload = _json_list(
+        config,
+        fixtures_root,
+        FIXTURE_RELEASES.format(slug=repo.replace("/", "__")),
+        url=RELEASES_URL.format(repo=repo),
+        params={"per_page": str(RELEASES_PER_PAGE)},
+        label=f"GitHub releases for {repo}",
+        error=f"GitHub releases request for {repo} failed",
+    )
+    latest: tuple[datetime, Release] | None = None
+    for item in payload:
+        if not isinstance(item, dict):
+            raise SourceError(
+                "invalid GitHub releases JSON: entries must be objects"
+            )
+        if item.get("draft"):
+            continue
+        published = _parse_timestamp(_text(item.get("published_at")))
+        if published is None:
+            continue
+        published_date = published.astimezone(config.zone()).date()
+        if published_date < since or published_date > today:
+            continue
+        release = _release(
+            item,
+            repo=repo,
+            published_date=published_date,
+            config=config,
+            official=official,
+            metadata=metadata,
+        )
+        if release is None:
+            continue
+        if latest is None or published > latest[0]:
+            latest = (published, release)
+    return latest[1] if latest is not None else None
+
+
+def _release(
+    item: Mapping[str, Any],
+    *,
+    repo: str,
+    published_date: date,
+    config: Config,
+    official: bool,
+    metadata: Mapping[str, Any],
+) -> Release | None:
+    """Normalize one release API entry, or ``None`` when it has nothing to show."""
+
+    tag = _text(item.get("tag_name"))
+    if not tag:
+        return None
+    name = _text(item.get("name"))
+    highlights = _update_notes(
+        _normalize_notes(item.get("body")), _normalize_notes(name)
+    )
+    # A release with neither notes nor a title has nothing to report.
+    if not highlights:
+        return None
+
+    group, relevance = _release_relevance(
+        repo, metadata, f"{name}\n{highlights}", config, official
+    )
+    url = _text(item.get("html_url")) or (
+        f"https://github.com/{repo}/releases/tag/{tag}"
+    )
+    return Release(
+        repo=repo,
+        tag=tag,
+        name=name,
+        date=published_date.isoformat(),
+        highlights=highlights,
+        url=url,
+        prerelease=bool(item.get("prerelease")),
+        group=group,
+        relevance=relevance,
+    )
+
+
+def _release_relevance(
+    repo: str,
+    metadata: Mapping[str, Any],
+    release_text: str,
+    config: Config,
+    official: bool,
+) -> tuple[str, int]:
+    """The keyword group and relevance score of one release.
+
+    A starred repository is scored like a discovered one: a group term in the
+    repository's name, description, or topics weighs three, and one found only
+    in the release title or notes weighs one. Official releases always belong to
+    the G6 topic and are scored on their title and notes.
+    """
+
+    if official:
+        topic = _topic(config, config.github.g6_topic)
+        if topic is None:
+            return "", 0
+        _, _, relevance = _weighted_terms(topic.terms, "", release_text)
+        return topic.name, relevance
+
+    haystack = _repo_text(
+        _text(metadata.get("full_name")) or repo,
+        _text(metadata.get("description")),
+        _strings(metadata.get("topics")),
+    )
+    best_group = ""
+    best_relevance = 0
+    for topic in config.topics:
+        _, _, relevance = _weighted_terms(topic.terms, haystack, release_text)
+        if relevance > best_relevance:
+            best_group = topic.name
+            best_relevance = relevance
+    return best_group, best_relevance
+
+
+def _topic(config: Config, name: str) -> Topic | None:
+    for topic in config.topics:
+        if topic.name == name:
+            return topic
+    return None
+
+
+def _repo_text(full_name: str, description: str, topics: Iterable[str]) -> str:
+    """The text a repository's keyword group is matched against."""
+
+    return "\n".join((full_name, description, " ".join(topics)))
+
+
+def _release_order(release: Release) -> tuple[int, int, str]:
+    """Newest first, then most relevant, then repository name for a stable tie."""
+
+    return (-_date_ordinal(release.date), -release.relevance, release.repo)
+
+
+def _date_ordinal(value: str) -> int:
+    try:
+        return date.fromisoformat(value).toordinal()
+    except ValueError:
+        return 0
+
+
+def _normalize_notes(value: Any) -> str:
+    """Release text with CRLF normalized and trailing spaces removed."""
+
+    if not isinstance(value, str):
+        return ""
+    lines = value.replace("\r\n", "\n").replace("\r", "\n").splitlines()
+    return "\n".join(line.rstrip() for line in lines).strip()
+
+
+def _update_notes(body: str, title: str) -> str:
+    """The update notes, capped at 1000 characters including the ellipsis.
+
+    The release body is preferred and the title is the fallback when the body is
+    empty. A long body is cut at a blank-line paragraph boundary when one falls
+    in the second half of the budget, then at a line break, and only then at the
+    character limit.
+    """
+
+    text = body or title
+    if len(text) <= RELEASE_NOTES_MAX_CHARS:
+        return text
+    limit = RELEASE_NOTES_MAX_CHARS - 1  # keep room for the ellipsis
+    cut = text[:limit]
+    boundary = cut.rfind("\n\n")
+    if boundary < limit // 2:
+        boundary = cut.rfind("\n")
+    if boundary >= limit // 2:
+        cut = cut[:boundary]
+    return cut.rstrip() + "…"
+
+
+def _json_list(
+    config: Config,
+    fixtures_root: Path | None,
+    relative: str,
+    *,
+    url: str,
+    params: Mapping[str, str],
+    label: str,
+    error: str,
+) -> list[Any]:
+    """Read a recorded list response, or fetch it live, then parse it."""
+
+    if fixtures_root is not None:
+        text = read_fixture(fixtures_root, relative)
+    else:
+        text = _throttled_get(url, params, config, error=error)
+    return _parse_json_list(text, label)
+
+
+def _parse_json_list(text: str, label: str) -> list[Any]:
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise SourceError(f"invalid {label} JSON: {exc}") from exc
+    if not isinstance(payload, list):
+        raise SourceError(f"invalid {label} JSON: expected a list")
+    return payload
 
 
 def _readme(
@@ -634,6 +1025,25 @@ def _readme_summary(readme: str) -> str:
 
 def _matched_terms(text: str, terms: tuple[str, ...]) -> list[str]:
     return [term for term in terms if matches(text, term)]
+
+
+def _weighted_terms(
+    terms: tuple[str, ...], metadata_text: str, extra_text: str
+) -> tuple[list[str], list[str], int]:
+    """Split a topic's hits into metadata and extra-text hits, and weight them.
+
+    A metadata hit weighs three; a hit found only in the README or the release
+    title/notes weighs one. Both the repository and the release scorers use this
+    one rule.
+    """
+
+    metadata_terms = [term for term in terms if matches(metadata_text, term)]
+    extra_terms = [
+        term
+        for term in terms
+        if term not in metadata_terms and matches(extra_text, term)
+    ]
+    return metadata_terms, extra_terms, 3 * len(metadata_terms) + len(extra_terms)
 
 
 def _popularity(stars: int) -> int:

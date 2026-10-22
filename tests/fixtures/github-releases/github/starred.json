@@ -1,0 +1,163 @@
+[
+  {
+    "full_name": "acme/aging-atlas",
+    "name": "aging-atlas",
+    "owner": {
+      "login": "acme"
+    },
+    "html_url": "https://github.com/acme/aging-atlas",
+    "description": "Aging multi-omics atlas",
+    "stargazers_count": 820,
+    "language": "Python",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "aging",
+      "multi-omics"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  },
+  {
+    "full_name": "acme/spatial-kit",
+    "name": "spatial-kit",
+    "owner": {
+      "login": "acme"
+    },
+    "html_url": "https://github.com/acme/spatial-kit",
+    "description": "Spatial transcriptomics toolkit",
+    "stargazers_count": 310,
+    "language": "Python",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "spatial-transcriptomics"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  },
+  {
+    "full_name": "acme/multi-omics-tools",
+    "name": "multi-omics-tools",
+    "owner": {
+      "login": "acme"
+    },
+    "html_url": "https://github.com/acme/multi-omics-tools",
+    "description": "Multi-omics preprocessing",
+    "stargazers_count": 140,
+    "language": "Python",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "multi-omics"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  },
+  {
+    "full_name": "acme/old-release",
+    "name": "old-release",
+    "owner": {
+      "login": "acme"
+    },
+    "html_url": "https://github.com/acme/old-release",
+    "description": "Aging notes",
+    "stargazers_count": 90,
+    "language": "Python",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "aging"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  },
+  {
+    "full_name": "acme/no-release",
+    "name": "no-release",
+    "owner": {
+      "login": "acme"
+    },
+    "html_url": "https://github.com/acme/no-release",
+    "description": "Single-cell viewer",
+    "stargazers_count": 75,
+    "language": "Python",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "single-cell"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  },
+  {
+    "full_name": "acme/older-release-only",
+    "name": "older-release-only",
+    "owner": {
+      "login": "acme"
+    },
+    "html_url": "https://github.com/acme/older-release-only",
+    "description": "Aging plots",
+    "stargazers_count": 60,
+    "language": "Python",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "aging"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  },
+  {
+    "full_name": "anthropics/claude-code",
+    "name": "claude-code",
+    "owner": {
+      "login": "anthropics"
+    },
+    "html_url": "https://github.com/anthropics/claude-code",
+    "description": "Claude Code CLI",
+    "stargazers_count": 42000,
+    "language": "TypeScript",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "claude-code"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  },
+  {
+    "full_name": "openai/codex",
+    "name": "codex",
+    "owner": {
+      "login": "openai"
+    },
+    "html_url": "https://github.com/openai/codex",
+    "description": "Codex CLI",
+    "stargazers_count": 25000,
+    "language": "Rust",
+    "created_at": "2026-08-01T08:00:00Z",
+    "pushed_at": "2026-10-21T08:00:00Z",
+    "updated_at": "2026-10-21T08:00:00Z",
+    "topics": [
+      "codex"
+    ],
+    "fork": false,
+    "archived": false,
+    "default_branch": "main"
+  }
+]

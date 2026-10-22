@@ -82,6 +82,20 @@ fulltext:
 # block is skipped.
 # github:
 #   token_env: GITHUB_TOKEN
+#   # Your GitHub login. Set it to track the releases of the repositories you
+#   # have starred; leave it empty to skip the starred-release section.
+#   user: tf1993614
+#   # Official G6 repositories whose releases feed the AI-tool block. A repo
+#   # that is also starred is read once and appears only here. Without a G6
+#   # topic this defaults to an empty list.
+#   official:
+#     - anthropics/claude-code
+#     - openai/codex
+#     - deepseek-ai/deepseek-harness
+#   # Release window (inclusive) and how many starred releases to show per day.
+#   releases:
+#     days: 7
+#     max_items: 2
 #   g6_topic: G6
 #   new:
 #     days: 7

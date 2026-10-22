@@ -148,3 +148,38 @@ class Repo:
             "score": self.score,
             "readme_url": self.readme_url,
         }
+
+
+@dataclass
+class Release:
+    """One GitHub release for the starred-repository or G6 block.
+
+    ``highlights`` is the release body (its update notes), or the release title
+    when the body is empty, already compacted and capped so a verbose release
+    cannot blow up the digest payload. ``group`` is the keyword group the
+    repository or release notes match, and is the G6 topic for an official
+    release.
+    """
+
+    repo: str
+    tag: str
+    name: str
+    date: str
+    highlights: str
+    url: str
+    prerelease: bool
+    group: str
+    relevance: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "repo": self.repo,
+            "tag": self.tag,
+            "name": self.name,
+            "date": self.date,
+            "highlights": self.highlights,
+            "url": self.url,
+            "prerelease": self.prerelease,
+            "group": self.group,
+            "relevance": self.relevance,
+        }

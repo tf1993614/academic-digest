@@ -2,10 +2,10 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 07：OA 全文能力**（在 Issue 01–05 的采集、去重、排序与 GitHub 发现骨架上，加入 Europe PMC / arXiv / bioRxiv / Research Square / Unpaywall 的 OA 全文定位与方法/结果/局限段落抽取）。后续的 Issue 06 GitHub release 跟踪、日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
+当前实现到 **Issue 07：OA 全文能力**，并补上 **Issue 06：GitHub release 跟踪**（在 Issue 01–05 的采集、去重、排序与 GitHub 发现骨架上，加入关注库与 Claude Code / Codex / DSH 官方库的 release）。后续的 Issue 08 日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -56,6 +56,10 @@ GITHUB_TOKEN=test python3 scripts/collect.py \
   --out /tmp/github.json \
   --state-db /tmp/github.sqlite3
 ```
+
+关注库与官方库的 release 样例在 `tests/fixtures/github-releases/`（8 个 starred
+repo + 3 个官方库的录制 release；把上面两条命令里的 `tests/fixtures/github` 换成
+`tests/fixtures/github-releases` 即可）。
 
 OA 全文样例在 `tests/fixtures/fulltext/`：`epmc/`（EPMC OA XML）、
 `arxiv-html/`、`arxiv-pdf/`、`biorxiv/`、`researchsquare/`（PDF）、
@@ -243,12 +247,77 @@ new/active 的 `found`）。状态库不记录仓库，`sources.github` 只给 `
 
 34 条查询各跑两遍 = 68 次搜索，按 2 秒间隔约 2–3 分钟。这会超过 spec 里
 “采集 30–90 秒”的目标，是有意取舍：22+12 条查询与 30 次/分钟的认证限速决定了
-请求数，整体运行仍在 2–4 分钟内。
+请求数，整体运行仍在 2–4 分钟内。活跃库按 star 增量排序尚未实现，当前按上面的
+规则分排序。
 
-G6 官方库（`anthropics/claude-code`、`openai/codex`、
-`deepseek-ai/deepseek-harness`）的 release 跟踪在
-[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)。活跃库
-按 star 增量排序尚未实现，当前按上面的规则分排序。
+### GitHub release 跟踪
+
+`github.user`（GitHub 登录名）非空时，`collect` 读该用户的 starred 列表
+（`GET /users/{user}/starred`，只取第一页 100 个），再逐库读
+`GET /repos/{owner}/{repo}/releases?per_page=30`。`github.official` 是 G6 官方库
+列表（默认 `anthropics/claude-code`、`openai/codex`、
+`deepseek-ai/deepseek-harness`），同样逐库读取；同一仓库同时出现在两个列表时只
+作为官方库读一次、只出现一次。
+
+- **关注库 release**（`releases.starred`）：`github.releases.days`（默认 7 天，
+  含窗口第一天）内、`published_at` 落在窗口里且非 draft 的 release；每个仓库只保留
+  发布日期最新的一条（同一天按完整发布时间比较），按发布日期降序、相关性降序、
+  repo 名排序，最多 `github.releases.max_items`（默认 2）条。相关性沿用 G1–G6
+  terms：命中仓库名/描述/topics 每个 +3，只命中 release 标题/notes 每个 +1。没有
+  新 release 的仓库不出现，也不补空条目。
+- **官方库 release**（`g6_releases`）：每个官方库最多一条窗口内最新 release，按
+  日期降序进入 G6 数据，与 `github.g6` 的生态 repo 并列（`group` 为 G6 topic）；
+  某个官方库没有更新时它不出现在列表里。官方 release 不占关注库的 2 条名额，也
+  不占 1–2 条生态 repo 的名额。
+
+每条 release 含 `repo`、`tag`、`name`、`date`（配置时区的本地日期）、
+`highlights`（release notes；正文为空时退回 release 标题；最多 1000 字符，含
+省略号，优先在段落或换行处截断）、`url`、`prerelease`、`group` 与 `relevance`。
+draft 跳过，缺少 `published_at` 的条目不参与（不回退 `created_at`）；pre-release
+保留并标 `prerelease: true`。release 请求与搜索请求共用串行节奏（约 2 秒一次）；
+任一 release 请求失败时 GitHub 源整体失败（`sources.github.status: failed`），
+其余论文源照常产出。`github.user` 与 `github.official` 都为空时不读取 release，
+也不输出 release 区块；配置了跟踪但一侧没有更新时该侧区块整体省略（没有 starred
+更新就不出 `releases`，没有官方更新就不出 `g6_releases`），不会出现空列表组成的
+空区块。
+
+```json
+"github": {
+  "...": "passes / limits / found / new / active / g6 见上",
+  "releases": {
+    "since": "2026-10-15",
+    "days": 7,
+    "limits": {"starred": 2},
+    "found": {"starred": 4},
+    "starred": [
+      {
+        "repo": "acme/aging-atlas",
+        "tag": "v0.3.0",
+        "name": "Aging Atlas 0.3.0",
+        "date": "2026-10-22",
+        "highlights": "- Faster cell-type annotation\n- Fix batch effect edges",
+        "url": "https://github.com/acme/aging-atlas/releases/tag/v0.3.0",
+        "prerelease": false,
+        "group": "G1",
+        "relevance": 6
+      }
+    ]
+  },
+  "g6_releases": [
+    {
+      "repo": "anthropics/claude-code",
+      "tag": "v2.0.0",
+      "date": "2026-10-21",
+      "group": "G6",
+      "...": "其余字段与 starred 相同"
+    }
+  ]
+}
+```
+
+`releases.found.starred` 是上限截断前的关注库候选数（含没有进入前 2 的仓库）；
+官方 release 的条数就是 `g6_releases` 的长度。`sources.github.count` 仍只统计
+new / active / G6 仓库，release 的入选数看 `releases.starred` 与 `g6_releases`。
 
 ### `fulltext`
 
@@ -298,7 +367,9 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
   `DIR/europepmc/search.json`、`DIR/arxiv/rss/<category>.xml`、
   `DIR/researchsquare/rss.xml`，启用时的 `DIR/biorxiv/details-0.json` /
   `DIR/medrxiv/details-0.json`，以及启用 GitHub 时的
-  `DIR/github/search/{new,active}/<index>.json`（README 可选，位于
+  `DIR/github/search/{new,active}/<index>.json`、配置了 `github.user` 时的
+  `DIR/github/starred.json`，以及每个要跟踪的 release feed
+  `DIR/github/releases/<owner>__<repo>.json`（README 可选，位于
   `DIR/github/readme/<owner>__<repo>.md`）；缺文件或内容损坏时非零退出。
 - 不带 `--fixtures`：向每个启用源各发一个轻量请求检查连通性（PubMed
   E-utilities、Europe PMC REST API、arXiv RSS、Research Square RSS、
@@ -345,6 +416,14 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
   7 天 / 5 星 / 1 条，以及 7 天 / 30 星 / 2 条）；`github.g6.max_items` 默认 2。
 - `github.readme_limit`：每次最多读多少个 README，默认 20；按 new / active / G6
   三个区块轮流分配，每个区块先取自己最好的 `max_items + 3` 个候选。
+- `github.user`：GitHub 登录名。非空时读该用户的 starred 列表并跟踪其 release；
+  留空则跳过关注库 release 区块（不影响新库/活跃库/G6 发现）。
+- `github.official`：G6 官方库列表，默认 `anthropics/claude-code`、
+  `openai/codex`、`deepseek-ai/deepseek-harness`；配置里没有 G6 topic 时默认为空，
+  显式配置则要求 `github.g6_topic` 存在。与 starred 列表重叠的仓库只作为官方库
+  出现一次。
+- `github.releases`：`days`（默认 7，窗口含第一天）与 `max_items`（关注库最多
+  几条，默认 2）。官方库不设额外上限，每个官方库最多一条。
 - `fulltext.unpaywall.email`：Unpaywall API 要求的联系邮箱；可留空。留空时
   `fulltext` 跳过 Unpaywall，仍会尝试 Europe PMC、arXiv 与预印本 PDF。邮箱只作为
   请求参数与 User-Agent 的一部分，不写入日报或日志。
@@ -422,7 +501,13 @@ tests/fixtures/
 │   ├── config.yaml          # 仅 GitHub；2 条发现查询 + 2 条 G6 查询
 │   ├── github/search/new/0.json … 3.json
 │   ├── github/search/active/0.json … 3.json
+│   ├── github/releases/<owner>__<repo>.json   # 官方库的录制 release（无更新为 []）
 │   └── github/readme/acme__cell-atlas.md
+├── github-releases/         # 8 个 starred repo + 3 个官方库的 release 跟踪
+│   ├── config.yaml          # github.user / official / releases 已配置
+│   ├── github/starred.json
+│   ├── github/releases/<owner>__<repo>.json
+│   └── github/search/{new,active}/0.json
 ├── fulltext/                # OA 全文：五种来源 + no_oa
 │   ├── config.yaml          # 共享配置；fixture 目录按场景分开
 │   ├── config-no-email.yaml # 未配置 Unpaywall：不产生该来源的 attempt

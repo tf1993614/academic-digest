@@ -1,0 +1,22 @@
+[
+  {
+    "tag_name": "v0.3.0",
+    "name": "Aging Atlas 0.3.0",
+    "body": "- Faster cell-type annotation\n- Fix batch effect edges",
+    "published_at": "2026-10-22T01:00:00Z",
+    "created_at": "2026-10-22T01:00:00Z",
+    "html_url": "https://github.com/acme/aging-atlas/releases/tag/v0.3.0",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "v0.2.0",
+    "name": "Aging Atlas 0.2.0",
+    "body": "Adds multi-omics import.",
+    "published_at": "2026-10-19T03:00:00Z",
+    "created_at": "2026-10-19T03:00:00Z",
+    "html_url": "https://github.com/acme/aging-atlas/releases/tag/v0.2.0",
+    "draft": false,
+    "prerelease": false
+  }
+]
