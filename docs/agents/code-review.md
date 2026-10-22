@@ -5,14 +5,21 @@ Review a frozen diff, never a moving working tree. A reviewer that sees the tree
 ## Freeze the diff
 
 1. Stop editing. A commit is cleanest; uncommitted changes are fine as long as they stay still.
-2. Run:
+2. Run one of:
 
    ```bash
-   scripts/review-patch.sh
+   scripts/review-patch.sh                 # uncommitted work: working tree vs HEAD
+   scripts/review-patch.sh --base 08def36  # committed work: 08def36..HEAD
    ```
 
-   It writes `out/review/current.diff`, plus `.stat`, `.status`, and `.head`. `out/` is gitignored.
-3. Give every reviewer the patch paths and the base commit. They review that snapshot.
+   It writes `out/review/current.diff`, plus `.stat`, `.status`, `.base`, and `.head`. `out/` is gitignored. Only the working-tree mode includes untracked files.
+3. For a committed base, give reviewers a read-only checkout so they can run one test without touching the working tree:
+
+   ```bash
+   git worktree add --detach out/review/head <base>
+   ```
+
+4. Give every reviewer the patch paths, the base commit, and the checkout path. They review that snapshot.
 
 If a finding needs code changes: stop the reviewers, make the changes, re-freeze, and start a fresh review. Do not keep the old reviewers running against a tree that moved.
 

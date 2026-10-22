@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# Run every local check before a commit. Enable once with:
+# Check the tree that is being committed (the index), not the working tree: a
+# shared or partially staged worktree must not land a tree the checks never saw.
+# Enable once with:
 #   git config core.hooksPath .githooks
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
-exec "$root/scripts/check.sh"
+tree="$(mktemp -d)"
+trap 'rm -rf "$tree"' EXIT
+git -C "$root" checkout-index --all --prefix="$tree/"
+"$root/scripts/check.sh" "$tree"
