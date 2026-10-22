@@ -1,0 +1,7 @@
+# 用 PubMed 做主源、Europe PMC 做补充，不用 OpenAlex / Semantic Scholar 做发现
+
+每日增量学术速递需要一个能稳定回答“过去 48 小时新入库了什么”的检索层。2026-10 实测：PubMed 的 `datetype=edat` 是唯一可靠的“入库日期”，摘要免费且无需 key；Europe PMC 一次 `pageSize=1000` 能覆盖 MEDLINE + PMC + 预印本（含 bioRxiv/medRxiv/Research Square），适合补摘要与预印本；OpenAlex 已改为美元额度计费（无 key 每天 $0.10、同 IP 共享，cursor 翻页从第二页起要 key），Semantic Scholar 在本机匿名访问连续 429，Crossref 摘要覆盖率低且限速 1 req/s。因此决定：**PubMed 做发现主源，Europe PMC 做补充与预印本聚合，Crossref 仅补 DOI/期刊元数据，OpenAlex 仅按 DOI 补主题/引用，Semantic Scholar 仅作 TLDR 兜底且 429 即跳过。** 代价是 PubMed 摘要必须用 XML 解析（`efetch` 传 JSON 会静默降级为纯文本），且 Europe PMC 有 1–2 天索引延迟；换来的是不依赖付费额度、不被第三方限流卡住主流程。
+
+**Considered options**：OpenAlex 做主源（否决：额度 + cursor 限制）；Semantic Scholar 做主源（否决：匿名 429）；Crossref 做主源（否决：无摘要）。
+
+**Consequences**：每条论文需要按 DOI > PMID > arXiv ID > 标题哈希去重；Europe PMC 不能单独承担“今天”的新鲜度，必须与 PubMed / arXiv RSS / Research Square RSS 并用。
