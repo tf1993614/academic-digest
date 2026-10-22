@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>arXiv Query: search_query=cat:cs.LG</title>
+  <updated>2026-10-22T04:00:00Z</updated>
+  <entry>
+    <id>http://arxiv.org/abs/2610.11111v1</id>
+    <updated>2026-10-21T17:00:00Z</updated>
+    <published>2026-10-21T17:00:00Z</published>
+    <title>Single-cell multi-omics of aging tissues</title>
+    <summary>Aging tissues acquire senescence programs that are visible in single-cell multi-omics data.</summary>
+    <author><name>Wei Zhang</name></author>
+    <author><name>Na Li</name></author>
+    <link href="https://arxiv.org/abs/2610.11111v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2610.11111v1" rel="related" type="application/pdf" title="pdf"/>
+    <arxiv:primary_category term="cs.LG"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2610.66666v1</id>
+    <updated>2026-10-19T12:00:00Z</updated>
+    <published>2026-10-19T12:00:00Z</published>
+    <title>Aging multi-omics atlas from an earlier announcement</title>
+    <summary>A backfill abstract about aging and multi-omics from an earlier announcement.</summary>
+    <author><name>History Author</name></author>
+    <link href="https://arxiv.org/abs/2610.66666v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2610.66666v1" rel="related" type="application/pdf" title="pdf"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2610.77777v2</id>
+    <updated>2026-10-21T10:00:00Z</updated>
+    <published>2026-10-18T10:00:00Z</published>
+    <title>Spatial aging atlas, revised</title>
+    <summary>A revised version that must not count as a new paper.</summary>
+    <author><name>Revision Author</name></author>
+    <link href="https://arxiv.org/abs/2610.77777v2" rel="alternate" type="text/html"/>
+  </entry>
+</feed>

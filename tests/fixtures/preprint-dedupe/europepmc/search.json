@@ -1,0 +1,38 @@
+{
+  "version": "6.9",
+  "hitCount": 2,
+  "resultList": {
+    "result": [
+      {
+        "id": "MED39111111",
+        "source": "MED",
+        "pmid": "39111111",
+        "doi": "10.1101/2026.10.20.777777",
+        "title": "Spatial transcriptomics of the aging hippocampus",
+        "authorString": "Doe C, Roe D.",
+        "journalInfo": {
+          "journal": {"title": "Nature Neuroscience"}
+        },
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-21",
+        "pubTypeList": {"pubType": ["Journal Article"]},
+        "abstractText": "Published version abstract about spatial transcriptomics and the aging brain."
+      },
+      {
+        "id": "PPR9999999",
+        "source": "PPR",
+        "doi": "10.21203/rs.3.rs-9999999/v1",
+        "title": "Single-cell spatial transcriptomics of aging ovaries",
+        "authorString": "Chen A, Sun B.",
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-21",
+        "pubTypeList": {"pubType": ["Preprint"]},
+        "bookOrReportDetails": {
+          "publisher": "Research Square",
+          "yearOfPublication": 2026
+        },
+        "abstractText": "Europe PMC preprint abstract about single-cell and aging ovaries."
+      }
+    ]
+  }
+}

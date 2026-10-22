@@ -61,7 +61,7 @@ def collect(config: Config, fixtures_root: Path | None, now: datetime) -> Source
     return SourceResult.ok(NAME, papers)
 
 
-def check(fixtures_root: Path | None) -> str:
+def check(config: Config, fixtures_root: Path | None) -> str:
     """Run the doctor check for this source, offline when fixtures are given."""
 
     if fixtures_root is not None:

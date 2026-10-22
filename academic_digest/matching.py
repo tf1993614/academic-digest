@@ -10,6 +10,7 @@ from .config import Topic
 from .models import Paper
 
 _MISSING_ABSTRACT_TAG = "无摘要"
+_PREPRINT_TAG = "预印本"
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,8 @@ def attach_topic(paper: Paper, topics: tuple[Topic, ...]) -> Paper | None:
         return None
 
     tags = list(matched.terms)
+    if paper.is_preprint:
+        tags.append(_PREPRINT_TAG)
     abstract = (paper.abstract or "").strip()
     paper.abstract = abstract
     paper.abstract_missing = not bool(abstract)

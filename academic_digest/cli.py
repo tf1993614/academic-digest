@@ -142,7 +142,7 @@ def _doctor(args: argparse.Namespace) -> int:
 
     for name in config.enabled_sources:
         try:
-            ok(f"source {name}: {SOURCES[name].check(args.fixtures)}")
+            ok(f"source {name}: {SOURCES[name].check(config, args.fixtures)}")
         except (SourceError, OSError) as exc:
             fail(f"source {name}: {exc}")
 

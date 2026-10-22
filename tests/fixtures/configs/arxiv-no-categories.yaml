@@ -1,0 +1,18 @@
+timezone: Asia/Shanghai
+
+lookback:
+  pubmed: 2
+  arxiv: 4
+
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - multi-omics
+    exclude: []
+    max_items: 6
+
+sources:
+  pubmed: true
+  arxiv: true

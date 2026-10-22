@@ -2,10 +2,10 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 02：Europe PMC + 跨源/跨天去重**（在 Issue 01 的配置 + 状态 + PubMed 骨架上，加入 Europe PMC、跨源合并与已推送排除）。后续的预印本源、排序配额、GitHub、OA 全文、日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
+当前实现到 **Issue 03：预印本**（在 Issue 01/02 的配置 + 状态 + PubMed/Europe PMC 骨架上，加入 arXiv RSS、Research Square RSS 与可选 bioRxiv/medRxiv）。后续的排序配额、GitHub、OA 全文、日报契约与 Server酱 推送按 `.scratch/academic-digest/issues/` 逐个补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)（骨架见 [01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)（前序：[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -30,7 +30,9 @@ python3 -m pytest
 ```
 
 含 Europe PMC 的离线样例在 `tests/fixtures/multisource/`，把上面命令里的
-`walking` 换成 `multisource` 即可。
+`walking` 换成 `multisource` 即可。预印本样例在
+`tests/fixtures/preprints/`（arXiv + Research Square，bioRxiv/medRxiv 默认关闭）
+与 `tests/fixtures/preprint-dedupe/`（预印本与期刊版本同 DOI 合并）。
 
 也可以使用模块入口：`python3 -m academic_digest collect ...` 与
 `python3 -m academic_digest doctor ...`。
@@ -49,8 +51,9 @@ collect --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db 
 - `--out`：候选池 JSON；默认取配置 `paths.candidates`。
 - `--state-db`：SQLite 状态库；默认取配置 `paths.state_db`。
 
-离开 `--fixtures` 时通过 PubMed E-utilities 的 `esearch` + `efetch` 以及
-Europe PMC 的 `search`（`resultType=core`）抓取。PubMed 摘要只从 XML 解析
+离开 `--fixtures` 时通过 PubMed E-utilities 的 `esearch` + `efetch`、Europe PMC
+的 `search`（`resultType=core`）、arXiv 的 RSS 与 API、Research Square 的 RSS，以及按需
+开启的 bioRxiv/medRxiv `details` API 抓取。PubMed 摘要只从 XML 解析
 （JSON 模式会静默丢掉摘要）。
 
 PubMed 仍是主源，Europe PMC 用来补充预印本与缺失摘要。跨源去重按
@@ -59,6 +62,21 @@ DOI > PMID > arXiv ID 匹配：任一强标识相同就合并为一条，PubMed 
 同时出现在 PubMed 与 EPMC 时保留 `is_preprint: true`；合并组里只要有一个已发表
 版本，就不再标记为预印本。Europe PMC 的预印本保留 `source: europepmc`。
 状态库 `pushes` 表里的条目不会再进入候选池（跨天去重）。
+
+### 预印本
+
+- **arXiv**：每个配置分类读 `rss.arxiv.org/rss/<cat>`，只保留
+  `announce_type=new`；`replace`（新版本）与 `cross`（其他分类的重复公告）丢弃。
+  RSS 的 `dc:creator` 提供作者，`oa_url` 直接给 PDF。另用 API 按配置分类与
+  `topics` 关键词回看 `lookback` 窗口，跳过 `updated != published` 的新版本，
+  用于补上错过的公告批次；同一 arXiv ID 只保留一条，API 补 DOI/期刊信息。
+  `lookback.arxiv` 必须 ≥ 4 天（周五到周一的投稿合并公告），窗口外的条目不会入选。
+- **Research Square**：读公开 RSS，使用 `<abstract>`、`<authors>`、`<doi>`，
+  从 `<description>` 的 `created on` 解析日期；不调用需要申请 token 的官方 API。
+- **bioRxiv / medRxiv**：默认关闭。开启后按 `lookback` 日期区间分页拉取
+  （30 条/页），只保留窗口内的记录，再由关键词组在本地过滤。
+- 所有预印本的 `is_preprint` 为 `true`，`tags` 中含 `预印本`（无摘要时再追加
+  `无摘要`）；与期刊版本共用 DOI 时只保留一条，并以已发表版本的字段和摘要优先。
 
 单个源失败时其余源继续产出候选，退出码仍为 0；失败原因写进
 `sources.<name>.error` 和 stderr。只有全部启用源都失败才退出 1。
@@ -98,7 +116,7 @@ DOI > PMID > arXiv ID 匹配：任一强标识相同就合并为一条，PubMed 
 ```
 
 没有摘要的论文仍会进入候选池：`abstract` 为空、`abstract_missing` 为
-`true`，`tags` 末尾带 `无摘要`。
+`true`，`tags` 中带 `无摘要`。
 
 `score` 与排序目前是骨架级规则（标题命中权重高于摘要，日期与 id 做稳定
 tie-break）；Issue 04 会替换为完整的相关性排序与分组配额。
@@ -111,10 +129,13 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 
 检查配置字段、时区、每个 topic、数据源、状态库与候选池路径：
 
-- `--fixtures DIR`：解析 `DIR/pubmed/esearch.xml` + `DIR/pubmed/efetch.xml`
-  与 `DIR/europepmc/search.json`；缺文件或内容损坏时非零退出。
+- `--fixtures DIR`：解析 `DIR/pubmed/esearch.xml` + `DIR/pubmed/efetch.xml`、
+  `DIR/europepmc/search.json`、`DIR/arxiv/rss/<category>.xml`、
+  `DIR/researchsquare/rss.xml`，以及启用时的 `DIR/biorxiv/details-0.json` /
+  `DIR/medrxiv/details-0.json`；缺文件或内容损坏时非零退出。
 - 不带 `--fixtures`：向每个启用源各发一个轻量请求检查连通性（PubMed
-  E-utilities、Europe PMC REST API）。
+  E-utilities、Europe PMC REST API、arXiv RSS、Research Square RSS、
+  bioRxiv/medRxiv API）。
 
 坏配置会以非零退出，并在 stderr 指出具体字段，例如
 `[fail] topics: must be a non-empty list`。
@@ -136,12 +157,16 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 
 - `timezone`：IANA 时区，例如 `Asia/Shanghai`。
 - `lookback.<source>`：每个启用源的回看天数，正整数；启用某源时必须给出对应的
-  `lookback`。
+  `lookback`。启用 `arxiv` 时 `lookback.arxiv` 至少 4 天，否则配置校验失败。
 - `topics`：非空列表；每项含 `name`、`label`、`terms`、可选 `exclude`、
   `max_items`。`name` 唯一，`terms` 非空。`max_items` 在当前骨架中只做校验与
   doctor 展示，分组配额在 Issue 04 才真正生效。
-- `sources`：数据源开关；当前支持 `pubmed` 与 `europepmc`。必须显式写出
-  `sources.pubmed`（可设 true/false），且至少要启用一个源。
+- `sources`：数据源开关；支持 `pubmed`、`europepmc`、`arxiv`、
+  `researchsquare`、`biorxiv`、`medrxiv`。必须显式写出 `sources.pubmed`
+  （可设 true/false），且至少要启用一个源；未写出的源视为关闭，
+  因此 bioRxiv/medRxiv 默认关闭。
+- `arxiv.categories`：启用 arXiv 时必填的非空分类列表（例如 `cs.LG`、
+  `q-bio.QM`），每个分类读一个 RSS；不启用时可省略。
 - `pool.max_items`：候选池上限，默认 30。
 - `paths.state_db` / `paths.candidates`：相对路径按配置文件所在目录解析。
 
@@ -183,7 +208,25 @@ tests/fixtures/
 │   │   └── efetch.xml
 │   └── europepmc/
 │       └── search.json
+├── preprints/               # arXiv RSS（new/replace/cross/过期）+ RS RSS
+│   ├── config.yaml          # + 默认关闭的 bioRxiv/medRxiv 录制响应
+│   ├── arxiv/rss/cs.LG.xml
+│   ├── arxiv/query.atom
+│   ├── researchsquare/rss.xml
+│   ├── biorxiv/details-0.json
+│   └── medrxiv/details-0.json
+├── preprint-dedupe/         # RS/bioRxiv 与 EPMC 同 DOI：只保留一条
+│   ├── config.yaml
+│   ├── europepmc/search.json
+│   ├── researchsquare/rss.xml
+│   └── biorxiv/details-0.json
+├── preprint-no-abstract/    # 预印本缺摘要：同时带“预印本”与“无摘要”
+│   ├── config.yaml
+│   ├── arxiv/rss/cs.LG.xml
+│   └── arxiv/query.atom
 └── configs/                 # 坏配置
+    ├── arxiv-lookback.yaml       # lookback.arxiv < 4
+    ├── arxiv-no-categories.yaml  # 启用 arxiv 但缺分类
     ├── bad-topics.yaml
     ├── broken.yaml
     ├── empty-terms.yaml

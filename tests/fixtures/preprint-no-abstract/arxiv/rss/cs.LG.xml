@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:arxiv="http://arxiv.org/schemas/atom"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     version="2.0">
+  <channel>
+    <title>cs.LG updates on arXiv.org</title>
+    <link>http://rss.arxiv.org/rss/cs.LG</link>
+    <description>cs.LG updates on the arXiv.org e-print archive.</description>
+    <lastBuildDate>Thu, 22 Oct 2026 04:00:11 +0000</lastBuildDate>
+    <pubDate>Thu, 22 Oct 2026 00:00:00 -0400</pubDate>
+    <item>
+      <title>Aging trajectories without an abstract</title>
+      <link>https://arxiv.org/abs/2610.55555v1</link>
+      <description>arXiv:2610.55555v1 Announce Type: new</description>
+      <guid isPermaLink="false">oai:arXiv.org:2610.55555v1</guid>
+      <category>cs.LG</category>
+      <pubDate>Thu, 22 Oct 2026 00:00:00 -0400</pubDate>
+      <arxiv:announce_type>new</arxiv:announce_type>
+      <dc:creator>No Abstract</dc:creator>
+    </item>
+  </channel>
+</rss>

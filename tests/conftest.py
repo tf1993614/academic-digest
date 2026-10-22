@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -38,3 +39,16 @@ def paths(tmp_path):
         "db": tmp_path / "state.sqlite3",
         "tmp": tmp_path,
     }
+
+
+def enable_sources(root: Path, *names: str) -> None:
+    """Turn sources on in a copied fixture's config before running the CLI."""
+
+    config_path = Path(root) / "config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    for name in names:
+        config["sources"][name] = True
+    config_path.write_text(
+        yaml.safe_dump(config, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )

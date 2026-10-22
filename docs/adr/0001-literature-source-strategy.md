@@ -14,3 +14,15 @@ Europe PMC 仍是补充源：与 PubMed 并行查询，使用 `FIRST_PDATE` 短�
 DOI > PMID > arXiv ID > 标题哈希；跨源匹配时只要共享任一强标识就视为同一篇论文
 （避免一侧缺 DOI 时重复），标题哈希仅在没有强标识时使用。这是对原 Consequences
 的细化，不改变“PubMed 主源、EPMC 补充”的判断。
+
+## Amendment 2026-10-22（Issue 03）
+
+预印本来源定案：arXiv 每日新增只认 RSS 的 `announce_type=new`，`replace`（新版本）
+与 `cross`（其他分类的重复公告）丢弃，`lookback.arxiv` 至少 4 天以覆盖周五到周一的
+合并公告，并用 API 按分类与关键词回看该窗口补漏（跳过 `updated != published`）；
+Research Square 只读公开 RSS（官方 API 需申请 token，且 `robots.txt`
+禁止 `/api/`），直接使用 `<abstract>`、`<authors>`、`<doi>`；bioRxiv/medRxiv 默认
+关闭，开启后按日期区间分页全量拉取并在本地按关键词组过滤。三者都产出预印本标记
+（`is_preprint` + `预印本` 标签）并沿用 DOI > PMID > arXiv ID > 标题哈希去重；与
+期刊版本共用 DOI 时合并为一条，以已发表版本的摘要与期刊优先且不再标记预印本。
+Europe PMC 仍是预印本聚合的补充源，与这些源并行而不是替代它们。

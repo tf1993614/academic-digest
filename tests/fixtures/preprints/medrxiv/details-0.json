@@ -1,0 +1,28 @@
+{
+  "messages": [
+    {
+      "status": "ok",
+      "category": "all",
+      "interval": "2026-10-20:2026-10-22",
+      "cursor": 0,
+      "count": 1,
+      "count_new_papers": "1",
+      "total": "1"
+    }
+  ],
+  "collection": [
+    {
+      "doi": "10.1101/2026.10.21.888888",
+      "title": "Single-cell multi-omics of aging immune cells in blood",
+      "authors": "Lin, Eve; Ma, Frank",
+      "date": "2026-10-21",
+      "version": "1",
+      "type": "new results",
+      "license": "cc_by_nc",
+      "category": "immunology",
+      "abstract": "Single-cell multi-omics of aging immune cells in human blood.",
+      "published": "NA",
+      "server": "medRxiv"
+    }
+  ]
+}

@@ -1,9 +1,15 @@
 timezone: Asia/Shanghai
 
 # How far back each source looks when a scheduled run is late.
+# arXiv must look back at least 4 days: Friday-Monday submissions are
+# announced as one batch, and a shorter window loses the weekend.
 lookback:
   pubmed: 2
   europepmc: 2
+  arxiv: 4
+  researchsquare: 3
+  biorxiv: 2
+  medrxiv: 2
 
 # Keyword groups. Each paper enters the candidate pool under the group with
 # the most hits (title hits weigh three times an abstract hit).
@@ -37,6 +43,22 @@ topics:
 sources:
   pubmed: true
   europepmc: true
+  arxiv: true
+  researchsquare: true
+  # bioRxiv/medRxiv pull every record in the date range and filter locally,
+  # so they stay off unless a run needs full coverage.
+  biorxiv: false
+  medrxiv: false
+
+# arXiv RSS feeds to read. One request per category, three seconds apart.
+arxiv:
+  categories:
+    - cs.LG
+    - cs.AI
+    - cs.CL
+    - q-bio.QM
+    - q-bio.GN
+    - q-bio.MN
 
 pool:
   max_items: 30

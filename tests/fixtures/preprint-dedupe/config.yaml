@@ -1,0 +1,37 @@
+timezone: Asia/Shanghai
+
+lookback:
+  pubmed: 2
+  europepmc: 2
+  researchsquare: 3
+  biorxiv: 2
+
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - multi-omics
+    exclude: []
+    max_items: 6
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - spatial transcriptomics
+    exclude: []
+    max_items: 4
+
+sources:
+  pubmed: false
+  europepmc: true
+  researchsquare: true
+  biorxiv: true
+  medrxiv: false
+
+pool:
+  max_items: 30
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

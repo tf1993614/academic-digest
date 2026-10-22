@@ -15,11 +15,30 @@ DEFAULT_MAX_ITEMS = 30
 DEFAULT_STATE_DB = "state/academic-digest.sqlite3"
 DEFAULT_CANDIDATES = "out/candidates.json"
 
-KNOWN_SOURCES = ("pubmed", "europepmc")
-_TOP_LEVEL_KEYS = {"timezone", "lookback", "topics", "sources", "pool", "paths"}
+KNOWN_SOURCES = (
+    "pubmed",
+    "europepmc",
+    "arxiv",
+    "researchsquare",
+    "biorxiv",
+    "medrxiv",
+)
+# arXiv merges Friday-Monday submissions into one announcement, so a window
+# shorter than four days silently loses the weekend batch.
+MIN_LOOKBACK = {"arxiv": 4}
+_TOP_LEVEL_KEYS = {
+    "timezone",
+    "lookback",
+    "topics",
+    "sources",
+    "pool",
+    "paths",
+    "arxiv",
+}
 _TOPIC_KEYS = {"name", "label", "terms", "exclude", "max_items"}
 _POOL_KEYS = {"max_items"}
 _PATH_KEYS = {"state_db", "candidates"}
+_ARXIV_KEYS = {"categories"}
 
 
 @dataclass(frozen=True)
@@ -38,6 +57,7 @@ class Config:
     lookback: Mapping[str, int]
     topics: tuple[Topic, ...]
     sources: Mapping[str, bool]
+    arxiv_categories: tuple[str, ...]
     pool_max_items: int
     state_db: Path
     candidates_path: Path
@@ -70,6 +90,7 @@ def load_config(path: Path) -> Config:
 
     sources = _parse_sources(raw.get("sources"))
     lookback = _parse_lookback(raw.get("lookback"), sources)
+    arxiv_categories = _parse_arxiv(raw.get("arxiv"), sources)
     topics = _parse_topics(raw.get("topics"))
     pool_max_items = _parse_pool(raw.get("pool"))
     state_db, candidates_path = _parse_paths(raw.get("paths"), path.parent)
@@ -80,6 +101,7 @@ def load_config(path: Path) -> Config:
         lookback=lookback,
         topics=topics,
         sources=sources,
+        arxiv_categories=arxiv_categories,
         pool_max_items=pool_max_items,
         state_db=state_db,
         candidates_path=candidates_path,
@@ -110,11 +132,38 @@ def _parse_lookback(value: Any, sources: Mapping[str, bool]) -> dict[str, int]:
         field = f"lookback.{name}"
         if not isinstance(name, str) or name not in KNOWN_SOURCES:
             raise ConfigError(field, f"unknown source (known: {', '.join(KNOWN_SOURCES)})")
-        lookback[name] = _positive_int(days, field)
+        days = _positive_int(days, field)
+        minimum = MIN_LOOKBACK.get(name)
+        if sources.get(name) and minimum is not None and days < minimum:
+            raise ConfigError(
+                field,
+                f"must be at least {minimum} days for {name} "
+                "(announcements merge over weekends and holidays)",
+            )
+        lookback[name] = days
     for name, enabled in sources.items():
         if enabled and name not in lookback:
             raise ConfigError(f"lookback.{name}", f"is required when the {name} source is enabled")
     return lookback
+
+
+def _parse_arxiv(value: Any, sources: Mapping[str, bool]) -> tuple[str, ...]:
+    """The arXiv categories whose RSS feeds the daily job reads."""
+
+    if value is None:
+        if sources.get("arxiv"):
+            raise ConfigError(
+                "arxiv.categories",
+                "is required when the arxiv source is enabled "
+                "(for example cs.LG, q-bio.QM)",
+            )
+        return ()
+    mapping = _require_mapping(value, "arxiv")
+    _reject_unknown(mapping, _ARXIV_KEYS, "arxiv")
+    categories = _string_list(
+        mapping.get("categories"), "arxiv.categories", allow_empty=False
+    )
+    return tuple(dict.fromkeys(categories))
 
 
 def _parse_topics(value: Any) -> tuple[Topic, ...]:

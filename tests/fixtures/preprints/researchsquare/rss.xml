@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Research Square</title>
+    <link>https://www.researchsquare.com/</link>
+    <description>Research Square preprints</description>
+    <item>
+      <title>Single-cell spatial transcriptomics of aging ovaries</title>
+      <link>https://www.researchsquare.com/article/rs-9999999/latest</link>
+      <description>An article created on 2026-10-21 23:03:00</description>
+      <doi>https://doi.org/10.21203/rs.3.rs-9999999/v1</doi>
+      <abstract>Spatial transcriptomics and single-cell multi-omics reveal aging programs in the ovary.</abstract>
+      <authors>Ailing Chen, Bo Sun</authors>
+    </item>
+    <item>
+      <title>Rethinking university admission</title>
+      <link>https://www.researchsquare.com/article/rs-8888888/latest</link>
+      <description>An article created on 2026-10-20 11:00:00</description>
+      <doi>https://doi.org/10.21203/rs.3.rs-8888888/v1</doi>
+      <abstract>A social science study with no configured keyword.</abstract>
+      <authors>Carol White</authors>
+    </item>
+    <item>
+      <title>An aging multi-omics study from last week</title>
+      <link>https://www.researchsquare.com/article/rs-7777777/latest</link>
+      <description>An article created on 2026-10-10 09:00:00</description>
+      <doi>https://doi.org/10.21203/rs.3.rs-7777777/v1</doi>
+      <abstract>Aging and multi-omics work outside the lookback window.</abstract>
+      <authors>Stale Author</authors>
+    </item>
+  </channel>
+</rss>

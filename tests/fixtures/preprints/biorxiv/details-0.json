@@ -1,0 +1,44 @@
+{
+  "messages": [
+    {
+      "status": "ok",
+      "category": "all",
+      "interval": "2026-10-20:2026-10-22",
+      "cursor": 0,
+      "count": 2,
+      "count_new_papers": "2",
+      "total": "2"
+    }
+  ],
+  "collection": [
+    {
+      "doi": "10.1101/2026.10.20.777777",
+      "title": "Spatial transcriptomics of the aging hippocampus",
+      "authors": "Doe, Cara; Roe, Dan",
+      "author_corresponding": "Cara Doe",
+      "author_corresponding_institution": "Example Institute",
+      "date": "2026-10-20",
+      "version": "2",
+      "type": "new results",
+      "license": "cc_by",
+      "category": "neuroscience",
+      "jatsxml": "https://www.biorxiv.org/content/early/2026/10/20/2026.10.20.777777.source.xml",
+      "abstract": "Spatial transcriptomics and single-cell profiling of the aging hippocampus.",
+      "published": "NA",
+      "server": "bioRxiv"
+    },
+    {
+      "doi": "10.1101/2026.10.20.666666",
+      "title": "A revised phylogeny of ferns",
+      "authors": "Fern Author",
+      "date": "2026-10-20",
+      "version": "1",
+      "type": "new results",
+      "license": "cc_by",
+      "category": "plant biology",
+      "abstract": "A botany paper with no configured keyword.",
+      "published": "NA",
+      "server": "bioRxiv"
+    }
+  ]
+}

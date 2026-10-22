@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Research Square</title>
+    <link>https://www.researchsquare.com/</link>
+    <description>Research Square preprints</description>
+    <item>
+      <title>Single-cell spatial transcriptomics of aging ovaries</title>
+      <link>https://www.researchsquare.com/article/rs-9999999/latest</link>
+      <description>An article created on 2026-10-21 23:03:00</description>
+      <doi>https://doi.org/10.21203/rs.3.rs-9999999/v1</doi>
+      <abstract>Research Square abstract about single-cell and aging ovaries.</abstract>
+      <authors>Ailing Chen, Bo Sun</authors>
+    </item>
+    <item>
+      <title>Single-cell multi-omics of aging skin</title>
+      <link>https://www.researchsquare.com/article/rs-5555555/latest</link>
+      <description>An article created on 2026-10-20 08:00:00</description>
+      <doi>https://doi.org/10.21203/rs.3.rs-5555555/v1</doi>
+      <abstract>A Research Square only preprint about single-cell and aging skin.</abstract>
+      <authors>Mia Wei</authors>
+    </item>
+  </channel>
+</rss>

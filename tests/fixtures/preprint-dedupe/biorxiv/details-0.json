@@ -1,0 +1,28 @@
+{
+  "messages": [
+    {
+      "status": "ok",
+      "category": "all",
+      "interval": "2026-10-20:2026-10-22",
+      "cursor": 0,
+      "count": 1,
+      "count_new_papers": "1",
+      "total": "1"
+    }
+  ],
+  "collection": [
+    {
+      "doi": "10.1101/2026.10.20.777777",
+      "title": "Spatial transcriptomics of the aging hippocampus",
+      "authors": "Doe, Cara; Roe, Dan",
+      "date": "2026-10-20",
+      "version": "2",
+      "type": "new results",
+      "license": "cc_by",
+      "category": "neuroscience",
+      "abstract": "bioRxiv preprint abstract about spatial transcriptomics and the aging brain.",
+      "published": "NA",
+      "server": "bioRxiv"
+    }
+  ]
+}

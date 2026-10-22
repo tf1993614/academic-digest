@@ -1,6 +1,6 @@
 import shutil
 
-from conftest import FIXTURES, NOW
+from conftest import FIXTURES, NOW, enable_sources
 
 
 def doctor(cli, fixtures="walking", config=None, fixtures_dir=None):
@@ -144,3 +144,40 @@ def test_doctor_requires_the_pubmed_source_key(cli):
     assert result.returncode != 0
     assert "sources.pubmed" in result.stderr
     assert "required" in result.stderr
+
+
+def test_doctor_reports_preprint_source_fixture_checks(cli):
+    result = doctor(cli, fixtures="preprints")
+
+    assert result.returncode == 0, result.stderr
+    output = result.stdout
+    assert "source arxiv" in output
+    assert "source researchsquare" in output
+    assert "new item" in output
+    assert "all checks passed" in output
+
+
+def test_doctor_reports_malformed_arxiv_rss(cli, tmp_path):
+    fixtures = tmp_path / "broken-arxiv"
+    shutil.copytree(FIXTURES / "preprints", fixtures)
+    (fixtures / "arxiv" / "rss" / "cs.LG.xml").write_text(
+        "<rss><channel>", encoding="utf-8"
+    )
+
+    result = doctor(cli, fixtures="preprints", fixtures_dir=fixtures)
+
+    assert result.returncode != 0
+    assert "arxiv" in result.stderr
+    assert "invalid arXiv RSS" in result.stderr
+
+
+def test_doctor_checks_biorxiv_when_the_source_is_enabled(cli, tmp_path):
+    fixtures = tmp_path / "preprints-doctor"
+    shutil.copytree(FIXTURES / "preprints", fixtures)
+    enable_sources(fixtures, "biorxiv")
+
+    result = doctor(cli, fixtures="preprints", fixtures_dir=fixtures)
+
+    assert result.returncode == 0, result.stderr
+    assert "source biorxiv" in result.stdout
+    assert "2 records" in result.stdout

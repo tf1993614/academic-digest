@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from ..config import Config
 from ..errors import SourceError
@@ -47,6 +47,16 @@ def read_fixture(root: Path, relative: str) -> str:
         raise SourceError(f"cannot read fixture {relative}: {exc}") from exc
 
 
+def read_or_fetch(
+    fixtures_root: Path | None, relative: str, fetch: Callable[[], str]
+) -> str:
+    """Read a recorded response, or call the live fetcher when none was given."""
+
+    if fixtures_root is not None:
+        return read_fixture(fixtures_root, relative)
+    return fetch()
+
+
 def search_terms(config: Config) -> list[str]:
     """All configured terms once, in configuration order.
 
@@ -70,6 +80,12 @@ def lookback_window(config: Config, source: str, now: datetime) -> tuple[date, d
 
     days = config.lookback[source]
     return now.date() - timedelta(days=days), now.date()
+
+
+def in_window(day: date | None, start: date, end: date) -> bool:
+    """Whether a record date falls inside the window (unknown dates pass)."""
+
+    return day is None or start <= day <= end
 
 
 def get_text(
