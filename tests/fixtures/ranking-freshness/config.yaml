@@ -1,0 +1,23 @@
+timezone: Asia/Shanghai
+
+lookback:
+  europepmc: 2
+
+topics:
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - scRNA-seq
+      - spatial transcriptomics
+      - MERFISH
+    exclude: []
+    max_items: 6
+
+sources:
+  pubmed: false
+  europepmc: true
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

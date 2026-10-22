@@ -1,0 +1,61 @@
+timezone: Asia/Shanghai
+
+lookback:
+  europepmc: 2
+
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - ageing
+      - senescence
+      - multi-omics
+    exclude: []
+    max_items: 10
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - scRNA-seq
+      - spatial transcriptomics
+      - MERFISH
+    exclude: []
+    max_items: 4
+  - name: G3
+    label: 基础模型与表征
+    terms:
+      - knowledge graph
+      - graph neural network
+      - retrieval-augmented
+    exclude: []
+    max_items: 6
+  - name: G4
+    label: 扰动预测与基因调控
+    terms:
+      - perturbation prediction
+      - genetic perturbation
+      - gene regulatory network
+    exclude: []
+    max_items: 6
+  - name: G5
+    label: LLM / 图 / 多模态
+    terms:
+      - large language model
+      - multimodal foundation model
+      - multimodal learning
+    exclude: []
+    max_items: 6
+
+sources:
+  pubmed: false
+  europepmc: true
+
+# G1 is configured wider (10) so five groups can exceed the default 30-paper
+# cap; G2 still keeps the ticket's four-seat quota.
+
+# No `pool` key: the default cap of 30 papers must apply.
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

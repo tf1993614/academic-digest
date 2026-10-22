@@ -4,28 +4,11 @@ import sqlite3
 
 import pytest
 
-from conftest import FIXTURES, NOW
-
-
-def collect(cli, paths, fixture="walking", config=None, out=None, fixtures_dir=None):
-    root = fixtures_dir or FIXTURES / fixture
-    return cli(
-        "collect",
-        "--config",
-        config or root / "config.yaml",
-        "--fixtures",
-        root,
-        "--now",
-        NOW,
-        "--out",
-        out or paths["out"],
-        "--state-db",
-        paths["db"],
-    )
+from conftest import FIXTURES, NOW, run_collect
 
 
 def test_collect_builds_candidate_pool_from_pubmed_fixture(cli, paths):
-    result = collect(cli, paths)
+    result = run_collect(cli, paths, "walking")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -49,14 +32,20 @@ def test_collect_builds_candidate_pool_from_pubmed_fixture(cli, paths):
     assert aging["authors"] == ["Wei Zhang", "Na Li"]
     assert aging["abstract_missing"] is False
     assert aging["url"] == "https://pubmed.ncbi.nlm.nih.gov/39000001/"
+    # README's sample: aging + senescence + multi-omics, no freshness bonus.
+    assert aging["relevance"] == 7
+    assert aging["score"] == 7
 
     spatial = next(p for p in pool["papers"] if p["pmid"] == "39000002")
     assert spatial["group"] == "G2"
     assert "spatial transcriptomics" in spatial["tags"]
+    # Title hit 3 + abstract hit 1 + yesterday 1.
+    assert spatial["relevance"] == 4
+    assert spatial["score"] == 5
 
 
 def test_paper_without_abstract_stays_in_pool_with_marker(cli, paths):
-    result = collect(cli, paths, fixture="no-abstract")
+    result = run_collect(cli, paths, "no-abstract")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -72,7 +61,7 @@ def test_paper_without_abstract_stays_in_pool_with_marker(cli, paths):
 
 
 def test_collect_reads_europepmc_and_marks_preprints(cli, paths):
-    result = collect(cli, paths, fixture="multisource")
+    result = run_collect(cli, paths, "multisource")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -97,7 +86,7 @@ def test_collect_reads_europepmc_and_marks_preprints(cli, paths):
 
 
 def test_europepmc_fills_a_missing_pubmed_abstract(cli, paths):
-    result = collect(cli, paths, fixture="epmc-abstract")
+    result = run_collect(cli, paths, "epmc-abstract")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -113,7 +102,7 @@ def test_europepmc_fills_a_missing_pubmed_abstract(cli, paths):
 
 
 def test_merged_preprint_keeps_marker_and_pubmed_fields(cli, paths):
-    result = collect(cli, paths, fixture="preprint-merge")
+    result = run_collect(cli, paths, "preprint-merge")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -130,7 +119,7 @@ def test_merged_preprint_keeps_marker_and_pubmed_fields(cli, paths):
 
 def test_same_doi_across_sources_appears_once_with_pubmed_fields(cli, paths):
     # The EPMC copy of 39000001 has no PMID, so only the DOI links the records.
-    result = collect(cli, paths, fixture="multisource")
+    result = run_collect(cli, paths, "multisource")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -156,7 +145,7 @@ def test_same_doi_across_sources_appears_once_with_pubmed_fields(cli, paths):
 
 
 def test_pushed_item_is_excluded_from_the_next_candidate_pool(cli, paths):
-    first = collect(cli, paths, fixture="multisource")
+    first = run_collect(cli, paths, "multisource")
     assert first.returncode == 0, first.stderr
     first_pool = json.loads(paths["out"].read_text(encoding="utf-8"))
     assert first_pool["candidate_count"] == 4
@@ -177,7 +166,7 @@ def test_pushed_item_is_excluded_from_the_next_candidate_pool(cli, paths):
         connection.close()
 
     second_out = paths["tmp"] / "second.json"
-    second = collect(cli, paths, fixture="multisource", out=second_out)
+    second = run_collect(cli, paths, "multisource", out=second_out)
 
     assert second.returncode == 0, second.stderr
     pool = json.loads(second_out.read_text(encoding="utf-8"))
@@ -188,11 +177,11 @@ def test_pushed_item_is_excluded_from_the_next_candidate_pool(cli, paths):
 
 
 def test_rerun_records_papers_once_and_appends_a_run(cli, paths):
-    first = collect(cli, paths)
+    first = run_collect(cli, paths, "walking")
     assert first.returncode == 0, first.stderr
     first_pool = json.loads(paths["out"].read_text(encoding="utf-8"))
 
-    second = collect(cli, paths)
+    second = run_collect(cli, paths, "walking")
     assert second.returncode == 0, second.stderr
     second_pool = json.loads(paths["out"].read_text(encoding="utf-8"))
 
@@ -231,7 +220,7 @@ def test_one_broken_source_still_produces_candidates(
         encoding="utf-8",
     )
 
-    result = collect(cli, paths, fixtures_dir=fixtures)
+    result = run_collect(cli, paths, "multisource", fixtures_dir=fixtures)
 
     assert result.returncode == 0, result.stderr
     assert broken_source in result.stderr
@@ -268,7 +257,7 @@ def test_pushed_title_only_item_stays_excluded_after_it_gains_a_doi(
     doi = preprint.pop("doi")
     search_path.write_text(json.dumps(payload), encoding="utf-8")
 
-    first = collect(cli, paths, fixtures_dir=fixtures)
+    first = run_collect(cli, paths, "multisource", fixtures_dir=fixtures)
     assert first.returncode == 0, first.stderr
     first_pool = json.loads(paths["out"].read_text(encoding="utf-8"))
     pushed = next(paper for paper in first_pool["papers"] if paper["is_preprint"])
@@ -288,7 +277,7 @@ def test_pushed_title_only_item_stays_excluded_after_it_gains_a_doi(
     search_path.write_text(json.dumps(payload), encoding="utf-8")
 
     second_out = paths["tmp"] / "drift.json"
-    second = collect(cli, paths, fixtures_dir=fixtures, out=second_out)
+    second = run_collect(cli, paths, "multisource", fixtures_dir=fixtures, out=second_out)
 
     assert second.returncode == 0, second.stderr
     pool = json.loads(second_out.read_text(encoding="utf-8"))

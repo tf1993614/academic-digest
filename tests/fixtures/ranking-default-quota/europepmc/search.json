@@ -1,0 +1,92 @@
+{
+  "version": "6.9",
+  "hitCount": 7,
+  "resultList": {
+    "result": [
+      {
+        "id": "90000001",
+        "source": "MED",
+        "title": "Spatial transcriptomics study 1",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "90000002",
+        "source": "MED",
+        "title": "Spatial transcriptomics study 2",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "90000003",
+        "source": "MED",
+        "title": "Spatial transcriptomics study 3",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "90000004",
+        "source": "MED",
+        "title": "Spatial transcriptomics study 4",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "90000005",
+        "source": "MED",
+        "title": "Spatial transcriptomics study 5",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "90000006",
+        "source": "MED",
+        "title": "Spatial transcriptomics study 6",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "90000007",
+        "source": "MED",
+        "title": "Spatial transcriptomics study 7",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      }
+    ]
+  }
+}

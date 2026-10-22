@@ -1,0 +1,31 @@
+timezone: Asia/Shanghai
+
+lookback:
+  pubmed: 2
+
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - senescence
+    exclude: []
+    max_items: 6
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - spatial transcriptomics
+    exclude: []
+    max_items: 4
+
+sources:
+  pubmed: true
+
+# Smaller than the topic count: impossible to reserve one paper per group.
+pool:
+  max_items: 1
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

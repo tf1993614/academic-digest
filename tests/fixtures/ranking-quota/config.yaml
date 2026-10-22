@@ -1,0 +1,44 @@
+timezone: Asia/Shanghai
+
+lookback:
+  europepmc: 2
+
+topics:
+  - name: G1
+    label: 老化 × 多组学
+    terms:
+      - aging
+      - ageing
+      - senescence
+      - multi-omics
+    exclude: []
+    max_items: 6
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - scRNA-seq
+      - spatial transcriptomics
+      - MERFISH
+    exclude: []
+    max_items: 4
+  - name: G3
+    label: 基础模型与表征
+    terms:
+      - knowledge graph
+      - graph neural network
+      - retrieval-augmented
+    exclude: []
+    max_items: 6
+
+sources:
+  pubmed: false
+  europepmc: true
+
+# A deliberately small pool: reservations must still save one paper per group.
+pool:
+  max_items: 6
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json

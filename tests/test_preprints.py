@@ -1,28 +1,11 @@
 import json
 import shutil
 
-from conftest import FIXTURES, NOW, enable_sources
-
-
-def collect(cli, paths, fixture="preprints", config=None, fixtures_dir=None):
-    root = fixtures_dir or FIXTURES / fixture
-    return cli(
-        "collect",
-        "--config",
-        config or root / "config.yaml",
-        "--fixtures",
-        root,
-        "--now",
-        NOW,
-        "--out",
-        paths["out"],
-        "--state-db",
-        paths["db"],
-    )
+from conftest import FIXTURES, enable_sources, run_collect
 
 
 def test_arxiv_keeps_only_new_announcements_within_the_lookback(cli, paths):
-    result = collect(cli, paths)
+    result = run_collect(cli, paths, "preprints")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -54,7 +37,7 @@ def test_arxiv_keeps_only_new_announcements_within_the_lookback(cli, paths):
 
 
 def test_arxiv_drops_replace_cross_and_stale_items(cli, paths):
-    result = collect(cli, paths)
+    result = run_collect(cli, paths, "preprints")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -67,7 +50,7 @@ def test_arxiv_drops_replace_cross_and_stale_items(cli, paths):
 
 
 def test_researchsquare_rss_supplies_abstract_authors_and_doi(cli, paths):
-    result = collect(cli, paths)
+    result = run_collect(cli, paths, "preprints")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -93,7 +76,7 @@ def test_researchsquare_rss_supplies_abstract_authors_and_doi(cli, paths):
 
 
 def test_biorxiv_and_medrxiv_are_off_by_default(cli, paths):
-    result = collect(cli, paths)
+    result = run_collect(cli, paths, "preprints")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -112,7 +95,7 @@ def test_enabling_biorxiv_and_medrxiv_adds_locally_filtered_candidates(
     shutil.copytree(FIXTURES / "preprints", fixtures)
     enable_sources(fixtures, "biorxiv", "medrxiv")
 
-    result = collect(cli, paths, fixtures_dir=fixtures)
+    result = run_collect(cli, paths, "preprints", fixtures_dir=fixtures)
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -147,7 +130,7 @@ def test_enabling_biorxiv_and_medrxiv_adds_locally_filtered_candidates(
 
 
 def test_same_doi_from_a_preprint_and_a_journal_appears_once(cli, paths):
-    result = collect(cli, paths, fixture="preprint-dedupe")
+    result = run_collect(cli, paths, "preprint-dedupe")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -172,7 +155,7 @@ def test_same_doi_from_a_preprint_and_a_journal_appears_once(cli, paths):
 def test_same_doi_from_two_preprint_sources_appears_once_with_preprint_marker(
     cli, paths
 ):
-    result = collect(cli, paths, fixture="preprint-dedupe")
+    result = run_collect(cli, paths, "preprint-dedupe")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -197,9 +180,10 @@ def test_same_doi_from_two_preprint_sources_appears_once_with_preprint_marker(
 
 
 def test_arxiv_lookback_must_cover_a_weekend(cli, paths):
-    result = collect(
+    result = run_collect(
         cli,
         paths,
+        "preprints",
         config=FIXTURES / "configs" / "arxiv-lookback.yaml",
         fixtures_dir=FIXTURES / "preprints",
     )
@@ -212,9 +196,10 @@ def test_arxiv_lookback_must_cover_a_weekend(cli, paths):
 
 
 def test_arxiv_requires_configured_categories(cli, paths):
-    result = collect(
+    result = run_collect(
         cli,
         paths,
+        "preprints",
         config=FIXTURES / "configs" / "arxiv-no-categories.yaml",
         fixtures_dir=FIXTURES / "preprints",
     )
@@ -226,7 +211,7 @@ def test_arxiv_requires_configured_categories(cli, paths):
 
 
 def test_preprint_without_abstract_keeps_both_markers(cli, paths):
-    result = collect(cli, paths, fixture="preprint-no-abstract")
+    result = run_collect(cli, paths, "preprint-no-abstract")
 
     assert result.returncode == 0, result.stderr
     pool = json.loads(paths["out"].read_text(encoding="utf-8"))

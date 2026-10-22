@@ -17,7 +17,7 @@ _PREPRINT_TAG = "预印本"
 class TopicMatch:
     topic: Topic
     terms: tuple[str, ...]
-    score: int
+    relevance: int
 
 
 @lru_cache(maxsize=None)
@@ -32,7 +32,7 @@ def _hits(text: str, term: str) -> bool:
 
 
 def match_topic(paper: Paper, topics: tuple[Topic, ...]) -> TopicMatch | None:
-    """Return the best-matching topic, its matched terms, and a rule score.
+    """Return the best-matching topic, its matched terms, and a relevance score.
 
     Title hits weigh more than abstract hits. Ties go to the first configured
     topic so that a fixed fixture always yields the same group. A topic whose
@@ -50,14 +50,14 @@ def match_topic(paper: Paper, topics: tuple[Topic, ...]) -> TopicMatch | None:
         matched = [term for term in topic.terms if _hits(haystack, term)]
         if not matched:
             continue
-        score = sum(3 if _hits(title, term) else 1 for term in matched)
-        if best is None or score > best.score:
-            best = TopicMatch(topic=topic, terms=tuple(matched), score=score)
+        relevance = sum(3 if _hits(title, term) else 1 for term in matched)
+        if best is None or relevance > best.relevance:
+            best = TopicMatch(topic=topic, terms=tuple(matched), relevance=relevance)
     return best
 
 
 def attach_topic(paper: Paper, topics: tuple[Topic, ...]) -> Paper | None:
-    """Attach group, tags, score, and the missing-abstract marker in place.
+    """Attach group, tags, relevance score, and the missing-abstract marker in place.
 
     Returns ``None`` when no configured group matches, so irrelevant records
     never enter the candidate pool.
@@ -78,5 +78,5 @@ def attach_topic(paper: Paper, topics: tuple[Topic, ...]) -> Paper | None:
 
     paper.group = matched.topic.name
     paper.tags = tags
-    paper.score = matched.score
+    paper.relevance = matched.relevance
     return paper

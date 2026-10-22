@@ -12,7 +12,10 @@ lookback:
   medrxiv: 2
 
 # Keyword groups. Each paper enters the candidate pool under the group with
-# the most hits (title hits weigh three times an abstract hit).
+# the highest weighted hit score (title hits weigh three times an abstract hit).
+# `max_items` caps that group in the candidate pool, and every non-empty group
+# keeps at least its best paper even when a broader group has the top scores.
+# Omit `max_items` to use the default of 6.
 topics:
   - name: G1
     label: 老化 × 多组学
@@ -60,6 +63,8 @@ arxiv:
     - q-bio.GN
     - q-bio.MN
 
+# Candidate pool cap; it must be at least the number of topics so every
+# non-empty group can keep a paper. A short pool is never padded.
 pool:
   max_items: 30
 

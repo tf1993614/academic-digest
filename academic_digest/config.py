@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -69,6 +70,11 @@ class Config:
     def zone(self) -> ZoneInfo:
         return ZoneInfo(self.timezone)
 
+    def local_date(self, moment: datetime) -> date:
+        """The calendar date in the configured timezone."""
+
+        return moment.astimezone(self.zone()).date()
+
 
 def load_config(path: Path) -> Config:
     path = Path(path)
@@ -92,7 +98,7 @@ def load_config(path: Path) -> Config:
     lookback = _parse_lookback(raw.get("lookback"), sources)
     arxiv_categories = _parse_arxiv(raw.get("arxiv"), sources)
     topics = _parse_topics(raw.get("topics"))
-    pool_max_items = _parse_pool(raw.get("pool"))
+    pool_max_items = _parse_pool(raw.get("pool"), len(topics))
     state_db, candidates_path = _parse_paths(raw.get("paths"), path.parent)
 
     return Config(
@@ -201,12 +207,20 @@ def _parse_topics(value: Any) -> tuple[Topic, ...]:
     return tuple(topics)
 
 
-def _parse_pool(value: Any) -> int:
+def _parse_pool(value: Any, topic_count: int) -> int:
     if value is None:
-        return DEFAULT_MAX_ITEMS
-    mapping = _require_mapping(value, "pool")
-    _reject_unknown(mapping, _POOL_KEYS, "pool")
-    return _positive_int(mapping.get("max_items", DEFAULT_MAX_ITEMS), "pool.max_items")
+        pool_max = DEFAULT_MAX_ITEMS
+    else:
+        mapping = _require_mapping(value, "pool")
+        _reject_unknown(mapping, _POOL_KEYS, "pool")
+        pool_max = _positive_int(mapping.get("max_items", DEFAULT_MAX_ITEMS), "pool.max_items")
+    if pool_max < topic_count:
+        raise ConfigError(
+            "pool.max_items",
+            f"must be at least the number of topics ({topic_count}) "
+            "so every non-empty group can keep a paper",
+        )
+    return pool_max
 
 
 def _parse_paths(value: Any, base: Path) -> tuple[Path, Path]:

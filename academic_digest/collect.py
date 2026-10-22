@@ -12,6 +12,7 @@ from .config import Config
 from .dedupe import is_pushed, merge_duplicates
 from .matching import attach_topic
 from .models import Paper
+from .ranking import select_candidates
 from .sources import SOURCES, SourceResult
 from .state import StateStore, open_state
 
@@ -51,16 +52,21 @@ def collect(
             continue
         candidates.append(enriched)
 
-    papers = sorted(candidates, key=_sort_key)[: config.pool_max_items]
+    papers = select_candidates(
+        candidates,
+        config.topics,
+        pool_max=config.pool_max_items,
+        today=config.local_date(now),
+    )
     return CollectResult(now=now, papers=papers, sources=results)
 
 
 def build_payload(config: Config, result: CollectResult) -> dict[str, Any]:
-    local_now = result.now.astimezone(config.zone())
+    local_date = config.local_date(result.now)
     return {
         "schema_version": 1,
         "generated_at": result.now.isoformat(),
-        "date": local_now.date().isoformat(),
+        "date": local_date.isoformat(),
         "timezone": config.timezone,
         "lookback_days": dict(config.lookback),
         "sources": sources_payload(result),
@@ -133,9 +139,3 @@ def run(
         )
     return result
 
-
-def _sort_key(paper: Paper) -> tuple[int, int, str]:
-    # Higher score first, then newer publication date, then a stable id tie-break.
-    digits = paper.date.replace("-", "")
-    date_key = int(digits) if digits.isdigit() else 0
-    return (-paper.score, -date_key, paper.id)

@@ -1,0 +1,188 @@
+{
+  "version": "6.9",
+  "hitCount": 15,
+  "resultList": {
+    "result": [
+      {
+        "id": "50000001",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 1",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "50000002",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 2",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "50000003",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 3",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "50000004",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 4",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "50000005",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 5",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "50000006",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 6",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "50000007",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 7",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "50000008",
+        "source": "MED",
+        "title": "Spatial transcriptomics atlas of tissue 8",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map immune niches in human tissue.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "60000001",
+        "source": "MED",
+        "title": "Knowledge graph benchmark 1",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for structured reasoning.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "60000002",
+        "source": "MED",
+        "title": "Knowledge graph benchmark 2",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for structured reasoning.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "60000003",
+        "source": "MED",
+        "title": "Knowledge graph benchmark 3",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for structured reasoning.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "60000004",
+        "source": "MED",
+        "title": "Knowledge graph benchmark 4",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for structured reasoning.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "60000005",
+        "source": "MED",
+        "title": "Knowledge graph benchmark 5",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for structured reasoning.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "70000001",
+        "source": "MED",
+        "title": "Aging trajectories in tissue",
+        "firstPublicationDate": "2026-10-15",
+        "abstractText": "A longitudinal cohort study.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "70000002",
+        "source": "MED",
+        "title": "Tissue microenvironment survey",
+        "firstPublicationDate": "2026-10-15",
+        "abstractText": "We surveyed aging tissue over time.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      }
+    ]
+  }
+}

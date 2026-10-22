@@ -72,6 +72,8 @@ class Paper:
     oa_url: str | None = None
     tags: list[str] = field(default_factory=list)
     group: str = ""
+    # Relevance comes from keyword matching; score adds the freshness bonus.
+    relevance: int = 0
     score: int = 0
     abstract_missing: bool = False
 
@@ -93,6 +95,7 @@ class Paper:
             "abstract": self.abstract,
             "abstract_missing": self.abstract_missing,
             "tags": self.tags,
+            "relevance": self.relevance,
             "score": self.score,
             "is_preprint": self.is_preprint,
             "oa_url": self.oa_url,

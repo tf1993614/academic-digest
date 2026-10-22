@@ -1,0 +1,80 @@
+{
+  "version": "6.9",
+  "hitCount": 6,
+  "resultList": {
+    "result": [
+      {
+        "id": "80000001",
+        "source": "MED",
+        "title": "Spatial transcriptomics published today",
+        "firstPublicationDate": "2026-10-22",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "80000002",
+        "source": "MED",
+        "title": "Spatial transcriptomics published yesterday",
+        "firstPublicationDate": "2026-10-21",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "80000003",
+        "source": "MED",
+        "title": "Spatial transcriptomics dated tomorrow",
+        "firstPublicationDate": "2026-10-23",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "80000004",
+        "source": "MED",
+        "title": "Spatial transcriptomics published last week",
+        "firstPublicationDate": "2026-10-15",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "80000005",
+        "source": "MED",
+        "title": "Spatial transcriptomics with only a publication year",
+        "firstPublicationDate": "2026",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map tissue niches."
+      },
+      {
+        "id": "80000006",
+        "source": "MED",
+        "title": "Tissue atlas without a keyword title",
+        "firstPublicationDate": "2026-10-15",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        },
+        "abstractText": "We map spatial transcriptomics niches."
+      }
+    ]
+  }
+}

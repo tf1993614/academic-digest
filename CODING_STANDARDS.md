@@ -11,7 +11,8 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 
 ## Candidate pool
 
-- `attach_topic` owns group, tags, score, `abstract_missing`, and the preprint marker.
+- `attach_topic` owns group, tags, `relevance`, `abstract_missing`, and the preprint marker.
+- `ranking.select_candidates` sets `score` (relevance plus the freshness bonus), orders the pool (score, date, id), reserves each non-empty group's best paper, and enforces each group's `max_items` plus `pool.max_items`. Config validation keeps `pool.max_items` at or above the topic count so every group's reservation fits. A short pool is never padded.
 - Tag order: matched terms, then `预印本` when `is_preprint`, then `无摘要` when the abstract is empty.
 - `is_preprint` is true only when every merged version is a preprint.
 - Dedupe key priority: DOI > PMID > arXiv ID > normalized-title-plus-year.

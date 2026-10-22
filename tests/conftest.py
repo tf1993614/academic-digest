@@ -41,6 +41,25 @@ def paths(tmp_path):
     }
 
 
+def run_collect(cli, paths, fixture, *, config=None, out=None, fixtures_dir=None, now=NOW):
+    """Run ``collect`` against a fixture tree through the CLI seam."""
+
+    root = Path(fixtures_dir) if fixtures_dir else FIXTURES / fixture
+    return cli(
+        "collect",
+        "--config",
+        config or root / "config.yaml",
+        "--fixtures",
+        root,
+        "--now",
+        now,
+        "--out",
+        out or paths["out"],
+        "--state-db",
+        paths["db"],
+    )
+
+
 def enable_sources(root: Path, *names: str) -> None:
     """Turn sources on in a copied fixture's config before running the CLI."""
 

@@ -1,0 +1,450 @@
+{
+  "version": "6.9",
+  "hitCount": 34,
+  "resultList": {
+    "result": [
+      {
+        "id": "MED-cap-g1-01",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-01",
+        "title": "Aging cohort survey 1",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-02",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-02",
+        "title": "Aging cohort survey 2",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-03",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-03",
+        "title": "Aging cohort survey 3",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-04",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-04",
+        "title": "Aging cohort survey 4",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-05",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-05",
+        "title": "Aging cohort survey 5",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-06",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-06",
+        "title": "Aging cohort survey 6",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-07",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-07",
+        "title": "Aging cohort survey 7",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-08",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-08",
+        "title": "Aging cohort survey 8",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-09",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-09",
+        "title": "Aging cohort survey 9",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-10",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-10",
+        "title": "Aging cohort survey 10",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g1-11",
+        "source": "MED",
+        "doi": "10.1000/cap-g1-11",
+        "title": "Aging cohort survey 11",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A longitudinal study of older adults.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g2-01",
+        "source": "MED",
+        "doi": "10.1000/cap-g2-01",
+        "title": "Spatial transcriptomics study 1",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map tissue niches.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g2-02",
+        "source": "MED",
+        "doi": "10.1000/cap-g2-02",
+        "title": "Spatial transcriptomics study 2",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map tissue niches.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g2-03",
+        "source": "MED",
+        "doi": "10.1000/cap-g2-03",
+        "title": "Spatial transcriptomics study 3",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map tissue niches.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g2-04",
+        "source": "MED",
+        "doi": "10.1000/cap-g2-04",
+        "title": "Spatial transcriptomics study 4",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map tissue niches.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g2-05",
+        "source": "MED",
+        "doi": "10.1000/cap-g2-05",
+        "title": "Spatial transcriptomics study 5",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We map tissue niches.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g3-01",
+        "source": "MED",
+        "doi": "10.1000/cap-g3-01",
+        "title": "Knowledge graph study 1",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A structured reasoning benchmark.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g3-02",
+        "source": "MED",
+        "doi": "10.1000/cap-g3-02",
+        "title": "Knowledge graph study 2",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A structured reasoning benchmark.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g3-03",
+        "source": "MED",
+        "doi": "10.1000/cap-g3-03",
+        "title": "Knowledge graph study 3",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A structured reasoning benchmark.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g3-04",
+        "source": "MED",
+        "doi": "10.1000/cap-g3-04",
+        "title": "Knowledge graph study 4",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A structured reasoning benchmark.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g3-05",
+        "source": "MED",
+        "doi": "10.1000/cap-g3-05",
+        "title": "Knowledge graph study 5",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A structured reasoning benchmark.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g3-06",
+        "source": "MED",
+        "doi": "10.1000/cap-g3-06",
+        "title": "Knowledge graph study 6",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A structured reasoning benchmark.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g4-01",
+        "source": "MED",
+        "doi": "10.1000/cap-g4-01",
+        "title": "Perturbation prediction study 1",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We predict genetic screens.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g4-02",
+        "source": "MED",
+        "doi": "10.1000/cap-g4-02",
+        "title": "Perturbation prediction study 2",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We predict genetic screens.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g4-03",
+        "source": "MED",
+        "doi": "10.1000/cap-g4-03",
+        "title": "Perturbation prediction study 3",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We predict genetic screens.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g4-04",
+        "source": "MED",
+        "doi": "10.1000/cap-g4-04",
+        "title": "Perturbation prediction study 4",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We predict genetic screens.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g4-05",
+        "source": "MED",
+        "doi": "10.1000/cap-g4-05",
+        "title": "Perturbation prediction study 5",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We predict genetic screens.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g4-06",
+        "source": "MED",
+        "doi": "10.1000/cap-g4-06",
+        "title": "Perturbation prediction study 6",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "We predict genetic screens.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g5-01",
+        "source": "MED",
+        "doi": "10.1000/cap-g5-01",
+        "title": "Large language model study 1",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for language understanding.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g5-02",
+        "source": "MED",
+        "doi": "10.1000/cap-g5-02",
+        "title": "Large language model study 2",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for language understanding.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g5-03",
+        "source": "MED",
+        "doi": "10.1000/cap-g5-03",
+        "title": "Large language model study 3",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for language understanding.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g5-04",
+        "source": "MED",
+        "doi": "10.1000/cap-g5-04",
+        "title": "Large language model study 4",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for language understanding.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g5-05",
+        "source": "MED",
+        "doi": "10.1000/cap-g5-05",
+        "title": "Large language model study 5",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for language understanding.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      },
+      {
+        "id": "MED-cap-g5-06",
+        "source": "MED",
+        "doi": "10.1000/cap-g5-06",
+        "title": "Large language model study 6",
+        "firstPublicationDate": "2026-10-22",
+        "abstractText": "A benchmark for language understanding.",
+        "pubTypeList": {
+          "pubType": [
+            "Journal Article"
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+timezone: Asia/Shanghai
+
+lookback:
+  europepmc: 2
+
+topics:
+  - name: G2
+    label: 单细胞与空间组学
+    terms:
+      - single-cell
+      - spatial transcriptomics
+    exclude: []
+    # No max_items: the default quota of six papers must apply.
+
+sources:
+  pubmed: false
+  europepmc: true
+
+paths:
+  state_db: state/academic-digest.sqlite3
+  candidates: out/candidates.json
