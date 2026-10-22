@@ -1,0 +1,61 @@
+{
+  "version": "6.9",
+  "hitCount": 4,
+  "resultList": {
+    "result": [
+      {
+        "id": "39000001",
+        "source": "MED",
+        "pmid": "39000001",
+        "doi": "10.1000/aging-omics.1",
+        "title": "Single-cell multi-omics reveals aging trajectories in human tissues.",
+        "authorString": "Zhang W, Li N.",
+        "journalTitle": "Nature Aging (Europe PMC copy)",
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-21",
+        "pubType": "journal article",
+        "abstractText": "Europe PMC abstract: senescence, multi-omics, single-cell, spatial transcriptomics and aging all appear here so this record scores higher than the PubMed copy."
+      },
+      {
+        "id": "39000002",
+        "source": "MED",
+        "pmid": "39000002",
+        "title": "Spatial transcriptomics maps immune niches in human lymph nodes",
+        "authorString": "Wang B.",
+        "journalTitle": "Cell Systems (Europe PMC copy)",
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-22",
+        "pubType": "journal article",
+        "abstractText": "Europe PMC copy of the same PMID without a DOI field."
+      },
+      {
+        "id": "PPR1347026",
+        "source": "PPR",
+        "doi": "10.21203/rs.3.rs-11150671/v1",
+        "title": "Spatial transcriptomics of aging lymph nodes",
+        "authorString": "Doe J, Roe R.",
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-21",
+        "pubType": "preprint",
+        "bookOrReportDetails": {
+          "publisher": "Research Square",
+          "yearOfPublication": 2026
+        },
+        "abstractText": "<h4>Background</h4>A preprint abstract covering spatial transcriptomics and aging."
+      },
+      {
+        "id": "39000004",
+        "source": "MED",
+        "pmid": "39000004",
+        "doi": "10.1000/epmc-only.4",
+        "title": "A multi-omics aging atlas only indexed by Europe PMC",
+        "authorString": "Smith A.",
+        "journalTitle": "GeroScience",
+        "pubYear": "2026",
+        "firstPublicationDate": "2026-10-22",
+        "pubType": "journal article",
+        "abstractText": "Europe PMC supplies this abstract about multi-omics aging."
+      }
+    ]
+  }
+}

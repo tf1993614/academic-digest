@@ -16,7 +16,7 @@ from typing import Any
 from ..config import Config
 from ..errors import ConfigError, SourceError
 from ..models import Paper, normalize_doi, paper_id
-from .base import SourceResult
+from .base import SourceResult, read_fixture, search_terms
 
 NAME = "pubmed"
 FIXTURE_SEARCH = "pubmed/esearch.xml"
@@ -46,7 +46,7 @@ _WHITESPACE = re.compile(r"\s+")
 def collect(config: Config, fixtures_root: Path | None, now: datetime) -> SourceResult:
     try:
         if fixtures_root is not None:
-            xml = _read_fixture(fixtures_root, FIXTURE_FETCH)
+            xml = read_fixture(fixtures_root, FIXTURE_FETCH)
         else:
             xml = _fetch_live(config, now)
         papers = parse_articles(xml)
@@ -66,8 +66,8 @@ def check(fixtures_root: Path | None) -> str:
 def validate_fixture(root: Path) -> str:
     """Validate the recorded PubMed search + fetch pair for ``doctor``."""
 
-    search_xml = _read_fixture(root, FIXTURE_SEARCH)
-    fetch_xml = _read_fixture(root, FIXTURE_FETCH)
+    search_xml = read_fixture(root, FIXTURE_SEARCH)
+    fetch_xml = read_fixture(root, FIXTURE_FETCH)
     try:
         search_root = ET.fromstring(search_xml)
     except ET.ParseError as exc:
@@ -240,16 +240,6 @@ def _doi(article: ET.Element, body: ET.Element) -> str:
     return ""
 
 
-def _read_fixture(root: Path, relative: str) -> str:
-    path = Path(root) / relative
-    if not path.is_file():
-        raise SourceError(f"missing fixture: {relative}")
-    try:
-        return path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise SourceError(f"cannot read fixture {relative}: {exc}") from exc
-
-
 def _fetch_live(config: Config, now: datetime) -> str:
     try:
         import requests
@@ -293,17 +283,10 @@ def _search_ids(response: Any) -> list[str]:
 
 
 def build_query(config: Config) -> str:
-    clauses: list[str] = []
-    seen: set[str] = set()
-    for topic in config.topics:
-        for term in topic.terms:
-            if term in seen:
-                continue
-            seen.add(term)
-            clauses.append(f'"{term}"[tiab]')
-    if not clauses:
+    terms = search_terms(config)
+    if not terms:
         raise ConfigError("topics", "no searchable terms")
-    return " OR ".join(clauses)
+    return " OR ".join(f'"{term}"[tiab]' for term in terms)
 
 
 def _text(node: ET.Element | None) -> str:

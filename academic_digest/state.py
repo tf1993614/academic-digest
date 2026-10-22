@@ -1,8 +1,8 @@
-"""SQLite state: which papers we have seen and what each run did.
+"""SQLite state: which papers we have seen, pushed, and what each run did.
 
-The schema is intentionally small for the walking skeleton. ``papers`` keeps
-first/last-seen timestamps so a later issue can add pushed-item exclusion, and
-``runs`` is the audit trail the task board and doctor rely on.
+``papers`` keeps first/last-seen timestamps, ``pushes`` records items that were
+successfully sent so they never re-enter the candidate pool, and ``runs`` is the
+audit trail the task board and doctor rely on.
 """
 
 from __future__ import annotations
@@ -14,9 +14,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Mapping
 
+from .dedupe import identifier_keys
 from .models import Paper
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS papers (
     id TEXT PRIMARY KEY,
@@ -41,6 +42,14 @@ CREATE TABLE IF NOT EXISTS runs (
     candidate_count INTEGER NOT NULL DEFAULT 0,
     error TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS pushes (
+    item_id TEXT NOT NULL,
+    topic TEXT NOT NULL DEFAULT '',
+    channel TEXT NOT NULL DEFAULT '',
+    digest_date TEXT NOT NULL DEFAULT '',
+    pushed_at TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (item_id, topic, channel, digest_date)
+);
 """
 
 
@@ -57,6 +66,27 @@ class StateStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    def pushed_keys(self) -> frozenset[str]:
+        """Every identifier of an already-pushed item, expanded through papers.
+
+        A candidate is excluded when any of its keys matches. Expanding the
+        stored paper row covers id drift, for example when an item pushed as
+        ``pmid:...`` later gains a DOI.
+        """
+
+        keys: set[str] = set()
+        rows = self._conn.execute(
+            """
+            SELECT pushes.item_id, papers.doi, papers.pmid, papers.arxiv_id
+            FROM pushes
+            LEFT JOIN papers ON papers.id = pushes.item_id
+            """
+        ).fetchall()
+        for item_id, doi, pmid, arxiv_id in rows:
+            keys.add(str(item_id))
+            keys.update(identifier_keys(doi=doi or "", pmid=pmid or "", arxiv_id=arxiv_id or ""))
+        return frozenset(keys)
 
     def record_papers(self, papers: list[Paper], seen_at: datetime) -> None:
         stamp = seen_at.isoformat()

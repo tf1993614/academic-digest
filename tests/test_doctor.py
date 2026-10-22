@@ -3,16 +3,17 @@ import shutil
 from conftest import FIXTURES, NOW
 
 
-def doctor(cli, fixtures="walking", config=None):
+def doctor(cli, fixtures="walking", config=None, fixtures_dir=None):
+    root = fixtures_dir or FIXTURES / fixtures
     args = [
         "doctor",
         "--config",
-        config or FIXTURES / fixtures / "config.yaml",
+        config or root / "config.yaml",
         "--now",
         NOW,
     ]
     if fixtures is not None:
-        args += ["--fixtures", FIXTURES / fixtures]
+        args += ["--fixtures", root]
     return cli(*args)
 
 
@@ -112,3 +113,26 @@ def test_doctor_names_the_empty_terms_field(cli):
     assert result.returncode != 0
     assert "topics[0].terms" in result.stderr
     assert "non-empty" in result.stderr
+
+
+def test_doctor_reports_config_and_europepmc_fixture_checks(cli):
+    result = doctor(cli, fixtures="multisource")
+
+    assert result.returncode == 0, result.stderr
+    output = result.stdout
+    assert "source pubmed" in output
+    assert "source europepmc" in output
+    assert "4 records" in output
+    assert "all checks passed" in output
+
+
+def test_doctor_reports_malformed_europepmc_json(cli, tmp_path):
+    fixtures = tmp_path / "broken-europepmc"
+    shutil.copytree(FIXTURES / "multisource", fixtures)
+    (fixtures / "europepmc" / "search.json").write_text("{not json", encoding="utf-8")
+
+    result = doctor(cli, fixtures_dir=fixtures)
+
+    assert result.returncode != 0
+    assert "europepmc" in result.stderr
+    assert "invalid Europe PMC JSON" in result.stderr

@@ -1,8 +1,8 @@
-"""Source registry. Later issues add Europe PMC, arXiv, GitHub, and more."""
+"""Source registry. Later issues add arXiv, GitHub, and more."""
 
-from . import pubmed
+from . import europepmc, pubmed
 from .base import SourceResult
 
-SOURCES = {pubmed.NAME: pubmed}
+SOURCES = {pubmed.NAME: pubmed, europepmc.NAME: europepmc}
 
 __all__ = ["SOURCES", "SourceResult"]

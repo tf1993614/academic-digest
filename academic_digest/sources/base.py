@@ -1,10 +1,13 @@
-"""Shared source result shape."""
+"""Shared source helpers: result shape, fixture reads, query terms."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+from ..config import Config
+from ..errors import SourceError
 from ..models import Paper
 
 
@@ -29,3 +32,33 @@ class SourceResult:
         if self.error:
             payload["error"] = self.error
         return payload
+
+
+def read_fixture(root: Path, relative: str) -> str:
+    """Read a recorded response, turning a missing file into a source failure."""
+
+    path = Path(root) / relative
+    if not path.is_file():
+        raise SourceError(f"missing fixture: {relative}")
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SourceError(f"cannot read fixture {relative}: {exc}") from exc
+
+
+def search_terms(config: Config) -> list[str]:
+    """All configured terms once, in configuration order.
+
+    Sources wrap these in their own query syntax; keeping the ordering stable
+    makes recorded requests reproducible.
+    """
+
+    seen: set[str] = set()
+    terms: list[str] = []
+    for topic in config.topics:
+        for term in topic.terms:
+            if term in seen:
+                continue
+            seen.add(term)
+            terms.append(term)
+    return terms

@@ -6,13 +6,14 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import AbstractSet, Any
 
 from .config import Config
+from .dedupe import is_excluded, merge_duplicates
 from .matching import attach_topic
 from .models import Paper
 from .sources import SOURCES, SourceResult
-from .state import open_state
+from .state import StateStore, open_state
 
 
 @dataclass
@@ -30,23 +31,27 @@ class CollectResult:
         return "failed" if self.all_failed else "ok"
 
 
-def collect(config: Config, fixtures_root: Path | None, now: datetime) -> CollectResult:
+def collect(
+    config: Config,
+    fixtures_root: Path | None,
+    now: datetime,
+    *,
+    excluded_keys: AbstractSet[str] = frozenset(),
+) -> CollectResult:
     results: list[SourceResult] = []
     for name in config.enabled_sources:
         module = SOURCES[name]
         results.append(module.collect(config, fixtures_root, now))
 
-    candidates: dict[str, Paper] = {}
-    for result in results:
-        for raw in result.papers:
-            paper = attach_topic(raw, config.topics)
-            if paper is None:
-                continue
-            current = candidates.get(paper.id)
-            if current is None or paper.score > current.score:
-                candidates[paper.id] = paper
+    raw = [paper for result in results for paper in result.papers]
+    candidates: list[Paper] = []
+    for paper in merge_duplicates(raw):
+        enriched = attach_topic(paper, config.topics)
+        if enriched is None or is_excluded(enriched, excluded_keys):
+            continue
+        candidates.append(enriched)
 
-    papers = sorted(candidates.values(), key=_sort_key)[: config.pool_max_items]
+    papers = sorted(candidates, key=_sort_key)[: config.pool_max_items]
     return CollectResult(now=now, papers=papers, sources=results)
 
 
@@ -81,7 +86,7 @@ def sources_payload(result: CollectResult) -> dict[str, Any]:
 
 
 def record_state(
-    path: Path,
+    store: StateStore,
     result: CollectResult,
     *,
     started_at: datetime,
@@ -91,17 +96,16 @@ def record_state(
     error = "; ".join(
         f"{source.name}: {source.error}" for source in result.sources if source.error
     )
-    with open_state(path) as store:
-        store.record_papers(result.papers, result.now)
-        store.record_run(
-            started_at=started_at,
-            finished_at=finished_at,
-            status=result.status,
-            command="collect",
-            sources=sources,
-            candidate_count=len(result.papers),
-            error=error,
-        )
+    store.record_papers(result.papers, result.now)
+    store.record_run(
+        started_at=started_at,
+        finished_at=finished_at,
+        status=result.status,
+        command="collect",
+        sources=sources,
+        candidate_count=len(result.papers),
+        error=error,
+    )
 
 
 def run(
@@ -113,14 +117,20 @@ def run(
     state_db: Path,
 ) -> CollectResult:
     started_at = datetime.now(timezone.utc)
-    result = collect(config, fixtures_root, now)
-    write_payload(out_path, build_payload(config, result))
-    record_state(
-        state_db,
-        result,
-        started_at=started_at,
-        finished_at=datetime.now(timezone.utc),
-    )
+    with open_state(state_db) as store:
+        result = collect(
+            config,
+            fixtures_root,
+            now,
+            excluded_keys=store.pushed_keys(),
+        )
+        write_payload(out_path, build_payload(config, result))
+        record_state(
+            store,
+            result,
+            started_at=started_at,
+            finished_at=datetime.now(timezone.utc),
+        )
     return result
 
 

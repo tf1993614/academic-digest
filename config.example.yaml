@@ -3,6 +3,7 @@ timezone: Asia/Shanghai
 # How far back each source looks when a scheduled run is late.
 lookback:
   pubmed: 2
+  europepmc: 2
 
 # Keyword groups. Each paper enters the candidate pool under the group with
 # the most hits (title hits weigh three times an abstract hit).
@@ -35,6 +36,7 @@ topics:
 
 sources:
   pubmed: true
+  europepmc: true
 
 pool:
   max_items: 30

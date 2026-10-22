@@ -15,7 +15,7 @@ DEFAULT_MAX_ITEMS = 30
 DEFAULT_STATE_DB = "state/academic-digest.sqlite3"
 DEFAULT_CANDIDATES = "out/candidates.json"
 
-KNOWN_SOURCES = ("pubmed",)
+KNOWN_SOURCES = ("pubmed", "europepmc")
 _TOP_LEVEL_KEYS = {"timezone", "lookback", "topics", "sources", "pool", "paths"}
 _TOPIC_KEYS = {"name", "label", "terms", "exclude", "max_items"}
 _POOL_KEYS = {"max_items"}
@@ -96,8 +96,8 @@ def _parse_sources(value: Any) -> dict[str, bool]:
         if not isinstance(enabled, bool):
             raise ConfigError(field, "must be true or false")
         sources[name] = enabled
-    if "pubmed" not in sources:
-        raise ConfigError("sources.pubmed", "is required (set true or false)")
+    if not sources:
+        raise ConfigError("sources", "at least one source must be configured")
     if not any(sources.values()):
         raise ConfigError("sources", "at least one source must be enabled")
     return sources
@@ -111,8 +111,9 @@ def _parse_lookback(value: Any, sources: Mapping[str, bool]) -> dict[str, int]:
         if not isinstance(name, str) or name not in KNOWN_SOURCES:
             raise ConfigError(field, f"unknown source (known: {', '.join(KNOWN_SOURCES)})")
         lookback[name] = _positive_int(days, field)
-    if sources.get("pubmed") and "pubmed" not in lookback:
-        raise ConfigError("lookback.pubmed", "is required when the pubmed source is enabled")
+    for name, enabled in sources.items():
+        if enabled and name not in lookback:
+            raise ConfigError(f"lookback.{name}", f"is required when the {name} source is enabled")
     return lookback
 
 
