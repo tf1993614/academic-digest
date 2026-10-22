@@ -72,3 +72,21 @@ new/active/releases.starred，`## AI 工具 / Agent Harness` 放 g6 与 g6_relea
 预印本 DOI / arXiv ID 在 arXiv 与 Unpaywall 之间加入尝试，输出 key 不变，近似标题
 一律忽略。契约与固定结构以 Issue 08 的 `## Contract` 为准；本 amendment 不改变
 “PubMed 主源、EPMC 补充”的判断，也不新增 config key。
+
+## Amendment 2026-10-22（Issue 09）
+
+推送层定案：采集与写作的结果保持不变，`push` 只负责交付。V1 只走 ServerChan 的
+`title` + Markdown `desp`，成功条件是 HTTP 2xx 且 `code` 为整数 0；SendKey 只从
+`push.sendkey_env` 指向的环境变量读取，`--dry-run` 与 fixture 回放都不读它，也不
+构造含 key 的 URL。正文超过 `split_bytes`（默认 30000）时只在顶层 `## ` 区块边界
+拆分，单条 ≤`max_bytes`（默认 32768）、最多 `max_messages`（默认 2）条，没有可切分边界时
+退出 1；拆条标题
+加 `（i/n）`，最后一条页脚在有旧消息未送达时追加 `未推送数：P`，绝不截断论文。
+失败重试 `retries`（默认 2）次并指数退避，仍失败则把该条及之后未发送的消息写入
+SQLite `pending`；下次 live 运行先丢弃 `created_at` 起超过 `pending_days`（默认 2）个
+日历日的整组，
+再按 part 顺序对最早一组各重试一次，整组成功后按 `items_json` 补写 `pushes`。
+空日报默认发提示（`send_empty` 默认 `true`），关闭时记 `skipped_empty` 并退出 0
+（若同一轮 pending 重试失败则退出 1、状态 `failed`）。
+`runs` 增加 `selected_count` / `pushed_count` / `pending_count`（Schema v3）。真实
+连通性与测试推送留给 Issue 10 的 setup 流程；本 amendment 不改变任何数据源的选择。

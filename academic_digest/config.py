@@ -87,6 +87,19 @@ DEFAULT_OFFICIAL_REPOS: tuple[str, ...] = (
 )
 DEFAULT_RELEASE_DAYS = 7
 DEFAULT_STARRED_RELEASE_MAX_ITEMS = 2
+# Server酱 delivery defaults. V1 only speaks ServerChan; the SendKey lives in
+# the environment variable named by ``push.sendkey_env``.
+DEFAULT_PUSH_SENDKEY_ENV = "SERVERCHAN_SENDKEY"
+DEFAULT_PUSH_CHANNEL = "serverchan"
+DEFAULT_PUSH_SEND_EMPTY = True
+DEFAULT_PUSH_SPLIT_BYTES = 30000
+DEFAULT_PUSH_MAX_BYTES = 32768
+DEFAULT_PUSH_MAX_MESSAGES = 2
+DEFAULT_PUSH_TITLE_MAX = 32
+DEFAULT_PUSH_RETRIES = 2
+DEFAULT_PUSH_BACKOFF_SECONDS = 1
+DEFAULT_PUSH_TIMEOUT = 30
+DEFAULT_PUSH_PENDING_DAYS = 2
 
 KNOWN_SOURCES = (
     "pubmed",
@@ -112,6 +125,7 @@ _TOP_LEVEL_KEYS = {
     "arxiv",
     "github",
     "fulltext",
+    "push",
 }
 _TOPIC_KEYS = {"name", "label", "terms", "exclude", "max_items"}
 _POOL_KEYS = {"max_items"}
@@ -135,6 +149,19 @@ _GITHUB_KEYS = {
 _GITHUB_WINDOW_KEYS = {"days", "min_stars", "max_items"}
 _GITHUB_G6_KEYS = {"max_items"}
 _GITHUB_RELEASE_KEYS = {"days", "max_items"}
+_PUSH_KEYS = {
+    "sendkey_env",
+    "channel",
+    "send_empty",
+    "split_bytes",
+    "max_bytes",
+    "max_messages",
+    "title_max",
+    "retries",
+    "backoff_seconds",
+    "timeout",
+    "pending_days",
+}
 _REPO_SLUG = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
@@ -205,6 +232,23 @@ class FullTextConfig:
 
 
 @dataclass(frozen=True)
+class PushConfig:
+    """Server酱 delivery: endpoint key, payload limits, retries, and pending age."""
+
+    sendkey_env: str
+    channel: str
+    send_empty: bool
+    split_bytes: int
+    max_bytes: int
+    max_messages: int
+    title_max: int
+    retries: int
+    backoff_seconds: int
+    timeout: int
+    pending_days: int
+
+
+@dataclass(frozen=True)
 class Config:
     path: Path
     timezone: str
@@ -214,6 +258,7 @@ class Config:
     arxiv_categories: tuple[str, ...]
     github: GithubConfig
     fulltext: FullTextConfig
+    push: PushConfig
     pool_max_items: int
     state_db: Path
     candidates_path: Path
@@ -255,6 +300,7 @@ def load_config(path: Path) -> Config:
     topics = _parse_topics(raw.get("topics"))
     github = _parse_github(raw.get("github"), topics)
     fulltext = _parse_fulltext(raw.get("fulltext"))
+    push = _parse_push(raw.get("push"))
     pool_max_items = _parse_pool(raw.get("pool"), len(topics))
     state_db, candidates_path = _parse_paths(raw.get("paths"), path.parent)
     if sources.get("github"):
@@ -269,6 +315,7 @@ def load_config(path: Path) -> Config:
         arxiv_categories=arxiv_categories,
         github=github,
         fulltext=fulltext,
+        push=push,
         pool_max_items=pool_max_items,
         state_db=state_db,
         candidates_path=candidates_path,
@@ -538,6 +585,88 @@ def _parse_fulltext(value: Any) -> FullTextConfig:
     if email and ("@" not in email or email.startswith("@") or email.endswith("@")):
         raise ConfigError("fulltext.unpaywall.email", "must be an email address")
     return FullTextConfig(unpaywall_email=email)
+
+
+def _parse_push(value: Any) -> PushConfig:
+    """Parse the optional ``push`` section, filling the documented defaults.
+
+    The SendKey itself is read only by a live ``push``; configuration loading
+    never needs it, so ``--dry-run`` and fixture runs work without secrets.
+    """
+
+    if value is None:
+        return PushConfig(
+            sendkey_env=DEFAULT_PUSH_SENDKEY_ENV,
+            channel=DEFAULT_PUSH_CHANNEL,
+            send_empty=DEFAULT_PUSH_SEND_EMPTY,
+            split_bytes=DEFAULT_PUSH_SPLIT_BYTES,
+            max_bytes=DEFAULT_PUSH_MAX_BYTES,
+            max_messages=DEFAULT_PUSH_MAX_MESSAGES,
+            title_max=DEFAULT_PUSH_TITLE_MAX,
+            retries=DEFAULT_PUSH_RETRIES,
+            backoff_seconds=DEFAULT_PUSH_BACKOFF_SECONDS,
+            timeout=DEFAULT_PUSH_TIMEOUT,
+            pending_days=DEFAULT_PUSH_PENDING_DAYS,
+        )
+    mapping = _require_mapping(value, "push")
+    _reject_unknown(mapping, _PUSH_KEYS, "push")
+
+    channel = _require_string(
+        mapping.get("channel", DEFAULT_PUSH_CHANNEL), "push.channel"
+    )
+    if channel != "serverchan":
+        raise ConfigError(
+            "push.channel",
+            f"only 'serverchan' is supported, got {channel!r}",
+        )
+
+    send_empty = mapping.get("send_empty", DEFAULT_PUSH_SEND_EMPTY)
+    if not isinstance(send_empty, bool):
+        raise ConfigError("push.send_empty", "must be true or false")
+
+    split_bytes = _positive_int(
+        mapping.get("split_bytes", DEFAULT_PUSH_SPLIT_BYTES), "push.split_bytes"
+    )
+    max_bytes = _positive_int(
+        mapping.get("max_bytes", DEFAULT_PUSH_MAX_BYTES), "push.max_bytes"
+    )
+    if split_bytes > max_bytes:
+        raise ConfigError(
+            "push.split_bytes",
+            f"must not exceed push.max_bytes ({max_bytes})",
+        )
+
+    return PushConfig(
+        sendkey_env=_require_string(
+            mapping.get("sendkey_env", DEFAULT_PUSH_SENDKEY_ENV),
+            "push.sendkey_env",
+        ),
+        channel=channel,
+        send_empty=send_empty,
+        split_bytes=split_bytes,
+        max_bytes=max_bytes,
+        max_messages=_positive_int(
+            mapping.get("max_messages", DEFAULT_PUSH_MAX_MESSAGES),
+            "push.max_messages",
+        ),
+        title_max=_positive_int(
+            mapping.get("title_max", DEFAULT_PUSH_TITLE_MAX), "push.title_max"
+        ),
+        retries=_non_negative_int(
+            mapping.get("retries", DEFAULT_PUSH_RETRIES), "push.retries"
+        ),
+        backoff_seconds=_non_negative_int(
+            mapping.get("backoff_seconds", DEFAULT_PUSH_BACKOFF_SECONDS),
+            "push.backoff_seconds",
+        ),
+        timeout=_positive_int(
+            mapping.get("timeout", DEFAULT_PUSH_TIMEOUT), "push.timeout"
+        ),
+        pending_days=_positive_int(
+            mapping.get("pending_days", DEFAULT_PUSH_PENDING_DAYS),
+            "push.pending_days",
+        ),
+    )
 
 
 def _parse_topics(value: Any) -> tuple[Topic, ...]:

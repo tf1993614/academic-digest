@@ -97,6 +97,47 @@ def run_digest(cli, case):
     )
 
 
+def run_push(
+    cli,
+    case,
+    *,
+    config,
+    fixtures=None,
+    state_db=None,
+    now=NOW,
+    dry_run=False,
+    out=None,
+    extra=(),
+    env=None,
+):
+    """Run ``push`` against a digest case directory through the CLI seam."""
+
+    root = Path(case)
+    args = [
+        "push",
+        "--config",
+        config,
+        "--candidates",
+        root / "candidates.json",
+        "--selection",
+        root / "selection.json",
+        "--digest",
+        root / "digest.md",
+        "--now",
+        now,
+    ]
+    if state_db is not None:
+        args += ["--state-db", state_db]
+    if fixtures is not None:
+        args += ["--fixtures", fixtures]
+    if dry_run:
+        args += ["--dry-run"]
+    if out is not None:
+        args += ["--out", out]
+    args.extend(extra)
+    return cli(*args, env=env)
+
+
 def enable_sources(root: Path, *names: str) -> None:
     """Turn sources on in a copied fixture's config before running the CLI."""
 

@@ -1,4 +1,4 @@
-"""Command line boundary: ``collect``, ``fulltext``, ``digest``, and ``doctor``.
+"""Command line boundary: ``collect``, ``fulltext``, ``digest``, ``push``, and ``doctor``.
 
 Tests and the daily skill drive these subcommands as subprocesses, so every
 diagnostic must be readable from stdout/stderr and every failure must have a
@@ -17,13 +17,14 @@ from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
 
-from . import __version__, digest, github
+from . import __version__, digest, github, push
 from .collect import run as run_collect, write_payload
 from .config import Config, load_config
 from .errors import ConfigError, SourceError
 from .fulltext import fetch as fetch_fulltext
 from .fulltext.models import FullText
 from .sources import SOURCES
+from .state import open_state
 
 EXIT_OK = 0
 EXIT_FAILURE = 1
@@ -39,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
         return _fulltext(args)
     if args.command == "digest":
         return _digest(args)
+    if args.command == "push":
+        return _push(args)
     if args.command == "doctor":
         return _doctor(args)
     parser.error("a command is required")
@@ -104,15 +107,48 @@ def _build_parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--digest", type=Path, required=True, help="digest.md written by the model"
     )
+
+    push_command = subparsers.add_parser(
+        "push",
+        help="send the daily digest to WeChat through Server酱",
+    )
+    _add_common(
+        push_command,
+        fixtures_help="directory of recorded ServerChan responses; no network is used",
+    )
+    push_command.add_argument(
+        "--candidates", type=Path, required=True, help="candidate pool JSON"
+    )
+    push_command.add_argument(
+        "--selection", type=Path, required=True, help="selection.json written by the model"
+    )
+    push_command.add_argument(
+        "--digest", type=Path, required=True, help="digest.md written by the model"
+    )
+    push_command.add_argument("--state-db", type=Path, help="SQLite state path")
+    push_command.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the ServerChan payload without reading the SendKey or state",
+    )
+    push_command.add_argument(
+        "--out",
+        type=Path,
+        help="write the dry-run payload here instead of standard output",
+    )
     return parser
 
 
-def _add_common(parser: argparse.ArgumentParser) -> None:
+def _add_common(
+    parser: argparse.ArgumentParser,
+    *,
+    fixtures_help: str = "directory of recorded source responses; no network is touched",
+) -> None:
     parser.add_argument("--config", type=Path, default=Path("config.yaml"))
     parser.add_argument(
         "--fixtures",
         type=Path,
-        help="directory of recorded source responses; no network is touched",
+        help=fixtures_help,
     )
     parser.add_argument(
         "--now",
@@ -207,6 +243,96 @@ def _digest(args: argparse.Namespace) -> int:
         f"{result.papers} papers ({result.must_read} must_read + "
         f"{result.quick_scan} quick_scan), {result.github_items} GitHub items"
     )
+    return EXIT_OK
+
+
+def _push(args: argparse.Namespace) -> int:
+    config = _load(args.config)
+    if config is None:
+        return EXIT_CONFIG
+    try:
+        now = _resolve_now(args.now, config.zone())
+    except ValueError as exc:
+        _fail(f"--now: {exc}")
+        return EXIT_CONFIG
+    if args.out is not None and not args.dry_run:
+        _fail("--out can only be used with --dry-run")
+        return EXIT_CONFIG
+
+    try:
+        checked = digest.check_files(args.candidates, args.selection, args.digest)
+        inputs = push.load_inputs(
+            args.candidates,
+            args.selection,
+            args.digest,
+            github_items=checked.github_items,
+        )
+    except digest.CheckError as exc:
+        _fail(f"{exc.area}: {exc.message}")
+        return EXIT_FAILURE
+    except (OSError, json.JSONDecodeError) as exc:
+        _fail(f"push: cannot read inputs: {exc}")
+        return EXIT_FAILURE
+
+    if not args.dry_run:
+        return _push_live(args, config, inputs, now)
+
+    try:
+        plan = push.plan_messages(inputs, config.push, dry_run=True)
+    except push.PushFailure as exc:
+        _fail(f"push: {exc.message}")
+        return exc.exit_code
+    if args.out is not None:
+        try:
+            write_payload(args.out, push.payload(plan))
+        except (OSError, sqlite3.Error) as exc:
+            _fail(f"push: cannot write payload: {exc}")
+            return EXIT_FAILURE
+        return EXIT_OK
+    print(json.dumps(push.payload(plan), ensure_ascii=False, indent=2))
+    return EXIT_OK
+
+
+def _push_live(
+    args: argparse.Namespace,
+    config: Config,
+    inputs: push.DigestInputs,
+    now: datetime,
+) -> int:
+    playback = args.fixtures is not None
+    sender: push.Sender
+    if playback:
+        sender = push.FixtureSender(args.fixtures)
+    else:
+        key = os.environ.get(config.push.sendkey_env, "").strip()
+        if not key:
+            _fail(
+                f"push: {config.push.sendkey_env} is not set; "
+                "a live push needs the Server酱 SendKey"
+            )
+            return EXIT_CONFIG
+        sender = push.ServerChanSender(key, config.push.timeout)
+
+    state_db = args.state_db or config.state_db
+    try:
+        with open_state(state_db) as store:
+            outcome = push.run_live(
+                config, inputs, now, store, sender, playback=playback
+            )
+    except (OSError, sqlite3.Error) as exc:
+        _fail(f"push: cannot open or write the state database: {exc}")
+        return EXIT_FAILURE
+
+    if outcome.status == "failed":
+        _fail(f"push: {outcome.error or 'send failed'}")
+        return outcome.exit_code
+    if outcome.skipped_empty and outcome.sent == 0:
+        print("[ok] push: skipped empty digest")
+    else:
+        print(
+            f"[ok] push: sent {outcome.sent} message(s), "
+            f"recorded {outcome.pushed} paper(s)"
+        )
     return EXIT_OK
 
 

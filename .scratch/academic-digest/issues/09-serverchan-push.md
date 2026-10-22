@@ -4,14 +4,15 @@
 
 **Blocked by:** 08.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] `push --dry-run` 输出 ServerChan payload：title ≤32 字符、markdown 正文、密钥脱敏。
-- [ ] 正文 >30KB 时按区块拆成最多 2 条，带（1/2）后缀，不从论文中间截断。
-- [ ] 成功条件为 HTTP 2xx + code 0；失败重试 2 次，仍失败写 pending 并以非零退出。
-- [ ] pending 下次运行优先重试一次；超过 2 天丢弃并记录。
-- [ ] runs 记录时间、计数、状态、错误摘要；空日报默认发送提示并退出 0，可用 `send_empty: false` 关闭。
-- [ ] 测试覆盖 payload、拆分、重试、pending；真实测试推送由人工确认。
+- [x] `push --dry-run` 输出 ServerChan payload：title ≤32 字符、markdown 正文、密钥脱敏。
+- [x] 正文 >30KB 时按区块拆成最多 2 条，带（1/2）后缀，不从论文中间截断。
+- [x] 成功条件为 HTTP 2xx + code 0；失败重试 2 次，仍失败写 pending 并以非零退出。
+- [x] pending 下次运行优先重试一次；超过 2 天丢弃并记录。
+- [x] runs 记录时间、计数、状态、错误摘要；空日报默认发送提示并退出 0，可用 `send_empty: false` 关闭。
+- [x] 测试覆盖 payload、拆分、重试、pending。
+- [ ] 真实测试推送由人工确认（需要本地 SendKey，不能放进测试/fixture/Prompt）。
 
 ## Contract
 
@@ -52,7 +53,8 @@ push --config PATH [--fixtures DIR] [--now ISO8601] \
   失败、发送在重试后仍失败、拆分不可能、状态库打开/写入失败；`2` 参数、配置或
   缺失 SendKey。
 - 成功时 stdout 一行：`[ok] push: sent N message(s), recorded M paper(s)`；空日报
-  跳过时为 `[ok] push: skipped empty digest`；失败写 stderr `[fail] push: …`。
+  跳过且本轮没有补发 pending 时为 `[ok] push: skipped empty digest`（同一轮补发了
+  pending 则仍打印 sent 行，N 含补发的消息数）；失败写 stderr `[fail] push: …`。
 - live 发送前打开状态库；打不开时退出 1，不发送。dry-run 不打开状态库。
 
 **`push` 配置**（顶层 `push`，全部可省略）
@@ -218,3 +220,30 @@ CREATE TABLE pending (
   一条“今日没有匹配的检索条目”的提示（带页脚），仍退出 0；设 `false` 才静默。
   这覆盖 spec/decision record 里“默认静默”的旧默认，spec、docs/decisions.md 与
   本 ticket 的 checklist 已同步。
+
+- 2026-10-22：实现完成。`push` 先复用 `digest check`，不合格时不发送、不写状态；
+  `--dry-run` 不读 SendKey、不打开状态库，`--fixtures` 按
+  `serverchan/send-<n>.json` 回放（可在响应文件里加 `http_status` 模拟非 2xx），
+  只有真实发送前才读 `push.sendkey_env`。拆分只在顶层 `## ` 边界进行，末条页脚在
+  有旧 pending 时追加 `未推送数：P`。失败重试后把失败及其后未发送的消息写入
+  `pending`；下次 live 运行先丢弃超过 `pending_days` 的整组，再对最早一组按 part
+  顺序各重试一次，整组成功后按 `items_json` 补写 `pushes`。空日报的提示发送失败
+  不写 `pending`。`runs` 升到 Schema v3 并补 `selected_count` / `pushed_count` /
+  `pending_count`，旧库用 `ALTER TABLE` 迁移。SendKey 与含 key 的 URL 只出现在
+  live 请求中，错误先脱敏，不进入 stdout/stderr/状态库。真实测试推送仍需人工在
+  本地确认 SendKey；自动化测试全部离线（fixture + 固定 `--now`，不 sleep）。
+
+- 2026-10-22：审查后收紧两处语义。其一，正文超过 `split_bytes` 但没有可切分的顶层
+  边界（只有一个 section 且正文开头没有 `> 关键词…` 前言）按“拆分不可能”退出 1，
+  不再整条发送；只有一个 section 但有前言时拆成“前言 / 正文+页脚”两条。其二，
+  pending 年龄改为从 `created_at` 起按配置时区计算日历日差（D 创建、D+2 保留、D+3
+  丢弃），整组仍按 `(channel, digest_date)` 删除；digest_date 早于运行日不再提前丢弃。
+  另外补齐了默认值边界测试（split_bytes 30000、max_bytes 32768）、
+  `tests/test_push_transport.py`（端点选择、密钥脱敏、timeout/backoff 默认值），以及
+  “GitHub-only 不算空日报”和“空日报提示保留前言”的测试。真实测试推送仍未执行，
+  需要本地 SendKey 由人工确认；这是本票唯一未勾选项。
+
+- 2026-10-22：把 stdout 契约补精确：空日报被跳过、但同一轮成功补发了 pending 时，
+  仍打印 sent 行（否则会把“确实发送了旧消息”误报成什么都没发）；只有既没发当天
+  日报、也没补发任何 pending 时才打印 `[ok] push: skipped empty digest`。README 与
+  实现已按此对齐。

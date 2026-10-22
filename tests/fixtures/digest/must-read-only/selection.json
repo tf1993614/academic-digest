@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "papers": [
+    {
+      "id": "doi:10.1000/solo-1",
+      "group": "G1",
+      "section": "must_read",
+      "reason": "与老化多组学直接相关",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author",
+        "model"
+      ]
+    },
+    {
+      "id": "doi:10.1000/solo-2",
+      "group": "G1",
+      "section": "must_read",
+      "reason": "与老化多组学直接相关",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author",
+        "model"
+      ]
+    },
+    {
+      "id": "doi:10.1000/solo-3",
+      "group": "G1",
+      "section": "must_read",
+      "reason": "与老化多组学直接相关",
+      "fulltext": "abstract_only",
+      "limitations_source": [
+        "author",
+        "model"
+      ]
+    }
+  ]
+}

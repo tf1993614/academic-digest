@@ -102,6 +102,14 @@ class Paper:
         }
 
 
+@dataclass(frozen=True)
+class SelectedItem:
+    """One selected paper, recorded in ``pushes`` after the digest is delivered."""
+
+    item_id: str
+    topic: str
+
+
 @dataclass
 class Repo:
     """One GitHub repository candidate for the new, active, or G6 block.

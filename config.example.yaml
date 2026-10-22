@@ -123,6 +123,29 @@ fulltext:
 pool:
   max_items: 30
 
+# Server酱 delivery. Every field is optional; the values below are the defaults.
+# The SendKey is never stored here: a live `push` reads it from the environment
+# variable named by `sendkey_env`. `push --dry-run` and `push --fixtures` do not
+# need it. Titles are limited to `title_max` Unicode characters; a body longer
+# than `split_bytes` is split on `## ` section boundaries into at most
+# `max_messages` messages of at most `max_bytes` UTF-8 bytes. Failed sends are
+# retried `retries` times with exponential backoff and then stored in `pending`,
+# which the next live run retries once. Pending digests whose `created_at` is
+# more than `pending_days` calendar days old are dropped. `send_empty: true` sends a short
+# notice on a quiet day; set it to false to stay silent.
+# push:
+#   sendkey_env: SERVERCHAN_SENDKEY
+#   channel: serverchan
+#   send_empty: true
+#   split_bytes: 30000
+#   max_bytes: 32768
+#   max_messages: 2
+#   title_max: 32
+#   retries: 2
+#   backoff_seconds: 1
+#   timeout: 30
+#   pending_days: 2
+
 # Relative to this file's directory.
 paths:
   state_db: state/academic-digest.sqlite3

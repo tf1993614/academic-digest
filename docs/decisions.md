@@ -111,7 +111,7 @@ spatial transcriptomics、isoform-resolved、MERFISH、in situ amplification、s
 
 - 任务看板一张卡，cron 固定 `0 8 * * *`，`Asia/Shanghai`。
 - 权限 `workspace-write`；首次需在看板 UI 确认（若高于部署默认）。
-- 不启用看板验收裁判；以 `push.py` 退出码 + `state/runs.jsonl` 为完成依据。
+- 不启用看板验收裁判；以 `push.py` 退出码 + SQLite `runs` 为完成依据。
 - 错过触发不补跑：按 `last_success` 回看 2–7 天。
 
 ## 6. 待补齐（实现前需要）
@@ -141,3 +141,19 @@ spatial transcriptomics、isoform-resolved、MERFISH、in situ amplification、s
 - 不自建公众号、不做个人微信协议逆向。
 - 不启用看板 coding 验收裁判（每天 6 次调用不划算）。
 - 不把 SendKey/GitHub token 写进任务卡 Prompt 或代码。
+
+## Amendment 2026-10-22（Issue 09）
+
+Server酱 推送定案：V1 只走 ServerChan 的 `POST`（`title` + Markdown `desp`），成功
+条件是 HTTP 2xx 且 `code` 为整数 0；SendKey 只从 `push.sendkey_env` 指向的环境变量
+读取，`--dry-run` 与 fixture 回放都不读它，key 与含 key 的 URL 不进入 stdout /
+stderr、状态库或日报。正文按顶层 `## ` 区块拆分（默认超过 30000 字节才拆，单条
+≤32768 字节、最多 2 条），绝不从论文中间截断；拆条标题加 `（i/n）`，最后一条页脚
+在有未送达消息时追加 `未推送数：P`。每条消息最多重试 2 次（指数退避）；仍失败则把
+该条及其后未发送的消息写入 SQLite `pending`，下次 live 运行先丢弃 `created_at` 超过 2 个日历日的
+整组，再按 part 顺序各重试一次，整组成功后按 `items_json` 补写 `pushes`。空日报
+默认发一条提示（`send_empty` 默认 `true`），关闭时记
+`runs(status='skipped_empty')` 并退出 0；若同一轮 pending 重试失败，则退出 1、
+状态 `failed`。`runs` 增加 `selected_count` /
+`pushed_count` / `pending_count` 三列（Schema v3）；真实连通性与测试推送留给
+Issue 10 的 setup 流程。

@@ -55,6 +55,16 @@ _Avoid_: 补发、重试
 成功发送并记录、后续不再重复推送的条目；失败与 pending 不算。
 _Avoid_: 已发送、已读
 
+**pending**：
+发送失败、按 `(channel, digest_date, part)` 留待下次 live 运行优先重试一次的消息；
+不算已推送，超过 `pending_days` 个日历日就整组丢弃。
+_Avoid_: 重试队列、待发列表
+
+**未推送数**：
+最后一条 ServerChan 消息页脚里的 `未推送数：P`；P 是本次发送当前日报前仍处于
+pending 的消息行数，只出现在发送内容里，不写回 `digest.md`。
+_Avoid_: 积压数、失败数
+
 ### GitHub 发现
 
 **新库**：

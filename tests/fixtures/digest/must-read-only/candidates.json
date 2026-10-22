@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-22T08:00:00+08:00",
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "lookback_days": {
+    "pubmed": 2
+  },
+  "sources": {
+    "pubmed": {
+      "status": "ok",
+      "count": 3
+    }
+  },
+  "candidate_count": 3,
+  "papers": [
+    {
+      "id": "doi:10.1000/solo-1",
+      "group": "G1",
+      "title": "Aging multi-omics atlas of a single tissue"
+    },
+    {
+      "id": "doi:10.1000/solo-2",
+      "group": "G1",
+      "title": "Single-cell proteomics of aged plasma"
+    },
+    {
+      "id": "doi:10.1000/solo-3",
+      "group": "G1",
+      "title": "Spatial mapping of senescent niches"
+    }
+  ]
+}

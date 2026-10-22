@@ -2,10 +2,13 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 08：日报与 selection 契约**，并补上 **Issue 07：OA 全文能力** 与 **Issue 06：GitHub release 跟踪**（在 Issue 01–05 的采集、去重、排序与 GitHub 发现骨架上，加入预印本版本匹配、关注库与 Claude Code / Codex / DSH 官方库的 release，以及 `3 + 7` 日报的离线校验）。后续的 Server酱 推送按 `.scratch/academic-digest/issues/` 继续补齐。
+当前实现到 **Issue 09：Server酱 推送**，并保留 Issue 08 的日报契约与 Issue 06/07 的
+GitHub release、OA 全文能力（在 Issue 01–05 的采集、去重、排序与发现骨架上，加入
+`3 + 7` 日报的离线校验、分条推送、失败重试与 pending 补发）。后续按
+`.scratch/academic-digest/issues/` 继续补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[09-serverchan-push.md](.scratch/academic-digest/issues/09-serverchan-push.md)、[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -38,7 +41,26 @@ python3 scripts/digest.py check \
   --selection tests/fixtures/digest/valid/selection.json \
   --digest tests/fixtures/digest/valid/digest.md
 
-# 5. 跑测试（全部通过 CLI 子进程，离线、固定 --now）
+# 5. 构建 Server酱 payload（离线；不读 SendKey、不打开状态库）
+python3 scripts/push.py \
+  --config tests/fixtures/walking/config.yaml \
+  --candidates tests/fixtures/digest/valid/candidates.json \
+  --selection tests/fixtures/digest/valid/selection.json \
+  --digest tests/fixtures/digest/valid/digest.md \
+  --now 2026-10-22T08:00:00+08:00 \
+  --dry-run
+
+# 6. 回放录制响应并记账（fixture 模式不联网、不读 SendKey）
+python3 scripts/push.py \
+  --config tests/fixtures/walking/config.yaml \
+  --candidates tests/fixtures/digest/valid/candidates.json \
+  --selection tests/fixtures/digest/valid/selection.json \
+  --digest tests/fixtures/digest/valid/digest.md \
+  --fixtures tests/fixtures/push/ok \
+  --now 2026-10-22T08:00:00+08:00 \
+  --state-db /tmp/push-state.sqlite3
+
+# 7. 跑测试（全部通过 CLI 子进程，离线、固定 --now）
 python3 -m pytest
 ```
 
@@ -77,8 +99,9 @@ DOI→arXiv 交叉检索）。
 模式与 G6），`empty/` 是标题 + 页脚的空日报。
 
 也可以使用模块入口：`python3 -m academic_digest collect ...`、
-`python3 -m academic_digest fulltext ...`、`python3 -m academic_digest digest check ...`
-与 `python3 -m academic_digest doctor ...`。
+`python3 -m academic_digest fulltext ...`、`python3 -m academic_digest digest check ...`、
+`python3 -m academic_digest push ...` 与 `python3 -m academic_digest doctor ...`。
+`push` 的录制响应样例在 `tests/fixtures/push/`。
 
 ## 命令
 
@@ -478,8 +501,80 @@ digest check --candidates PATH --selection PATH --digest PATH
   `language` 允许为空（GitHub 未识别语言时 `collect` 输出空串），此时语言一栏可写
   占位符。release 必须写出 repo+tag、日期、更新要点与链接。
 
-`digest check` 不检查正文长度、32KB 拆分或 pending/未推送数；这些属于 Issue 09
-的 `push`。
+`digest check` 不检查正文长度、32KB 拆分或 pending/未推送数；这些属于 `push`。
+
+### `push`
+
+```text
+push --config PATH [--fixtures DIR] [--now ISO8601] \
+     --candidates PATH --selection PATH --digest PATH \
+     [--state-db PATH] [--dry-run] [--out PATH]
+```
+
+把校验过的日报推到微信（V1 只有 Server酱）。它先复用 `digest check` 的校验：
+不合格时输出同样的 `[fail] selection:` / `[fail] digest:` 前缀并退出 1，不发送、
+不写状态。`--candidates` / `--selection` / `--digest` 必填；`--state-db` 默认取
+`paths.state_db`。
+
+- `--dry-run`：只构建 payload。不联网、不读 SendKey、不打开状态库、不写
+  `runs` / `pushes` / `pending`。payload 打到 stdout，或写到 `--out`（只能与
+  `--dry-run` 一起用）：
+
+  ```json
+  {
+    "schema_version": 1,
+    "messages": [
+      {"part": 1, "parts": 1, "title": "学术速递 · 2026-10-22", "desp": "…"}
+    ]
+  }
+  ```
+
+  空日报且 `push.send_empty: false` 时输出
+  `{"schema_version":1,"messages":[],"skipped":"empty"}`。
+- `--fixtures DIR`：回放 `DIR/serverchan/send-<n>.json`，第 n 次请求（跨本次运行的
+  所有消息与重试计数）读第 n 个文件；文件缺失或内容不是 JSON 视为一次传输失败。
+  fixture 模式不联网、不 sleep，也不读 SendKey。测试可在响应文件里加
+  `"http_status": 500` 模拟非 2xx。
+- `--now`：固定本次运行时间与 pending 年龄。
+
+标题固定为 `学术速递 · <candidates.date>`，拆条时追加 `（1/n）`…`（n/n）`；按
+Unicode 字符计数，超过 `push.title_max` 退出 2，不截断。`desp` 是 `digest.md`
+去掉标题行后的全文（LF 换行）。正文超过 `push.split_bytes` 时只在顶层 `## ` 区块
+边界拆分，每条不超过 `push.max_bytes`，最多 `push.max_messages` 条；单个 section
+超过 `max_bytes`、或需要更多消息时退出 1，不发送部分日报，也绝不从论文中间截断。
+没有可切分的顶层边界时（例如只有一个 section 且正文没有 `> 关键词…` 前言）按
+“拆分不可能”退出 1（不发送部分日报，也不从论文中间截断）。
+拆分后第 1 条带 `> 关键词…` 前言，最后一条带 `---` 页脚；本次运行还有未送达的
+旧消息时，在最后一条页脚追加 `未推送数：P`（`--dry-run` 不追加）。
+
+发送为 `POST` 表单 `title` + `desp`，成功条件是 HTTP 2xx 且响应 JSON 的 `code`
+为整数 0。每条消息最多尝试 `1 + retries` 次，第 k 次失败后等待
+`backoff_seconds × 2^(k-1)` 秒（fixture 模式不等待）。仍失败时把该条及之后未发送
+的消息写入 `pending` 并退出 1；整份逻辑日报（含拆分后的所有消息）全部送达后才写
+`pushes`。下次 live 运行先按配置时区、从 `created_at` 起算，丢弃超过
+`pending_days` 个日历日的 pending 组（整组按 `digest_date` 删除），再按 `part`
+顺序对最早的一组各重试一次；该组全部成功时按保存的 `items_json` 补写
+`pushes`。pending 重试失败不阻塞当天的日报，但会写进 `runs.error`。
+
+空日报（`selection.papers` 为空且 `candidates.github` 的 `new`/`active`/`g6`/
+`releases.starred`/`g6_releases` 都为空）默认发送一条“今日没有匹配的检索条目”的
+提示；`push.send_empty: false` 时不发 HTTP、不写 pending，记
+`runs(status='skipped_empty')` 并退出 0；但若同一轮 pending 重试失败，则退出 1、
+记 `runs(status='failed')`（pending 失败同时写进 `runs.error`）。空提示发送失败按
+普通失败处理，但不写 `pending`。
+
+退出码：`0` 已发送 / 空日报按配置发送或跳过 / dry-run 成功；`1` 日报校验失败、
+重试后仍失败、拆分不可能、状态库打开或写入失败；`2` 参数或配置错误、缺少 SendKey。
+成功时 stdout 一行 `[ok] push: sent N message(s), recorded M paper(s)`；空日报被跳过
+且本轮没有补发 pending 时为 `[ok] push: skipped empty digest`（若同一轮补发了
+pending，则仍是 sent 行）；失败写 stderr `[fail] push: …`。
+
+SendKey 从 `push.sendkey_env`（默认 `SERVERCHAN_SENDKEY`）指向的环境变量读取，
+为空时 live 退出 2。`sctp<uid>t…` 形式的 key 发到
+`https://<uid>.push.ft07.com/send/<key>.send`，其余发到
+`https://sctapi.ftqq.com/<key>.send`。key 与含 key 的 URL 不写 stdout、stderr、
+状态库或日报；错误信息会先脱敏。真实测试推送需要人工确认本地 SendKey，自动化测试
+只用 fixture。
 
 ### `doctor`
 
@@ -508,9 +603,9 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 
 | 退出码 | 含义 |
 |---|---|
-| `0` | 成功 |
-| `1` | 源、状态库、输出文件、自检或日报校验失败 |
-| `2` | 配置或参数错误（尚未发起任何网络请求） |
+| `0` | 成功（含空日报按 `send_empty` 发送或跳过、`push --dry-run`） |
+| `1` | 源、状态库、输出文件、自检、日报校验或推送失败 |
+| `2` | 配置或参数错误、缺少 SendKey（尚未发起任何网络请求） |
 
 ## 配置
 
@@ -553,6 +648,13 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 - `fulltext.unpaywall.email`：Unpaywall API 要求的联系邮箱；可留空。留空时
   `fulltext` 跳过 Unpaywall，仍会尝试 Europe PMC、arXiv 与预印本 PDF。邮箱只作为
   请求参数与 User-Agent 的一部分，不写入日报或日志。
+- `push`（全部可省略）：`sendkey_env`（默认 `SERVERCHAN_SENDKEY`）、`channel`
+  （V1 只接受 `serverchan`）、`send_empty`（默认 `true`）、`split_bytes`（默认
+  30000）、`max_bytes`（默认 32768，且 `split_bytes` 不得大于它）、`max_messages`
+  （默认 2）、`title_max`（默认 32）、`retries`（默认 2）、`backoff_seconds`
+  （默认 1）、`timeout`（默认 30 秒）、`pending_days`（默认 2）。`retries` 与
+  `backoff_seconds` 为非负整数，其余数值为正整数。SendKey 本身不写进配置，只从
+  `sendkey_env` 指向的环境变量读取。
 - `pool.max_items`：候选池总数上限，默认 30，必须不少于 `topics` 数量
   （保证每个非空组至少 1 条）；候选不足时不补空条目。
 - `paths.state_db` / `paths.candidates`：相对路径按配置文件所在目录解析。
@@ -682,7 +784,15 @@ tests/fixtures/
 │   │   ├── candidates.json
 │   │   ├── selection.json
 │   │   └── digest.md
-│   └── g6-quick-only/        # 非 G6 论文全塞进其它速览：必须失败
+│   ├── g6-quick-only/        # 非 G6 论文全塞进其它速览：必须失败
+│   │   ├── candidates.json
+│   │   ├── selection.json
+│   │   └── digest.md
+│   ├── must-read-only/       # 只有今日必读一个 section：拆分与字节上限
+│   │   ├── candidates.json
+│   │   ├── selection.json
+│   │   └── digest.md
+│   └── github-only/          # 0 篇论文但有 GitHub 条目：不是空日报
 │       ├── candidates.json
 │       ├── selection.json
 │       └── digest.md
@@ -697,7 +807,11 @@ tests/fixtures/
     └── pool-too-small.yaml        # pool.max_items < topics 数量
 ```
 
-后续源沿用同一约定：`<fixtures>/<source>/<recorded-response>`。
+后续源沿用同一约定：`<fixtures>/<source>/<recorded-response>`。`push` 的回放响应
+放在 `tests/fixtures/push/<scenario>/serverchan/send-<n>.json`：`ok/` 全部成功，
+`fail/` 全部 `code=1`（触发重试与 pending），`partial/` 第 1 条失败、其余成功，
+`http-500/` 用 `http_status` 模拟非 2xx，`non-json/` 模拟坏响应，
+`pending-ok-current-fail/` 让 pending 补发成功而当天日报失败。
 
 ## 状态库
 
@@ -708,7 +822,13 @@ SQLite 位于 `paths.state_db`（默认 `state/academic-digest.sqlite3`）：
 - `pushes`：成功推送的条目，主键为 `(item_id, topic, channel, digest_date)`。
   `collect` 在排名与截断之前用它排除已推送条目；同一篇论文后续换用另一种
   标识（例如从 PMID 变成 DOI，或从标题哈希变成 DOI）也能匹配。
-- `runs`：每次 `collect` 一行，记录起止时间、状态、各源结果、候选数与错误摘要。
+- `pending`：尚未送达的拆分消息，主键为 `(channel, digest_date, part)`，保存
+  `title` / `desp` / `items_json` / `attempts` / `last_error`。下次 live `push` 先
+  重试最早的一组；`created_at` 超过 `push.pending_days` 个日历日的整组丢弃并记进
+  `runs.error`。
+- `runs`：`collect` 与 live `push` 各一行，记录起止时间、状态、各源结果、候选数、
+  入选论文数与错误摘要。`push` 行另有 `selected_count`、`pushed_count`、
+  `pending_count`；旧库在打开时用 `ALTER TABLE` 补这三列（Schema v3）。
 
 ## 开发
 
@@ -735,8 +855,12 @@ scripts/review-patch.sh   # -> out/review/current.diff 等
 规则见 `docs/agents/code-review.md`，审查侧的判断标准见 `CODING_STANDARDS.md`。
 
 唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `fulltext` /
-`digest check` / `doctor`，断言退出码、stderr 与输出文件，不导入内部实现。所有
-测试离线且固定 `--now`；`digest check` 与 `fulltext --fixtures` 不触碰网络。
+`digest check` / `push` / `doctor`，断言退出码、stderr 与输出文件，不导入内部
+实现。所有测试离线且固定 `--now`；`digest check`、`fulltext --fixtures` 与
+`push --fixtures` / `push --dry-run` 不触碰网络。唯一例外是
+`tests/test_push_transport.py`：fixture 模式从不构造 URL、不读 SendKey、不 sleep，
+所以 ServerChan 端点选择、密钥脱敏、重试/脱敏接线与 `timeout` / `backoff_seconds`
+默认值改为直接测试，否则这些安全相关分支永远没有测试。
 
-`push` 命令（Issue 09）落地前，“已推送”状态由测试直接向 SQLite `pushes`
-表写入一行作为前置数据；断言仍只来自 CLI 输出，不导入内部实现。
+“已推送”状态由 `push` 写入 SQLite `pushes`；测试也可以直接写一行作为 `collect`
+的前置数据，断言仍只来自 CLI 输出。

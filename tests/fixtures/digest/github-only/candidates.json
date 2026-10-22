@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-22T08:00:00+08:00",
+  "date": "2026-10-22",
+  "timezone": "Asia/Shanghai",
+  "lookback_days": {},
+  "sources": {},
+  "candidate_count": 0,
+  "papers": [],
+  "github": {
+    "limits": {
+      "new": 1,
+      "active": 2,
+      "g6": 2
+    },
+    "new": [
+      {
+        "full_name": "acme/cell-atlas",
+        "url": "https://github.com/acme/cell-atlas",
+        "description": "Single-cell atlas toolkit",
+        "positioning": "Single-cell atlas toolkit",
+        "why": "由 G2（单细胞与空间组学）检索 topic:single-cell 返回",
+        "stars": 42,
+        "language": "Python",
+        "created_at": "2026-10-20T08:00:00Z",
+        "pushed_at": "2026-10-21T09:00:00Z",
+        "topics": [
+          "single-cell"
+        ],
+        "group": "G2",
+        "query": "topic:single-cell created:>2026-10-15 stars:>=5",
+        "tags": [
+          "single-cell"
+        ],
+        "relevance": 4,
+        "score": 8,
+        "readme_url": ""
+      }
+    ]
+  }
+}
