@@ -4,7 +4,7 @@
 
 **Blocked by:** 08.
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] `push --dry-run` 输出 ServerChan payload：title ≤32 字符、markdown 正文、密钥脱敏。
 - [x] 正文 >30KB 时按区块拆成最多 2 条，带（1/2）后缀，不从论文中间截断。
@@ -12,7 +12,7 @@
 - [x] pending 下次运行优先重试一次；超过 2 天丢弃并记录。
 - [x] runs 记录时间、计数、状态、错误摘要；空日报默认发送提示并退出 0，可用 `send_empty: false` 关闭。
 - [x] 测试覆盖 payload、拆分、重试、pending。
-- [ ] 真实测试推送由人工确认（需要本地 SendKey，不能放进测试/fixture/Prompt）。
+- [x] 真实测试推送由人工确认（需要本地 SendKey，不能放进测试/fixture/Prompt）。
 
 ## Contract
 
@@ -247,3 +247,7 @@ CREATE TABLE pending (
   仍打印 sent 行（否则会把“确实发送了旧消息”误报成什么都没发）；只有既没发当天
   日报、也没补发任何 pending 时才打印 `[ok] push: skipped empty digest`。README 与
   实现已按此对齐。
+
+- 2026-10-22：用户用本地 SendKey 完成真实 Server酱 测试推送，并确认微信收到
+  `学术速递 · 2026-10-22`；本票全部验收项完成，Status 改为 done。密钥只保存在本地
+  `secrets.env`（权限 600、已被 git 忽略），未进入仓库、测试、日报或本对话。
