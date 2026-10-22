@@ -30,3 +30,5 @@ addopts = "-ra"
 python_version = "3.11"
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
+disallow_untyped_defs = true
+check_untyped_defs = true

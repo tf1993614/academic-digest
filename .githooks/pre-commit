@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Run every local check before a commit. Enable once with:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+exec "$root/scripts/check.sh"

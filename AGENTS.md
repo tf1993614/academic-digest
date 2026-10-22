@@ -15,3 +15,7 @@ Default five labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for
 ### Domain docs
 
 Single-context: `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+### Code review
+
+Freeze the diff before dispatching reviewers. See `docs/agents/code-review.md`.

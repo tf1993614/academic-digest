@@ -85,7 +85,7 @@ def _to_paper(item: FeedItem, start: date, end: date) -> Paper | None:
     )
 
 
-def _created_on(item) -> date | None:
+def _created_on(item: FeedItem) -> date | None:
     match = _CREATED_ON.search(item.description)
     if not match:
         return None

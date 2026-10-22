@@ -248,11 +248,27 @@ SQLite 位于 `paths.state_db`（默认 `state/academic-digest.sqlite3`）：
 
 ## 开发
 
+一次跑完全部检查（mypy、pyflakes、pytest）：
+
 ```bash
-python3 -m pytest
-python3 -m pyflakes academic_digest scripts tests
-python3 -m mypy academic_digest
+scripts/check.sh
 ```
+
+启用本地 pre-commit hook，每个 clone 执行一次：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+之后每次 `git commit` 都会跑同一个脚本；`.github/workflows/ci.yml` 在推送时跑同一份检查。
+
+审查前先把工作树冻结成补丁，避免 reviewer 在变动中的 diff 上反复重读：
+
+```bash
+scripts/review-patch.sh   # -> out/review/current.diff 等
+```
+
+规则见 `docs/agents/code-review.md`，审查侧的判断标准见 `CODING_STANDARDS.md`。
 
 唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `doctor`，
 断言退出码、stderr 与输出文件，不导入内部实现。所有测试离线且固定
