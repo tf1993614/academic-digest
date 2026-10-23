@@ -28,4 +28,4 @@ The canonical end-user workflow lives in `skills/academic-digest/` (source: `SKI
 
 ### Code review
 
-Before dispatching, read `docs/agents/code-review.md`: grep every new or changed payload key across `README.md`, `CODING_STANDARDS.md`, the ADR, and the ticket, then freeze with `scripts/review-patch.sh --base <fixed-point>`.
+Before dispatching, read `docs/agents/code-review.md`: grep every new or changed payload key across `docs/cli.md`, `docs/configuration.md`, `CODING_STANDARDS.md`, the ADR, and the ticket, then freeze with `scripts/review-patch.sh --base <fixed-point>`.

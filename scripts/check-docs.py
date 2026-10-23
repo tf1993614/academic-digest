@@ -2,11 +2,13 @@
 """Static consistency checks for the docs that steer the digest workflow.
 
 These are the machine-checkable claims the review kept catching by hand: the
-canonical skill path (and the retired repo-root pointer), relative Markdown
-links in the README and skill docs, the setup quota table, the transport retry
-wording, the candidate-pool key contract, and the review-patch contract. Run
-from ``scripts/check.sh`` so a doc that drifts from its code/default fails before
-commit.
+docs layout (a short root README that defers to ``docs/``), the MIT license and
+its ``pyproject`` field, the command/config references indexed by
+``docs/README.md``, the canonical skill path (and the retired repo-root
+pointer), relative Markdown links across ``docs/``, the README-side history, the
+setup quota table, the transport retry wording, the candidate-pool key
+contract, and the review-patch contract. Run from ``scripts/check.sh`` so a doc
+that drifts from its code/default fails before commit.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ import json
 import os
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -24,14 +27,22 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIR = ROOT / "skills/academic-digest"
 SKILL = SKILL_DIR / "SKILL.md"
 SETUP = SKILL_DIR / "references/setup.md"
+DOCS = ROOT / "docs"
+DOCS_INDEX = DOCS / "README.md"
+CLI_DOC = DOCS / "cli.md"
+CONFIG_DOC = DOCS / "configuration.md"
+DEVELOPMENT_LOG = DOCS / "development-log.md"
 README = ROOT / "README.md"
+LICENSE = ROOT / "LICENSE"
+PYPROJECT = ROOT / "pyproject.toml"
 STANDARDS = ROOT / "CODING_STANDARDS.md"
 CONFIG = ROOT / "config.example.yaml"
+CONFIG_MODULE = SKILL_DIR / "academic_digest/config.py"
 BASE = SKILL_DIR / "academic_digest/sources/base.py"
 MODELS = SKILL_DIR / "academic_digest/models.py"
 SPEC = ROOT / ".scratch/academic-digest/spec.md"
 REVIEW_SCRIPT = ROOT / "scripts/review-patch.sh"
-REVIEW_DOC = ROOT / "docs/agents/code-review.md"
+REVIEW_DOC = DOCS / "agents/code-review.md"
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
@@ -59,8 +70,8 @@ def _check_skill_source(failures: list[str]) -> None:
     )
     _require(
         failures,
-        "](skills/academic-digest/SKILL.md)" in _text(README),
-        "README must link the canonical skill path",
+        "](../skills/academic-digest/SKILL.md)" in _text(DEVELOPMENT_LOG),
+        "docs/development-log.md must link the canonical skill path",
     )
     for name in ("collect", "digest", "doctor", "fulltext", "push"):
         _require(
@@ -140,8 +151,263 @@ def _link_target(raw: str) -> str:
     return raw.split(None, 1)[0]
 
 
+def _link_targets(path: Path) -> set[str]:
+    """The local link targets of a Markdown file, fragment and query stripped."""
+
+    targets: set[str] = set()
+    for raw in _relative_links(_text(path)):
+        target = _link_target(raw)
+        target = target.split("#", 1)[0].split("?", 1)[0]
+        if target:
+            targets.add(target)
+    return targets
+
+
+def _require_link(
+    failures: list[str], links: set[str], target: str, message: str
+) -> None:
+    """Require a local link target, accepting both ``x.md`` and ``./x.md``."""
+
+    _require(failures, target in links or f"./{target}" in links, message)
+
+
+def _check_docs_layout(failures: list[str]) -> None:
+    """The visitor-facing surface: a short README pointing at an indexed docs tree."""
+
+    for path in (README, DOCS_INDEX, CLI_DOC, CONFIG_DOC, DEVELOPMENT_LOG):
+        _require(
+            failures,
+            path.is_file(),
+            f"missing {path.relative_to(ROOT)}",
+        )
+    if README.is_file():
+        readme = _text(README)
+        _require(
+            failures,
+            {"docs/README.md", "docs/"} & _link_targets(README),
+            "README.md must point at docs/README.md (the docs index)",
+        )
+        _require(
+            failures,
+            len(readme.splitlines()) <= 30,
+            "README.md must stay a short pointer to docs/, not the development log",
+        )
+        _require(
+            failures,
+            "```" not in readme,
+            "README.md must not repeat the command blocks that now live in docs/",
+        )
+    if not DOCS_INDEX.is_file():
+        return
+    index_links = _link_targets(DOCS_INDEX)
+    _require_link(failures, index_links, "cli.md", "docs/README.md must link docs/cli.md")
+    _require_link(
+        failures,
+        index_links,
+        "configuration.md",
+        "docs/README.md must link docs/configuration.md",
+    )
+    _require_link(
+        failures,
+        index_links,
+        "development-log.md",
+        "docs/README.md must link docs/development-log.md",
+    )
+
+
+def _check_cli_doc(failures: list[str]) -> None:
+    """The command reference covers every entry point and the exit codes."""
+
+    if not CLI_DOC.is_file():
+        return
+    text = _text(CLI_DOC)
+    for name in ("collect", "fulltext", "digest check", "push", "doctor"):
+        _require(
+            failures,
+            f"## `{name}`" in text,
+            f"docs/cli.md must document `{name}`",
+        )
+    _require(failures, "## 退出码" in text, "docs/cli.md must document the exit codes")
+    for code in ("0", "1", "2"):
+        _require(
+            failures,
+            f"| `{code}` |" in text,
+            f"docs/cli.md exit-code table must list {code}",
+        )
+
+
+def _config_top_level_keys() -> list[str]:
+    """``_TOP_LEVEL_KEYS`` from the config module, without importing it."""
+
+    try:
+        tree = ast.parse(_text(CONFIG_MODULE))
+    except SyntaxError as exc:
+        raise ValueError(f"cannot parse {CONFIG_MODULE}: {exc}") from exc
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == "_TOP_LEVEL_KEYS"
+            for target in node.targets
+        ):
+            continue
+        if isinstance(node.value, ast.Set):
+            return [
+                element.value
+                for element in node.value.elts
+                if isinstance(element, ast.Constant) and isinstance(element.value, str)
+            ]
+    raise ValueError("config.py must define _TOP_LEVEL_KEYS as a string set literal")
+
+
+def _check_config_doc(failures: list[str]) -> None:
+    """Every accepted top-level config key appears in the configuration reference."""
+
+    if not CONFIG_DOC.is_file():
+        return
+    text = _text(CONFIG_DOC)
+    try:
+        keys = _config_top_level_keys()
+    except ValueError as exc:
+        failures.append(str(exc))
+        return
+    missing = [
+        key
+        for key in keys
+        if re.search(rf"(?<![0-9A-Za-z_]){re.escape(key)}(?![0-9A-Za-z_])", text)
+        is None
+    ]
+    _require(
+        failures,
+        not missing,
+        f"docs/configuration.md is missing config keys: {', '.join(missing)}",
+    )
+    _require(
+        failures,
+        "默认" in text,
+        "docs/configuration.md must state the defaults next to the config keys",
+    )
+
+
+def _config_default_constants() -> dict[str, object]:
+    """The module-level ``DEFAULT_*`` scalar values from the config module."""
+
+    try:
+        tree = ast.parse(_text(CONFIG_MODULE))
+    except SyntaxError as exc:
+        raise ValueError(f"cannot parse {CONFIG_MODULE}: {exc}") from exc
+    constants: dict[str, object] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id.startswith("DEFAULT_"):
+                constants[target.id] = node.value.value
+    return constants
+
+
+# Every row in docs/configuration.md's default table that mirrors a config.py
+# constant. A value change in the code therefore fails the docs check until the
+# documented default follows.
+DOCUMENTED_DEFAULTS = {
+    "github.token_env": "DEFAULT_GITHUB_TOKEN_ENV",
+    "github.new.days": "DEFAULT_NEW_DAYS",
+    "github.new.min_stars": "DEFAULT_NEW_MIN_STARS",
+    "github.new.max_items": "DEFAULT_NEW_MAX_ITEMS",
+    "github.active.days": "DEFAULT_ACTIVE_DAYS",
+    "github.active.min_stars": "DEFAULT_ACTIVE_MIN_STARS",
+    "github.active.max_items": "DEFAULT_ACTIVE_MAX_ITEMS",
+    "github.g6.max_items": "DEFAULT_G6_MAX_ITEMS",
+    "github.readme_limit": "DEFAULT_README_LIMIT",
+    "github.releases.days": "DEFAULT_RELEASE_DAYS",
+    "github.releases.max_items": "DEFAULT_STARRED_RELEASE_MAX_ITEMS",
+    "push.sendkey_env": "DEFAULT_PUSH_SENDKEY_ENV",
+    "push.channel": "DEFAULT_PUSH_CHANNEL",
+    "push.send_empty": "DEFAULT_PUSH_SEND_EMPTY",
+    "push.split_bytes": "DEFAULT_PUSH_SPLIT_BYTES",
+    "push.max_bytes": "DEFAULT_PUSH_MAX_BYTES",
+    "push.max_messages": "DEFAULT_PUSH_MAX_MESSAGES",
+    "push.title_max": "DEFAULT_PUSH_TITLE_MAX",
+    "push.retries": "DEFAULT_PUSH_RETRIES",
+    "push.backoff_seconds": "DEFAULT_PUSH_BACKOFF_SECONDS",
+    "push.timeout": "DEFAULT_PUSH_TIMEOUT",
+    "push.pending_days": "DEFAULT_PUSH_PENDING_DAYS",
+    "pool.max_items": "DEFAULT_MAX_ITEMS",
+    "paths.state_db": "DEFAULT_STATE_DB",
+    "paths.candidates": "DEFAULT_CANDIDATES",
+}
+
+
+def _documented_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _check_config_defaults(failures: list[str]) -> None:
+    """The defaults table matches the constants the parser actually falls back to."""
+
+    if not CONFIG_DOC.is_file():
+        return
+    text = _text(CONFIG_DOC)
+    try:
+        constants = _config_default_constants()
+    except ValueError as exc:
+        failures.append(str(exc))
+        return
+    for field, constant in DOCUMENTED_DEFAULTS.items():
+        if constant not in constants:
+            failures.append(f"config.py must define {constant} for {field}")
+            continue
+        value = _documented_value(constants[constant])
+        row = rf"^\| `{re.escape(field)}` \| `{re.escape(value)}` \|"
+        _require(
+            failures,
+            re.search(row, text, re.MULTILINE) is not None,
+            f"docs/configuration.md must show {field} default `{value}` "
+            f"({constant})",
+        )
+
+
+def _check_license(failures: list[str]) -> None:
+    """A usable MIT license, named in the package metadata."""
+
+    if not LICENSE.is_file():
+        failures.append("missing LICENSE (MIT, tf1993614)")
+    else:
+        text = _text(LICENSE)
+        _require(
+            failures,
+            text.startswith("MIT License"),
+            "LICENSE must be the MIT license text",
+        )
+        _require(
+            failures,
+            "tf1993614" in text,
+            "LICENSE must name tf1993614 as the copyright holder",
+        )
+    try:
+        project = tomllib.loads(_text(PYPROJECT)).get("project", {})
+    except tomllib.TOMLDecodeError as exc:
+        failures.append(f"pyproject.toml is not valid TOML: {exc}")
+        return
+    license_field = project.get("license")
+    declared = license_field == "MIT" or (
+        isinstance(license_field, dict) and license_field.get("text") == "MIT"
+    )
+    _require(
+        failures,
+        declared,
+        "pyproject.toml [project] must declare license = MIT",
+    )
+
+
 def _check_markdown_links(failures: list[str]) -> None:
-    docs = [README, *sorted((ROOT / "skills" / "academic-digest").rglob("*.md"))]
+    docs = [
+        README,
+        *sorted(DOCS.rglob("*.md")),
+        *sorted((ROOT / "skills" / "academic-digest").rglob("*.md")),
+    ]
     for path in docs:
         for raw in _relative_links(_text(path)):
             target = _link_target(raw)
@@ -183,43 +449,54 @@ def _paper_dict_keys() -> list[str]:
     raise ValueError("Paper.to_dict must return a string-keyed dict literal")
 
 
-def _readme_sample_keys(readme: str) -> list[str]:
-    """The key order of the README's candidate JSON example."""
+def _candidate_sample_keys(text: str, label: str) -> list[str]:
+    """The key order of a doc's candidate JSON example."""
 
     marker = "每篇论文至少包含"
-    start = readme.find(marker)
+    start = text.find(marker)
     if start < 0:
-        raise ValueError("README must introduce the candidate sample with '每篇论文至少包含'")
-    fence = readme.find("```json", start)
+        raise ValueError(
+            f"{label} must introduce the candidate sample with '每篇论文至少包含'"
+        )
+    fence = text.find("```json", start)
     if fence < 0:
-        raise ValueError("README candidate sample must be a ```json block")
+        raise ValueError(f"{label} candidate sample must be a ```json block")
     body_start = fence + len("```json")
-    end = readme.find("```", body_start)
+    end = text.find("```", body_start)
     if end < 0:
-        raise ValueError("README candidate sample is missing its closing fence")
+        raise ValueError(f"{label} candidate sample is missing its closing fence")
     try:
-        sample = json.loads(readme[body_start:end])
+        sample = json.loads(text[body_start:end])
     except json.JSONDecodeError as exc:
-        raise ValueError(f"README candidate sample is not valid JSON: {exc}") from exc
+        raise ValueError(f"{label} candidate sample is not valid JSON: {exc}") from exc
     if not isinstance(sample, dict):
-        raise ValueError("README candidate sample must be a JSON object")
+        raise ValueError(f"{label} candidate sample must be a JSON object")
     return list(sample)
 
 
-def _check_candidate_keys(failures: list[str], readme: str) -> None:
+def _check_candidate_keys(failures: list[str], log: str) -> None:
     """Keep ``Paper.to_dict`` and the documented candidate contract in lockstep."""
 
     try:
         keys = _paper_dict_keys()
-        sample_keys = _readme_sample_keys(readme)
     except ValueError as exc:
         failures.append(f"candidate contract: {exc}")
         return
-    _require(
-        failures,
-        sample_keys == keys,
-        f"README candidate sample keys {sample_keys} != Paper.to_dict keys {keys}",
-    )
+    documented = [(DEVELOPMENT_LOG, log)]
+    if CLI_DOC.is_file():
+        documented.append((CLI_DOC, _text(CLI_DOC)))
+    for path, text in documented:
+        label = str(path.relative_to(ROOT))
+        try:
+            sample_keys = _candidate_sample_keys(text, label)
+        except ValueError as exc:
+            failures.append(f"candidate contract: {exc}")
+            return
+        _require(
+            failures,
+            sample_keys == keys,
+            f"{label} candidate sample keys {sample_keys} != Paper.to_dict keys {keys}",
+        )
 
     spec = _text(SPEC)
     heading = "### 候选池与模型契约"
@@ -287,7 +564,7 @@ def _check_quotas(failures: list[str], setup: str) -> None:
         )
 
 
-def _check_retry_docs(failures: list[str], readme: str) -> None:
+def _check_retry_docs(failures: list[str], log: str) -> None:
     base = _text(BASE)
     attempts_match = re.search(r"^_HTTP_ATTEMPTS = (\d+)$", base, re.MULTILINE)
     backoff_match = re.search(
@@ -302,15 +579,19 @@ def _check_retry_docs(failures: list[str], readme: str) -> None:
     standards = _text(STANDARDS)
     _require(
         failures,
-        f"最多 {attempts} 次尝试" in readme,
-        f"README must say '最多 {attempts} 次尝试'",
+        f"最多 {attempts} 次尝试" in log,
+        f"docs/development-log.md must say '最多 {attempts} 次尝试'",
     )
     _require(
         failures,
-        f"{attempts - 1} 次重试" in readme,
-        f"README must say '{attempts - 1} 次重试'",
+        f"{attempts - 1} 次重试" in log,
+        f"docs/development-log.md must say '{attempts - 1} 次重试'",
     )
-    _require(failures, backoff_text in readme, f"README must say '{backoff_text}'")
+    _require(
+        failures,
+        backoff_text in log,
+        f"docs/development-log.md must say '{backoff_text}'",
+    )
     _require(
         failures,
         f"up to {attempts} attempts" in standards,
@@ -323,8 +604,8 @@ def _check_retry_docs(failures: list[str], readme: str) -> None:
     )
     _require(
         failures,
-        "429" in readme and "2s" in readme,
-        "README must document the 429 2s floor",
+        "429" in log and "2s" in log,
+        "docs/development-log.md must document the 429 2s floor",
     )
     _require(
         failures,
@@ -386,12 +667,17 @@ def _check_review_patch(failures: list[str]) -> None:
 
 def main() -> int:
     failures: list[str] = []
+    _check_docs_layout(failures)
+    _check_cli_doc(failures)
+    _check_config_doc(failures)
+    _check_config_defaults(failures)
+    _check_license(failures)
     _check_skill_source(failures)
     _check_markdown_links(failures)
     _check_quotas(failures, _text(SETUP))
-    readme = _text(README)
-    _check_candidate_keys(failures, readme)
-    _check_retry_docs(failures, readme)
+    log = _text(DEVELOPMENT_LOG)
+    _check_candidate_keys(failures, log)
+    _check_retry_docs(failures, log)
     _check_review_patch(failures)
     if failures:
         for failure in failures:
@@ -399,8 +685,9 @@ def main() -> int:
         print(f"docs check found {len(failures)} problem(s)", file=sys.stderr)
         return 1
     print(
-        "[ok] docs: skill source, wrapper, markdown links, quotas, retry wording, "
-        "candidate keys, transport tests, review patch"
+        "[ok] docs: layout, license, cli/config references, skill source, "
+        "markdown links, quotas, retry wording, candidate keys, transport tests, "
+        "review patch"
     )
     return 0
 

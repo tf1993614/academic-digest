@@ -6,7 +6,7 @@ Review a frozen diff, never a moving working tree. A reviewer that sees the tree
 
 - Walk the ticket checklist and confirm every item has a test or fixture that fails without it.
 - Check every documented default and every "no update means no block" claim.
-- Grep `README.md`, `CODING_STANDARDS.md`, the ADR, and the ticket for every payload key you added, renamed, or removed.
+- Grep `docs/cli.md`, `docs/configuration.md`, `CODING_STANDARDS.md`, the ADR, and the ticket for every payload key you added, renamed, or removed.
 - For new concurrency, locking, signal, or atomicity code: name the kernel primitive and list the failure modes in the ticket (SIGKILL, PID reuse, TOCTOU, fd inheritance, the signal window). Shell bookkeeping must say why a kernel primitive will not do. **A second blocking finding on the same mechanism means redesign, not another patch.**
 - Any doc that repeats a command, flag, or default: make the test derive one side from the other (see `CODING_STANDARDS.md` §Docs). Two hand-written literals in the test check nothing.
 - Run the suite the way the hook does: the pre-commit hook checks the index out into a directory with **no `.git`**, so a new test must not require git metadata (skip that branch, or read the checked-out file instead).
