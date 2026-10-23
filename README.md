@@ -111,10 +111,10 @@ DOI→arXiv 交叉检索）。
 源 skill 在 [`skills/academic-digest/SKILL.md`](skills/academic-digest/SKILL.md)。代码跟着
 skill 走：五个入口脚本在 `skills/academic-digest/scripts/`，`academic_digest/` 包也在
 这个目录里，每个入口脚本自己把所在 skill 目录加入 `sys.path`——把 `skills/academic-digest/`
-整个拷走，配好 `config.yaml` 与 `secrets.env`（两者留在仓库根），就能在任意工作目录直接
-运行，不需要 `pip install`。`.dsh/`、`.claude/`、`.agents/` 三个扫描根下的
-`skills/academic-digest/` 是同一份生成副本，只允许 `references/scheduling.md` 不同；改源
-目录后跑 `scripts/sync-skills.sh` 重新生成，禁止手改副本。DSH 扫描
+整个拷进另一个 git 仓库（例如 dotfiles）后，在该仓库根配好 `config.yaml` 与 `secrets.env`，
+就能在任意工作目录直接运行，不需要 `pip install`。`.dsh/`、`.claude/`、`.agents/` 三个
+扫描根下的 `skills/academic-digest/` 是同一份生成副本，只允许 `references/scheduling.md`
+不同；改源目录后跑 `scripts/sync-skills.sh` 重新生成，禁止手改副本。DSH 扫描
 `<workspace>/.dsh/skills/` 的第一层，因此只要看板卡钉住本仓库就能发现它。
 
 想让任意工作区也能用，做一次用户级软链：

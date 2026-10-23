@@ -79,6 +79,11 @@ def _check_skill_source(failures: list[str]) -> None:
     )
     _require(
         failures,
+        not (ROOT / "scripts" / "setup-secrets.sh").exists(),
+        "scripts/setup-secrets.sh must live inside the skill, not at the repository root",
+    )
+    _require(
+        failures,
         (SKILL_DIR / "academic_digest" / "cli.py").is_file(),
         "missing skills/academic-digest/academic_digest/cli.py",
     )

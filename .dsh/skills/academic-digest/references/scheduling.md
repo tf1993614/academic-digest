@@ -28,9 +28,9 @@ Prompt 用下面这份，逐字粘贴：
 ```text
 加载 academic-digest skill，按它的“每日运行”执行今天的推送。工作区根目录就是本仓库。需要 token 或 SendKey 的命令前先执行 set -a; . ./secrets.env; set +a，不要打印密钥。
 
-1. 采集：运行 python3 "<skill>/scripts/collect.py" --config config.yaml，确认 out/candidates.json 已生成。采集通常 2–4 分钟，网络差时可能更久；给 bash 留 15 分钟超时，被移到后台就用 job_output(wait: true) 等它结束，不要重跑。某个源 [fail] 但 collect 退出 0 时，照实写进页脚，不要为了修源重跑 collect。
-2. 写作：按 skill 的 references/digest.md 读 out/candidates.json，对今日必读逐篇运行 fulltext，写出 out/selection.json 与 out/digest.md，再运行 python3 "<skill>/scripts/digest.py" check --candidates out/candidates.json --selection out/selection.json --digest out/digest.md。校验不通过就修到通过，不要推送。
-3. 推送：运行 python3 "<skill>/scripts/push.py" --config config.yaml --candidates out/candidates.json --selection out/selection.json --digest out/digest.md。
+1. 采集：按 skill 的“每日运行 → 1. 采集”运行采集，确认 out/candidates.json 已生成。采集通常 2–4 分钟，网络差时可能更久；给 bash 留 15 分钟超时，被移到后台就用 job_output(wait: true) 等它结束，不要重跑。某个源 [fail] 但 collect 退出 0 时，照实写进页脚，不要为了修源重跑 collect。
+2. 写作：按 skill 的 references/digest.md 读 out/candidates.json，对今日必读逐篇运行 fulltext，写出 out/selection.json 与 out/digest.md，再按 skill 的“每日运行 → 2. 写日报”运行 digest check。校验不通过就修到通过，不要推送。
+3. 推送：按 skill 的“每日运行 → 3. 推送”运行 push，参数与产物路径都用 skill 里的那套。
 
 只有第 3 步退出码为 0 且 stdout 出现 [ok] push: 时才视为完成。若本次执行有活动 goal（get_goal 返回非空），成功时调用 update_goal(action: complete)；没有 goal 时正常结束。任何一步失败都不要调用 complete；报告失败步骤和 stderr 的 [fail] 行，连续 3 轮仍失败再调用 update_goal(action: blocked) 说明原因。只写 out/ 与 state/ 下的运行时文件，不要改代码、文档、config.yaml、secrets.env 或任务卡。
 ```
@@ -63,8 +63,9 @@ Prompt 用下面这份，逐字粘贴：
 1. **失败卡**：`task_board_create`，工作区同生产卡、权限 `workspace-write`、
    `goalRun: true`、`skipVerification: true`，标签加“演练”。Prompt 只跑：
    ```bash
+   skill="$(git rev-parse --show-toplevel)/skills/academic-digest"
    set -a; . ./secrets.env; set +a
-   SERVERCHAN_SENDKEY=INVALID_KEY_FOR_DRILL python3 "<skill>/scripts/push.py" \
+   SERVERCHAN_SENDKEY=INVALID_KEY_FOR_DRILL python3 "$skill/scripts/push.py" \
      --config tests/fixtures/walking/config.yaml \
      --candidates tests/fixtures/digest/valid/candidates.json \
      --selection tests/fixtures/digest/valid/selection.json \

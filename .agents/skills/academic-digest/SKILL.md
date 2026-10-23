@@ -17,25 +17,23 @@ description: 自动学术速递的每日运行与配置：按关键词抓取 Pub
 #   skills/academic-digest            （源目录）
 #   .claude/skills/academic-digest    （Claude Code 副本）
 skill="$(cd "<本 skill 的 base directory>" && pwd)"
-if repo=$(git -C "$skill" rev-parse --show-toplevel 2>/dev/null); then
-  cd "$repo"
-else
-  # skill 被单独拷到 ~/.claude/skills/ 之类的非仓库位置时，运行数据就在当前目录。
-  repo="$PWD"
-  echo "[note] $skill is outside a git repository; using $repo for config/secrets/out/state" >&2
-fi
+repo=$(git -C "$skill" rev-parse --show-toplevel) || {
+  echo "[fail] cannot locate the git repository from the skill directory" >&2
+  exit 1
+}
+cd "$repo"
 test -f "$skill/scripts/collect.py" && test -f "$skill/academic_digest/cli.py" || {
   echo "[fail] $skill does not contain the academic-digest code" >&2
   exit 1
 }
-test -f config.yaml || echo "[warn] no config.yaml in $repo; pass --config or run setup first" >&2
 ```
 
 之后所有命令都以 `repo` 为工作目录，用加载的那份 skill 里的入口脚本（下面的命令把
 它写成 `<skill>`；把它换成本 skill 的绝对路径，也就是上面解析出的 `$skill`）。用户级
 软链（`~/.dsh/skills/`、`~/.claude/skills/`、`~/.agents/skills/` 指向仓库里的副本）不会
-改变结果：`git -C` 会跟随软链找到同一个仓库根。skill 目录被单独拷走时没有仓库可找，
-`config.yaml`、`secrets.env`、`out/`、`state/` 都留在你运行命令的那个目录。
+改变结果：`git -C` 会跟随软链找到同一个仓库根。`config.yaml`、`secrets.env`、`out/`、
+`state/` 始终留在该仓库根，不跟着 skill 走；把 skill 目录拷进另一个仓库（例如 dotfiles）
+时，它们就留在那个仓库的根。
 
 每个入口脚本自己把所在 skill 目录加入 `sys.path`，所以从任意工作目录运行都能找到
 `academic_digest`，不依赖 `PYTHONPATH`，也不依赖包里是否装过本仓库。

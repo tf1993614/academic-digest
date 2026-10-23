@@ -49,6 +49,24 @@ def paths(tmp_path):
     }
 
 
+def collect_options(root, *, out, state_db, config=None, now=NOW):
+    """The fixture-collect arguments, shared by the CLI seam and copy tests."""
+
+    root = Path(root)
+    return [
+        "--config",
+        config or root / "config.yaml",
+        "--fixtures",
+        root,
+        "--now",
+        now,
+        "--out",
+        out,
+        "--state-db",
+        state_db,
+    ]
+
+
 def run_collect(
     cli, paths, fixture, *, config=None, out=None, fixtures_dir=None, now=NOW, env=None
 ):
@@ -57,16 +75,13 @@ def run_collect(
     root = Path(fixtures_dir) if fixtures_dir else FIXTURES / fixture
     return cli(
         "collect",
-        "--config",
-        config or root / "config.yaml",
-        "--fixtures",
-        root,
-        "--now",
-        now,
-        "--out",
-        out or paths["out"],
-        "--state-db",
-        paths["db"],
+        *collect_options(
+            root,
+            out=out or paths["out"],
+            state_db=paths["db"],
+            config=config,
+            now=now,
+        ),
         env=env,
     )
 

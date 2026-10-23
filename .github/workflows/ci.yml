@@ -15,3 +15,13 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
       - run: scripts/check.sh
+      # The package now lives inside the skill; this proves the pyproject map and
+      # the console entry still work after an editable install.
+      - run: academic-digest --version
+      - run: |
+          academic-digest collect \
+            --config tests/fixtures/walking/config.yaml \
+            --fixtures tests/fixtures/walking \
+            --now 2026-10-22T08:00:00+08:00 \
+            --out /tmp/console-candidates.json \
+            --state-db /tmp/console-state.sqlite3

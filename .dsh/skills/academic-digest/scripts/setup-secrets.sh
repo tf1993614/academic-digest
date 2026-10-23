@@ -199,8 +199,12 @@ finish() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The code lives inside the skill; the secrets and config stay at the checkout
-# that owns the skill. A copied skill still resolves the same repository root.
-REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
+# that owns the skill (the repo root, also when the skill was copied into it).
+REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)" || {
+  echo "[fail] setup-secrets: $SCRIPT_DIR is not inside a git checkout" >&2
+  echo "       copy the skill into a git repository and run it from there" >&2
+  exit 1
+}
 ENV_FILE="$REPO_ROOT/secrets.env"
 
 run_wizard() {

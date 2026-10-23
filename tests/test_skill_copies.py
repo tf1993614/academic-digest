@@ -21,6 +21,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from conftest import collect_options
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "skills" / "academic-digest"
 SYNC = ROOT / "scripts" / "sync-skills.sh"
@@ -38,10 +40,19 @@ COPIES = {
 }
 
 
-def _generated_only(relative: Path) -> bool:
-    """Caches are gitignored byproducts of running a copy, not committed content."""
+def _ignored_runtime_path(relative: Path) -> bool:
+    """Caches are gitignored byproducts of running a copy, not committed content.
 
-    return "__pycache__" in relative.parts or relative.suffix == ".pyc"
+    Keep this in step with the excludes in ``scripts/sync-skills.sh``: what the
+    sync never generates must not become drift just because a copy was run.
+    """
+
+    return (
+        "__pycache__" in relative.parts
+        or ".pytest_cache" in relative.parts
+        or any(part.endswith(".egg-info") for part in relative.parts)
+        or relative.suffix == ".pyc"
+    )
 
 
 def _tree(root: Path) -> tuple[set[Path], dict[Path, bytes]]:
@@ -51,7 +62,7 @@ def _tree(root: Path) -> tuple[set[Path], dict[Path, bytes]]:
     files: dict[Path, bytes] = {}
     for path in root.rglob("*"):
         relative = path.relative_to(root)
-        if _generated_only(relative):
+        if _ignored_runtime_path(relative):
             continue
         assert not path.is_symlink(), f"{root}: symlink {relative} is not allowed in a copy"
         if path.is_dir():
@@ -130,24 +141,15 @@ def _run_collect_from(skill: Path, workdir: Path, *, env: dict[str, str] | None 
     workdir.mkdir(parents=True, exist_ok=True)
     out = workdir / "candidates.json"
     child_env = os.environ.copy()
+    child_env.pop("PYTHONPATH", None)
     child_env["PYTHONDONTWRITEBYTECODE"] = "1"
     if env:
         child_env.update(env)
+    options = collect_options(
+        FIXTURES / "walking", out=out, state_db=workdir / "state.sqlite3", now=NOW
+    )
     result = subprocess.run(
-        [
-            sys.executable,
-            str(skill / "scripts" / "collect.py"),
-            "--config",
-            str(FIXTURES / "walking" / "config.yaml"),
-            "--fixtures",
-            str(FIXTURES / "walking"),
-            "--now",
-            NOW,
-            "--out",
-            str(out),
-            "--state-db",
-            str(workdir / "state.sqlite3"),
-        ],
+        [sys.executable, str(skill / "scripts" / "collect.py"), *map(str, options)],
         cwd=workdir,
         env=child_env,
         capture_output=True,
@@ -157,21 +159,33 @@ def _run_collect_from(skill: Path, workdir: Path, *, env: dict[str, str] | None 
     return result, out
 
 
-def test_a_generated_copy_runs_the_offline_collect(tmp_path: Path) -> None:
-    """The whole point of moving the code into the skill: ``cp -r`` and run."""
+def test_copies_run_the_offline_collect(tmp_path: Path) -> None:
+    """The whole point of moving the code into the skill: ``cp -r`` and run.
 
-    _sync_to(tmp_path / "synced")
-    copy = tmp_path / "synced" / COPIES["claude"][0]
-    assert (copy / "scripts" / "collect.py").is_file()
-    assert (copy / "academic_digest" / "cli.py").is_file()
+    Both the freshly synced tree and every committed copy are exercised, so the
+    ticket's ".claude copy, not the source" check is literal and the generated
+    files are proven runnable, not just byte-identical.
+    """
 
-    result, out = _run_collect_from(copy, tmp_path / "work")
+    synced_root = tmp_path / "synced"
+    _sync_to(synced_root)
+    copies = {
+        f"synced-{client}": synced_root / relative
+        for client, (relative, _) in COPIES.items()
+    }
+    copies.update({client: ROOT / relative for client, (relative, _) in COPIES.items()})
 
-    assert result.returncode == 0, result.stderr
-    assert "[ok] pubmed: 2 records" in result.stdout
-    pool = json.loads(out.read_text(encoding="utf-8"))
-    assert pool["generated_at"] == NOW
-    assert {paper["pmid"] for paper in pool["papers"]} == {"39000001", "39000002"}
+    for label, copy in copies.items():
+        assert (copy / "scripts" / "collect.py").is_file(), label
+        assert (copy / "academic_digest" / "cli.py").is_file(), label
+
+        result, out = _run_collect_from(copy, tmp_path / "work" / label)
+
+        assert result.returncode == 0, f"{label}: {result.stderr}"
+        assert "[ok] pubmed: 2 records" in result.stdout, label
+        pool = json.loads(out.read_text(encoding="utf-8"))
+        assert pool["generated_at"] == NOW, label
+        assert {paper["pmid"] for paper in pool["papers"]} == {"39000001", "39000002"}, label
 
 
 def test_entry_scripts_bootstrap_their_own_skill_directory(tmp_path: Path) -> None:
