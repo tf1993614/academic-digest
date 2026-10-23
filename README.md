@@ -127,7 +127,10 @@ ln -sfn "$(git rev-parse --show-toplevel)/.dsh/skills/academic-digest" \
 
 skill 里用 `git -C` 从自己的 base directory 解析真实仓库根，所以软链不会改变运行时
 路径。详细写作契约在 `references/digest.md`，setup 流程在 `references/setup.md`，
-三家各自的定时方案在 `references/scheduling/`。
+三家各自的定时方案在 `references/scheduling/`。Claude Code 与 Codex 的定时都调用同一个
+无人值守入口 `skills/academic-digest/scripts/run-daily.sh <claude|codex>`（加载
+`secrets.env`、加并发锁、写 `out/logs/run-daily.log`、透传退出码，非法参数退出 2）；
+DSH 由看板卡直接起会话，不经过它。
 
 ### setup 顺序
 

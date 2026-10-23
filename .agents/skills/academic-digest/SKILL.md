@@ -124,7 +124,10 @@ python3 "<skill>/scripts/push.py" --config config.yaml \
 4. dry-run：用 fixture 日报构建 ServerChan payload，不读 SendKey、不发送。
 5. 测试推送：用 fixture 日报真发一条到微信，确认收到。
 6. 接入定时：按你使用的客户端读 `references/scheduling.md`（源目录里是
-   `references/scheduling/<客户端>.md`）。
+   `references/scheduling/<客户端>.md`）。Claude Code 与 Codex 的无人值守入口都是
+   `<skill>/scripts/run-daily.sh <claude|codex>`：它加载 `secrets.env`、加并发锁、
+   写 `out/logs/run-daily.log`、透传退出码，调度片段里一条 `ExecStart` / 一行 crontab
+   就够。DSH 用看板卡，由看板自己起会话，不经过这个 wrapper。
 
 只有第 3–5 步都通过才接定时。定时接好后手动跑一次，确认微信收到真实日报，再交给
 调度器。

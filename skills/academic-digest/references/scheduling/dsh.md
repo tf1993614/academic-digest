@@ -1,8 +1,20 @@
 # DSH：看板卡定时
 
 DSH 的无人值守入口是任务看板卡：`0 8 * * *` / `Asia/Shanghai` 由看板直接起一个会话，
-再按 `SKILL.md` 的“每日运行”执行三步。DSH 不经过 headless CLI，也不需要额外的 wrapper。
-看板卡钉住本仓库工作区，DSH 就会从 `.dsh/skills/` 发现这份 skill。
+再按 `SKILL.md` 的“每日运行”执行三步。看板卡钉住本仓库工作区，DSH 就会从
+`.dsh/skills/` 发现这份 skill。
+
+## 为什么是看板卡
+
+- DSH 没有供外部调度器调用的 headless CLI；会话本身由看板启动，“谁定时”与“谁跑模型”
+  是同一个东西。
+- 因此 DSH **不经过 `scripts/run-daily.sh`**：那个 wrapper 只服务 Claude Code 与 Codex 的
+  `claude -p` / `codex exec`，负责加载 secrets、加并发锁、写日志、透传退出码。看板卡
+  不需要这些——会话里按 Prompt 显式执行 `set -a; . ./secrets.env; set +a`，日志以看板
+  执行历史与 `state/` 的 `runs` 表为准。
+- 也**不要**为 DSH 再套一层 systemd / launchd / crontab：那三家调度器驱动不了看板卡，
+  只会多一个会失败的空壳。systemd、launchd 与 crontab 的片段在 Claude Code 与 Codex 的
+  定时文档里。
 
 ## 创建任务卡
 
@@ -83,6 +95,19 @@ Prompt 用下面这份，逐字粘贴：
    stdout 的发送条数应包含补发的那条，`pending` 归零，卡片 succeeded。
 4. 演练结束后归档两张演练卡，删除 `out/.board-drill.sqlite3`；确认 `secrets.env`
    未改动、权限仍是 600，并且没有把无效 key 留在任何文件或看板 Prompt 里。
+
+## 运行约束
+
+- **时区**：看板卡的 `schedule.timeZone` 固定写 `Asia/Shanghai`；cron 表达式由看板按这个
+  时区解释，与宿主机时区无关，也没有 crontab 那套 `CRON_TZ` 变量（那个变量只对 cronie
+  有效）。
+- **错过不补跑**：宿主机停机或看板当时不可用时，错过的 08:00 **不会**在恢复后补跑；
+  下一次 08:00 正常触发。真正的兜底是采集的 `lookback`（arXiv 默认 4 天，覆盖周末），
+  不是补发旧消息。
+- **会话必须在仓库工作区启动**：`config.yaml`、`secrets.env`、`out/`、`state/` 都在仓库
+  根；卡片工作区钉错，三步会找不到配置或把状态写到别处。
+- **Host 必须可写工作区**：`workspace-write` 权限是脚本写 `out/` 与 `state/` 的前提；
+  若看板提示权限高于部署默认，需要人在看板 UI 里确认一次，否则定时不会跑。
 
 ## 用户级安装（可选）
 

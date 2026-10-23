@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -81,6 +82,22 @@ def _check_skill_source(failures: list[str]) -> None:
         failures,
         not (ROOT / "scripts" / "setup-secrets.sh").exists(),
         "scripts/setup-secrets.sh must live inside the skill, not at the repository root",
+    )
+    wrapper = SKILL_DIR / "scripts" / "run-daily.sh"
+    _require(
+        failures,
+        wrapper.is_file(),
+        "missing skills/academic-digest/scripts/run-daily.sh",
+    )
+    _require(
+        failures,
+        wrapper.is_file() and os.access(wrapper, os.X_OK),
+        "skills/academic-digest/scripts/run-daily.sh must be executable",
+    )
+    _require(
+        failures,
+        not (ROOT / "scripts" / "run-daily.sh").exists(),
+        "scripts/run-daily.sh must live inside the skill, not at the repository root",
     )
     _require(
         failures,
@@ -377,7 +394,7 @@ def main() -> int:
         print(f"docs check found {len(failures)} problem(s)", file=sys.stderr)
         return 1
     print(
-        "[ok] docs: skill source, markdown links, quotas, retry wording, "
+        "[ok] docs: skill source, wrapper, markdown links, quotas, retry wording, "
         "candidate keys, transport tests, review patch"
     )
     return 0

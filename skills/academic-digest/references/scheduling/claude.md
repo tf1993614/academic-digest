@@ -2,7 +2,8 @@
 
 Claude Code 从 `.claude/skills/` 发现 skill；本仓库已经提交了
 `.claude/skills/academic-digest/`，克隆后 `/academic-digest` 就能触发。无人值守入口是
-`claude -p`。
+`claude -p`，但**不要自己拼**：skill 里的 `scripts/run-daily.sh claude` 已经处理了
+secrets、并发锁、日志与退出码。
 
 ## 先手动跑一次
 
@@ -24,13 +25,154 @@ claude -p "/academic-digest" \
   `--dangerously-skip-permissions` 安全。
 - 工作目录必须是仓库根：`config.yaml`、`secrets.env`、`out/`、`state/` 都在那里。
 - headless 调用不会自动加载 `secrets.env`；需要 SendKey / token 的会话要能读到里面的
-  环境变量。
+  环境变量。下面的 wrapper 会替你加载。
 
-## 定时
+## 无人值守 wrapper
 
-把上面的 `claude -p` 命令交给本机定时器（cron、systemd timer 或 launchd），时间落在
-`Asia/Shanghai` 08:00。调度器不会继承登录 shell 的环境：显式设置工作目录与 `PATH`，
-并保证上一次没跑完时不叠加。错过的一次不补跑；采集的 lookback 会覆盖最近几天。
+上面那条命令的无人值守形态只有一行：
+
+```bash
+/path/to/repo/.claude/skills/academic-digest/scripts/run-daily.sh claude
+```
+
+参数只有 `claude` 和 `codex`；其它参数（包括一个都不给）打印用法并以 **2** 退出，不启动
+任何客户端。wrapper 负责：
+
+- 从 skill 所在仓库（或当前工作目录所在仓库）解析仓库根并 `cd` 进去；
+- 存在 `secrets.env` 时用 `set -a` 加载进客户端的环境变量，不打印值；
+- 用仓库内的 `state/run-daily.lock` 加锁：上一次还没跑完就直接跳过、退出 0，不叠加
+  第二个会话；进程被强杀留下的锁会在下一次运行时被识别为过期并回收；
+- 把整次运行的输出追加到 `out/logs/run-daily.log`（首行也打到 stdout，方便
+  `journalctl` / launchd 看到）；
+- 把 `claude` 的退出码原样透传，失败就是失败。
+
+所以下面的调度片段里**不要**再写 `cd`、`set -a; . ./secrets.env`、`flock` 或 `>>`：
+重复实现只会和 wrapper 打架。
+
+## 三种调度器
+
+三段任选其一，时间都落在 `Asia/Shanghai` 08:00。把 `/path/to/repo` 换成仓库的绝对路径
+（`readlink -f` 或 `pwd -P` 的结果）。
+
+### 1. systemd timer（Linux，推荐）
+
+`~/.config/systemd/user/academic-digest.service`：
+
+```ini
+[Unit]
+Description=Academic digest daily run
+
+[Service]
+Type=oneshot
+WorkingDirectory=/path/to/repo
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+TimeoutStartSec=3600
+ExecStart=/path/to/repo/.claude/skills/academic-digest/scripts/run-daily.sh claude
+```
+
+`~/.config/systemd/user/academic-digest.timer`：
+
+```ini
+[Unit]
+Description=Daily academic digest at 08:00 Asia/Shanghai
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 Asia/Shanghai
+Persistent=false
+
+[Install]
+WantedBy=timers.target
+```
+
+启用与排查：
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now academic-digest.timer
+loginctl enable-linger "$USER"          # 不登录也要跑
+systemctl --user list-timers --all | grep academic-digest
+journalctl --user -u academic-digest.service -n 50
+```
+
+- `OnCalendar` 自带 IANA 时区，不依赖机器时区；很老的 systemd 不接受时区后缀时，把机器
+  时区设成 `Asia/Shanghai` 再写 `*-*-* 08:00:00`。
+- `Persistent=false` 是刻意的：错过的一次不补跑；改成 `true` 只补最近一次。
+- `TimeoutStartSec` 默认 90 秒，采集加写作通常更久，必须放大，否则服务会被判超时。
+- `loginctl enable-linger` 让 user timer 在你没登录时也运行。
+- `PATH` 里必须有 `claude`；先 `command -v claude` 看它装在哪，把那个目录放最前。
+
+### 2. launchd（macOS）
+
+`~/Library/LaunchAgents/com.academic-digest.daily.plist`：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.academic-digest.daily</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/path/to/repo/.claude/skills/academic-digest/scripts/run-daily.sh</string>
+    <string>claude</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/path/to/repo</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>8</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+</dict>
+</plist>
+```
+
+装载与排查：
+
+```bash
+launchctl bootstrap "gui/$UID" ~/Library/LaunchAgents/com.academic-digest.daily.plist
+launchctl list | grep academic-digest
+launchctl print "gui/$UID/com.academic-digest.daily" | grep -A2 "last exit"
+launchctl bootout "gui/$UID/com.academic-digest.daily"   # 卸载
+```
+
+- `StartCalendarInterval` 用系统本地时区：把 macOS 的时区设成 `Asia/Shanghai`（系统设置 →
+  通用 → 日期与时间），或按本地时区换算 `Hour`。
+- 睡眠期间错过的运行会在唤醒后**合并补一次**（Apple 的 `StartCalendarInterval` 语义）；
+  这是三种调度器里唯一会补的。补跑沿用同一份去重状态：当天已经推过的条目不会重发，
+  如果 08:00 那次已经跑过，补跑通常只发一条“今日没有匹配的检索条目”；如果 08:00
+  那次根本没跑，补跑就是当天真正的日报。
+- 不需要 `flock`：wrapper 用 `mkdir` 加锁，macOS 自带工具就够。
+- 日志与退出码都在 `out/logs/run-daily.log`；`launchctl print` 的 `last exit` 是 wrapper
+  的退出码。
+
+### 3. crontab（最省事）
+
+```cron
+SHELL=/bin/bash
+PATH=/home/you/.local/bin:/usr/local/bin:/usr/bin:/bin
+MAILTO=""
+0 8 * * * /path/to/repo/.claude/skills/academic-digest/scripts/run-daily.sh claude
+```
+
+- cron 按**系统时区**解释这行。机器不是 `Asia/Shanghai` 时，两条可靠做法：把机器时区设成
+  `Asia/Shanghai` 直接写 `0 8 * * *`，或按 UTC+8 换算成 `0 0 * * *`（中国 1991 年后没有
+  夏令时）。
+- `CRON_TZ=Asia/Shanghai` **只有 cronie（RHEL/Fedora 系）支持**并写进 man page；
+  Debian/Ubuntu 的 vixie cron 与 macOS 会静默忽略它，贴了等于没写。
+- cron **不补跑**错过的运行。
+- `MAILTO=""` 关掉每天的邮件：wrapper 每天都会打一行 stdout。要看出错就
+  `tail -n 100 out/logs/run-daily.log`。
+- 不要在这行加 `cd`、`flock` 或 `>>`，wrapper 已经做了。
 
 ## 用户级安装（可选）
 
@@ -41,6 +183,9 @@ mkdir -p "$HOME/.claude/skills"
 ln -sfn "$(git rev-parse --show-toplevel)/.claude/skills/academic-digest" \
   "$HOME/.claude/skills/academic-digest"
 ```
+
+wrapper 会跟随软链找到同一个仓库根，因此定时片段里的路径换成
+`$HOME/.claude/skills/academic-digest/scripts/run-daily.sh` 也可以，运行数据仍留在仓库根。
 
 不要手改 `.claude/skills/academic-digest/`；改源目录 `skills/academic-digest/` 后跑
 `scripts/sync-skills.sh` 重新生成三份副本。
