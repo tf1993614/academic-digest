@@ -11,7 +11,7 @@ Review a frozen diff, never a moving working tree. A reviewer that sees the tree
 
 ## Freeze the diff
 
-1. Stop editing. A commit is cleanest; uncommitted changes are fine as long as they stay still. For a committed range, commit or stash first: `--base` refuses a dirty working tree.
+1. Stop editing. A commit is cleanest; uncommitted changes are fine as long as they stay still. For a committed range, commit or stash tracked changes first: `--base` refuses a dirty tracked tree but tolerates untracked notes.
 2. Run one of:
 
    ```bash
@@ -19,15 +19,16 @@ Review a frozen diff, never a moving working tree. A reviewer that sees the tree
    scripts/review-patch.sh --base 08def36  # committed work: 08def36...HEAD
    ```
 
-   It writes `out/review/current.diff`, plus `.stat`, `.status`, `.base`, `.head`, and prints `frozen files: N`. `--base` reviews the committed range and fails on a dirty tree or an empty diff; only the working-tree mode includes untracked files.
+   It writes `out/review/current.diff`, plus `.stat`, `.status`, `.base`, `.head`, `.generated`, `.treehash`, and prints `frozen files: N`. The three generated client copies are **excluded from the content diff by default**; `.generated` holds their sha256 hashes and `.treehash` fingerprints the patch plus those hashes. `--base` reviews the committed range and fails on a dirty tree or an empty diff; only the working-tree mode includes untracked files. Add `--include-generated` only when the sync script or the copies themselves are the subject of review.
 3. Verify the freeze before dispatching:
 
    ```bash
    cat out/review/current.diff.head          # must equal: git rev-parse HEAD
    git rev-parse HEAD
+   scripts/review-patch.sh --verify          # working-tree mode: treehash must still match
    ```
 
-   Also check `frozen files` against `git diff --name-only <base>...HEAD | wc -l`. A stale patch costs a whole review round.
+   `--verify` re-freezes into a temp directory and fails if the patch or a generated copy moved since the freeze. A stale patch costs a whole review round. For a committed base, `frozen files` already excludes the generated copies; compare it against `git diff --name-only <base>...HEAD` minus those paths, or skip the manual count and rely on the treehash.
 4. For a committed base, give reviewers a read-only checkout so they can run one test without touching the working tree:
 
    ```bash
@@ -45,4 +46,5 @@ If a finding needs code changes: stop the reviewers, make the changes, re-freeze
 - Run one test only when a finding needs proof.
 - Report findings; the implementation agent applies them.
 - Report hard standards violations and spec misses first; baseline smells are judgement calls, so keep them to the top two.
-- Keep the two axes separate: Standards (see `CODING_STANDARDS.md`) and Spec (the originating ticket under `.scratch/academic-digest/issues/`).
+- Keep the two axes separate: Standards (see `CODING_STANDARDS.md`) and Spec (the originating ticket under `.scratch/oss-release/issues/`).
+- The generated client copies are not in the patch. Verify them with `scripts/check-skills.sh` (or the `.generated` hashes); review the source skill, the sync/check scripts, and the docs instead. Ask for `--include-generated` only when the sync output itself is under review.

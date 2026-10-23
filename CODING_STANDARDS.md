@@ -86,7 +86,7 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 
 ## Docs
 
-- A doc claim about ordering, labels, or defaults must match a test or config fixture. The mechanical subset — the canonical skill path and the retired repo-root pointer, setup quota table, retry counts/backoff, candidate-pool key contract, transport-test names, and the review-patch contract — is enforced by `scripts/check-docs.py`.
+- A doc claim about ordering, labels, or defaults must match a test or config fixture. The mechanical subset — the canonical skill path and the retired repo-root pointer, relative Markdown links in the README and skill docs, setup quota table, retry counts/backoff, candidate-pool key contract, transport-test names, and the review-patch contract (generated-copy exclusion and `--verify`) — is enforced by `scripts/check-docs.py`.
 - Update `README.md`, `config.example.yaml`, and the ADR when a source or config contract changes.
 
 Review process: `docs/agents/code-review.md`. Checks: `scripts/check.sh` (mypy, pyflakes, `check-docs.py`, pytest).

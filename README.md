@@ -937,9 +937,9 @@ SQLite 位于 `paths.state_db`（默认 `state/academic-digest.sqlite3`）：
 scripts/check.sh
 ```
 
-`scripts/check-docs.py` 检查源 skill 路径与“仓库根不再有 `SKILL.md` 软链”、
-`config.example.yaml` 与 setup 配额表、retry 文案与 `base.py` 常量、两个 transport
-test 的命名，以及 review patch 的冻结约定。
+`scripts/check-docs.py` 检查源 skill 路径与“仓库根不再有 `SKILL.md` 软链”、README 与
+skill 文档里的 Markdown 相对链接、`config.example.yaml` 与 setup 配额表、retry 文案与
+`base.py` 常量、两个 transport test 的命名，以及 review patch 的冻结约定。
 
 三份客户端副本由 `scripts/sync-skills.sh` 生成。`scripts/check-skills.sh` 跑
 `tests/test_skill_copies.py`，把每份副本与该客户端的生成结果逐字节比较（三份之间只允许
@@ -957,8 +957,12 @@ git config core.hooksPath .githooks
 审查前先把工作树冻结成补丁，避免 reviewer 在变动中的 diff 上反复重读：
 
 ```bash
-scripts/review-patch.sh   # -> out/review/current.diff 等
+scripts/review-patch.sh           # -> out/review/current.diff 等
+scripts/review-patch.sh --verify  # 派 reviewer 前确认补丁/生成副本没动
 ```
+
+三份生成副本默认排除在 content diff 之外（`current.diff.generated` 记录哈希），
+用 `scripts/check-skills.sh` 校验；只有审查同步输出本身时才加 `--include-generated`。
 
 规则见 `docs/agents/code-review.md`，审查侧的判断标准见 `CODING_STANDARDS.md`。
 

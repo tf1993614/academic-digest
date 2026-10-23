@@ -2,10 +2,10 @@
 """Static consistency checks for the docs that steer the digest workflow.
 
 These are the machine-checkable claims the review kept catching by hand: the
-canonical skill path (and the retired repo-root pointer), the setup quota table,
-the transport retry wording,
-the candidate-pool key contract, and the review-patch contract. Run from
-``scripts/check.sh`` so a doc that drifts from its code/default fails before
+canonical skill path (and the retired repo-root pointer), relative Markdown
+links in the README and skill docs, the setup quota table, the transport retry
+wording, the candidate-pool key contract, and the review-patch contract. Run
+from ``scripts/check.sh`` so a doc that drifts from its code/default fails before
 commit.
 """
 
@@ -30,6 +30,9 @@ MODELS = ROOT / "academic_digest/models.py"
 SPEC = ROOT / ".scratch/academic-digest/spec.md"
 REVIEW_SCRIPT = ROOT / "scripts/review-patch.sh"
 REVIEW_DOC = ROOT / "docs/agents/code-review.md"
+
+MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 
 
 def _text(path: Path) -> str:
@@ -57,6 +60,45 @@ def _check_skill_source(failures: list[str]) -> None:
         "](skills/academic-digest/SKILL.md)" in _text(README),
         "README must link the canonical skill path",
     )
+
+
+def _relative_links(text: str) -> list[str]:
+    """Markdown link targets in prose, ignoring fenced and inline code."""
+
+    links: list[str] = []
+    in_fence = False
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(("```", "~~~")):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        line = re.sub(r"`[^`]*`", "", line)
+        links.extend(match.group(1).strip() for match in MARKDOWN_LINK.finditer(line))
+    return links
+
+
+def _link_target(raw: str) -> str:
+    if raw.startswith("<"):
+        end = raw.find(">")
+        return raw[1:end] if end >= 0 else raw[1:]
+    return raw.split(None, 1)[0]
+
+
+def _check_markdown_links(failures: list[str]) -> None:
+    docs = [README, *sorted((ROOT / "skills" / "academic-digest").rglob("*.md"))]
+    for path in docs:
+        for raw in _relative_links(_text(path)):
+            target = _link_target(raw)
+            if not target or target.startswith("#") or URL_SCHEME.match(target):
+                continue
+            target = target.split("#", 1)[0].split("?", 1)[0]
+            if not target:
+                continue
+            base = ROOT if target.startswith("/") else path.parent
+            if not (base / target.lstrip("/")).exists():
+                failures.append(f"{path.relative_to(ROOT)}: broken relative link {raw!r}")
 
 
 def _paper_dict_keys() -> list[str]:
@@ -255,6 +297,16 @@ def _check_review_patch(failures: list[str]) -> None:
         "git status --porcelain" in script,
         "scripts/review-patch.sh --base must reject a dirty working tree",
     )
+    _require(
+        failures,
+        "--verify" in script,
+        "scripts/review-patch.sh must support --verify",
+    )
+    _require(
+        failures,
+        "--include-generated" in script,
+        "scripts/review-patch.sh must keep generated copies opt-in",
+    )
     doc = _text(REVIEW_DOC)
     _require(
         failures,
@@ -266,11 +318,22 @@ def _check_review_patch(failures: list[str]) -> None:
         "git rev-parse HEAD" in doc,
         "docs/agents/code-review.md must show the HEAD check",
     )
+    _require(
+        failures,
+        "review-patch.sh --verify" in doc,
+        "docs/agents/code-review.md must tell reviewers to run --verify",
+    )
+    _require(
+        failures,
+        "check-skills.sh" in doc,
+        "docs/agents/code-review.md must point reviewers at check-skills.sh",
+    )
 
 
 def main() -> int:
     failures: list[str] = []
     _check_skill_source(failures)
+    _check_markdown_links(failures)
     _check_quotas(failures, _text(SETUP))
     readme = _text(README)
     _check_candidate_keys(failures, readme)
@@ -282,8 +345,8 @@ def main() -> int:
         print(f"docs check found {len(failures)} problem(s)", file=sys.stderr)
         return 1
     print(
-        "[ok] docs: skill source, quotas, retry wording, candidate keys, "
-        "transport tests, review patch"
+        "[ok] docs: skill source, markdown links, quotas, retry wording, "
+        "candidate keys, transport tests, review patch"
     )
     return 0
 
