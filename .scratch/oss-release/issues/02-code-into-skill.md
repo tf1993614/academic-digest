@@ -6,7 +6,7 @@
 
 **Status:** done
 
-- [x] 四个入口脚本、`setup-secrets.sh`、`academic_digest` 包都位于源 skill 目录内；每个入口脚本自行把所在 skill 目录加入 `sys.path`，不依赖 `PYTHONPATH`。
+- [x] 入口脚本（`collect` / `digest` / `fulltext` / `push` / `doctor`）、`setup-secrets.sh`、`academic_digest` 包都位于源 skill 目录内；每个入口脚本自行把所在 skill 目录加入 `sys.path`，不依赖 `PYTHONPATH`。
 - [x] 干净 venv（不 install）能跑通离线 fixture 采集；`pip install -e ".[dev]"` 与 `academic-digest` 命令行入口仍然可用。
 - [x] 测试的 `cli` 缝改为调用源 skill 目录里的入口脚本，不再用 `-m`、不再注入 `PYTHONPATH`——bootstrap 必须自己成立。
 - [x] 用 `.claude` 副本（不是源目录）跑一次采集，产物与断言通过。
@@ -20,25 +20,23 @@
 
 ## Comments
 
-- 2026-10-23：代码搬进 `skills/academic-digest/`（五个入口脚本 + `setup-secrets.sh` +
+- 2026-10-23：代码搬进 `skills/academic-digest/`（各个入口脚本 + `setup-secrets.sh` +
   `academic_digest/`）。入口脚本的 `sys.path` bootstrap 指向 skill 根，因此 `pip install`
-  不再是运行前提；`setup-secrets.sh` 与 SKILL.md 用 `git -C <skill>` 找仓库根，运行数据
-  仍留在该仓库根（skill 拷进另一个仓库时就是那个仓库），不在仓库里就明确失败、不把数据
-  写到当前目录；fixture 缺失时跳过可选的真实测试推送。pyproject 改为
+  不再是运行前提；`setup-secrets.sh` 与 SKILL.md 先找 skill 所在的仓库根，找不到再退回
+  当前工作目录所在的仓库根（skill 被拷进客户端扫描根的情形），两处都没有就明确失败；
+  运行数据始终留在解析出的仓库根，不写进 skill 目录；fixture 缺失时跳过可选的真实测试
+  推送。pyproject 改为
   `package-dir = {"" = "skills/academic-digest"}`，editable 安装与 `academic-digest`
   命令行的导入目标都落在 skill 内。
 - `tests/conftest.py` 的 `cli` 缝改成直接跑 skill 里的入口脚本，清掉 `PYTHONPATH`；
   `tests/test_skill_copies.py` 覆盖两件事：同步结果生成到临时目录后，三份副本（含
   `.claude`）都在仓库外跑一次离线采集并断言候选池；用 `PYTHONPATH` 放一个会抛错的假
-  `academic_digest`，证明每个入口脚本都先加载自己的包。`_tree` 忽略运行时缓存
-  （`__pycache__`/`.pyc`/`*.egg-info`/`.pytest_cache`），与 `sync-skills.sh` 的排除项
-  保持一致，否则跑过副本后 `check-skills.sh` 会误报漂移。CI 增加
+  `academic_digest`，证明每个入口脚本都先加载自己的包。`_tree` 把运行时缓存
+  （`__pycache__`/`.pyc`/`*.egg-info`/`.pytest_cache`）单独列出，并断言它们没有被 git
+  跟踪（与 `sync-skills.sh` 的排除项一致），因此跑过副本后 `check-skills.sh` 不会把
+  gitignored 缓存当成漂移，也不会放过被提交的缓存。CI 增加
   `academic-digest --version` 与一次离线 `academic-digest collect`，守住 pyproject 映射
   与命令行入口。
-- 验收：干净 venv（只装依赖、不装本项目，`import academic_digest` 失败）从 `/` 跑通
-  `collect`；`pip install -e ".[dev]"` 后 `academic-digest --version` 与
-  `academic-digest collect` 正常；`.claude` 副本从 `/` 跑出的候选池与源目录一致；
-  `scripts/sync-skills.sh` 重生成三份副本后 `scripts/check.sh` 绿。
 - 验收：干净 venv（只装依赖、不装本项目，`import academic_digest` 失败）从 `/` 跑通
   `collect`；`pip install -e ".[dev]"` 后 `academic-digest --version` 与
   `academic-digest collect` 正常；`.claude` 副本从 `/` 跑出的候选池与源目录一致；

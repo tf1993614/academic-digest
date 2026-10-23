@@ -17,8 +17,11 @@ description: 自动学术速递的每日运行与配置：按关键词抓取 Pub
 #   skills/academic-digest            （源目录）
 #   .claude/skills/academic-digest    （Claude Code 副本）
 skill="$(cd "<本 skill 的 base directory>" && pwd)"
-repo=$(git -C "$skill" rev-parse --show-toplevel) || {
-  echo "[fail] cannot locate the git repository from the skill directory" >&2
+# skill 在仓库里时用它所在的仓库根；skill 被拷进 ~/.claude/skills/ 之类的扫描根时，
+# 退回到当前工作目录所在的仓库根。两者都不是仓库就明确失败，不把运行数据写到任意目录。
+repo=$(git -C "$skill" rev-parse --show-toplevel 2>/dev/null ||
+       git -C "$PWD" rev-parse --show-toplevel) || {
+  echo "[fail] cannot locate a git repository from $skill or $PWD" >&2
   exit 1
 }
 cd "$repo"
@@ -32,8 +35,8 @@ test -f "$skill/scripts/collect.py" && test -f "$skill/academic_digest/cli.py" |
 它写成 `<skill>`；把它换成本 skill 的绝对路径，也就是上面解析出的 `$skill`）。用户级
 软链（`~/.dsh/skills/`、`~/.claude/skills/`、`~/.agents/skills/` 指向仓库里的副本）不会
 改变结果：`git -C` 会跟随软链找到同一个仓库根。`config.yaml`、`secrets.env`、`out/`、
-`state/` 始终留在该仓库根，不跟着 skill 走；把 skill 目录拷进另一个仓库（例如 dotfiles）
-时，它们就留在那个仓库的根。
+`state/` 始终留在仓库根，不跟着 skill 走：skill 在哪个仓库就跑哪个仓库；skill 被单独
+拷进客户端扫描根时，跑的是你当前所在的那个仓库，数据也留在那里。
 
 每个入口脚本自己把所在 skill 目录加入 `sys.path`，所以从任意工作目录运行都能找到
 `academic_digest`，不依赖 `PYTHONPATH`，也不依赖包里是否装过本仓库。

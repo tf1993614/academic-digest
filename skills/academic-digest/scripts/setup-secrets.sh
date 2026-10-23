@@ -198,11 +198,13 @@ finish() {
 # ──────────────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# The code lives inside the skill; the secrets and config stay at the checkout
-# that owns the skill (the repo root, also when the skill was copied into it).
-REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)" || {
-  echo "[fail] setup-secrets: $SCRIPT_DIR is not inside a git checkout" >&2
-  echo "       copy the skill into a git repository and run it from there" >&2
+# The code lives inside the skill; the secrets and config stay at a repository
+# root. Prefer the checkout that owns the skill; a skill copied into a client
+# scan root uses the repository the wizard was started from.
+REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null ||
+  git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)" || {
+  echo "[fail] setup-secrets: neither $SCRIPT_DIR nor $PWD is inside a git checkout" >&2
+  echo "       run the wizard from the repository you want the daily digest in" >&2
   exit 1
 }
 ENV_FILE="$REPO_ROOT/secrets.env"
