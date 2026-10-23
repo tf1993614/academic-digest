@@ -24,7 +24,7 @@ Single-context: `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
 
 ### Daily digest skill
 
-The shipped end-user workflow lives in `.dsh/skills/academic-digest/SKILL.md`; setup and the digest contract are its `references/`. The daily task card runs collect → write digest → push from that skill.
+The shipped end-user workflow lives in `.dsh/skills/academic-digest/SKILL.md` (also linked at the repo root as `SKILL.md` for humans); setup and the digest contract are its `references/`. The daily task card runs collect → write digest → push from that skill.
 
 ### Code review
 

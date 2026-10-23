@@ -109,6 +109,9 @@ DOI→arXiv 交叉检索）。
 
 项目级 skill 在 [`.dsh/skills/academic-digest/SKILL.md`](.dsh/skills/academic-digest/SKILL.md)：
 DSH 扫描 `<workspace>/.dsh/skills/` 的第一层，因此只要看板卡钉住本仓库就能发现它。
+仓库根还有一个 [`SKILL.md`](SKILL.md) 软链指向它，方便直接打开；`.dsh` 是隐藏目录，
+普通 `ls` 不显示，用 `ls -a` 或根目录的软链查看。
+
 想让任意工作区也能用，做一次用户级软链：
 
 ```bash
@@ -901,11 +904,14 @@ SQLite 位于 `paths.state_db`（默认 `state/academic-digest.sqlite3`）：
 
 ## 开发
 
-一次跑完全部检查（mypy、pyflakes、pytest）：
+一次跑完全部检查（mypy、pyflakes、文档一致性、pytest）：
 
 ```bash
 scripts/check.sh
 ```
+
+`scripts/check-docs.py` 检查仓库根 `SKILL.md` 指针、`config.example.yaml` 与 setup 配额表、
+retry 文案与 `base.py` 常量、两个 transport test 的命名，以及 review patch 的冻结约定。
 
 启用本地 pre-commit hook，每个 clone 执行一次：
 

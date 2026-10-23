@@ -11,22 +11,30 @@ Review a frozen diff, never a moving working tree. A reviewer that sees the tree
 
 ## Freeze the diff
 
-1. Stop editing. A commit is cleanest; uncommitted changes are fine as long as they stay still.
+1. Stop editing. A commit is cleanest; uncommitted changes are fine as long as they stay still. For a committed range, commit or stash first: `--base` refuses a dirty working tree.
 2. Run one of:
 
    ```bash
    scripts/review-patch.sh                 # uncommitted work: working tree vs HEAD
-   scripts/review-patch.sh --base 08def36  # committed work: 08def36..HEAD
+   scripts/review-patch.sh --base 08def36  # committed work: 08def36...HEAD
    ```
 
-   It writes `out/review/current.diff`, plus `.stat`, `.status`, `.base`, and `.head`. `out/` is gitignored. Only the working-tree mode includes untracked files.
-3. For a committed base, give reviewers a read-only checkout so they can run one test without touching the working tree:
+   It writes `out/review/current.diff`, plus `.stat`, `.status`, `.base`, `.head`, and prints `frozen files: N`. `--base` reviews the committed range and fails on a dirty tree or an empty diff; only the working-tree mode includes untracked files.
+3. Verify the freeze before dispatching:
+
+   ```bash
+   cat out/review/current.diff.head          # must equal: git rev-parse HEAD
+   git rev-parse HEAD
+   ```
+
+   Also check `frozen files` against `git diff --name-only <base>...HEAD | wc -l`. A stale patch costs a whole review round.
+4. For a committed base, give reviewers a read-only checkout so they can run one test without touching the working tree:
 
    ```bash
    git worktree add --detach out/review/head <base>
    ```
 
-4. Give every reviewer the patch paths, the base commit, and the checkout path. They review that snapshot.
+5. Give every reviewer the patch paths, the base commit, and the checkout path. They review that snapshot. Dispatch both axes together and wait for their reports; do not poll `list_agents` — the runtime delivers each reviewer's message when it finishes.
 
 If a finding needs code changes: stop the reviewers, make the changes, re-freeze, and start a fresh review. Do not keep the old reviewers running against a tree that moved.
 
