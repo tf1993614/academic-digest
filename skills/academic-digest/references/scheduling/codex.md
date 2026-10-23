@@ -40,8 +40,8 @@ codex exec -C <仓库根> \
 - 存在 `secrets.env` 时用 `set -a` 加载进客户端的环境变量，不打印值；
 - 用仓库内的 `state/run-daily.lock` 加锁：上一次还没跑完就直接跳过、退出 0，不叠加
   第二个会话；进程被强杀留下的锁会在下一次运行时被识别为过期并回收；
-- 把整次运行的输出追加到 `out/logs/run-daily.log`（首行也打到 stdout，方便
-  `journalctl` / launchd 看到）；
+- 把整次运行的输出追加到 `out/logs/run-daily.log`，另外打一行摘要到 stdout（systemd 的
+  `journalctl` 能看到；launchd 用 plist 的 `StandardOutPath`，见下）；
 - 把 `codex exec` 的退出码原样透传，失败就是失败。
 
 wrapper 传给 `codex` 的参数固定为：`exec -C <仓库根> --sandbox workspace-write
@@ -53,7 +53,7 @@ wrapper 传给 `codex` 的参数固定为：`exec -C <仓库根> --sandbox works
 ## 三种调度器
 
 三段任选其一，时间都落在 `Asia/Shanghai` 08:00。把 `/path/to/repo` 换成仓库的绝对路径
-（`readlink -f` 或 `pwd -P` 的结果）。
+（在仓库里跑 `pwd -P`；macOS 自带的 `readlink` 没有 `-f`）。
 
 ### 1. systemd timer（Linux，推荐）
 
@@ -133,6 +133,10 @@ journalctl --user -u academic-digest.service -n 50
     <key>Minute</key>
     <integer>0</integer>
   </dict>
+  <key>StandardOutPath</key>
+  <string>/tmp/academic-digest-launchd.out</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/academic-digest-launchd.err</string>
 </dict>
 </plist>
 ```
@@ -154,7 +158,9 @@ launchctl bootout "gui/$UID/com.academic-digest.daily"   # 卸载
   那次根本没跑，补跑就是当天真正的日报。
 - 不需要 `flock`：wrapper 用 `mkdir` 加锁，macOS 自带工具就够。
 - 日志与退出码都在 `out/logs/run-daily.log`；`launchctl print` 的 `last exit` 是 wrapper
-  的退出码。
+  的退出码。launchd 不会把 stdout 转给你看，所以 plist 里的 `StandardOutPath` /
+  `StandardErrorPath` 接住 wrapper 打开自己的日志之前就失败的输出（例如“not inside a git
+  checkout”）。
 
 ### 3. crontab（最省事）
 

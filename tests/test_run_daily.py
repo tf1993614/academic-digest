@@ -6,16 +6,16 @@ records its argv, working directory and the loaded secrets; the wrapper keeps
 its own output in ``out/logs/run-daily.log``. Nothing imports the wrapper or
 calls an internal function.
 
-The skill used here is a freshly generated copy placed *outside* any git
-checkout, which is the user-level install shape: the wrapper then falls back to
-the repository it was started from and writes all runtime data there.
+Two skill layouts are exercised, because the wrapper resolves the repository
+root in two steps: the checkout that owns the skill (a generated copy inside a
+git repository), and, when the skill was copied into a client scan root, the
+repository the wrapper was started from.
 """
 
 from __future__ import annotations
 
 import os
 import subprocess
-import time
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SYNC = ROOT / "scripts" / "sync-skills.sh"
 SKILL = Path(".claude") / "skills" / "academic-digest"
 SENDKEY = "test-sendkey-value"
+LOCK = Path("state") / "run-daily.lock"
 
 STUB = """#!/usr/bin/env bash
 {{
@@ -32,32 +33,19 @@ STUB = """#!/usr/bin/env bash
   for arg in "$@"; do printf 'arg=%s\\n' "$arg"; done
   printf 'sendkey=%s\\n' "${{SERVERCHAN_SENDKEY-}}"
 }} > "{record}"
-{block}
 exit {exit_code}
 """
 
-BLOCK = """while [[ ! -e "{release}" ]]; do
-  sleep 0.05
-done"""
-
 
 class Stub:
-    """A fake client CLI plus the files it records into."""
+    """A fake client CLI plus the record it writes."""
 
-    def __init__(self, bin_dir: Path, name: str, *, exit_code: int = 0, block: bool = False):
+    def __init__(self, bin_dir: Path, name: str, *, exit_code: int = 0):
         self.bin_dir = bin_dir
         self.record = bin_dir / f"{name}.record"
-        self.release = bin_dir / "release"
         bin_dir.mkdir(parents=True, exist_ok=True)
         script = bin_dir / name
-        script.write_text(
-            STUB.format(
-                record=self.record,
-                exit_code=exit_code,
-                block=BLOCK.format(release=self.release) if block else "",
-            ),
-            encoding="utf-8",
-        )
+        script.write_text(STUB.format(record=self.record, exit_code=exit_code), encoding="utf-8")
         script.chmod(0o755)
 
     def calls(self) -> list[dict[str, Any]]:
@@ -75,18 +63,32 @@ class Stub:
         return calls
 
 
-@pytest.fixture(scope="session")
-def skill_copy(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A generated copy outside the repository, as a user-level install would be."""
-
-    home = tmp_path_factory.mktemp("skillhome")
+def _sync_to(target: Path) -> None:
     result = subprocess.run(
-        ["bash", str(SYNC), str(home)],
+        ["bash", str(SYNC), str(target)],
         capture_output=True,
         text=True,
         timeout=120,
     )
     assert result.returncode == 0, result.stderr
+
+
+def _git_repo(path: Path) -> Path:
+    path.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    (path / "secrets.env").write_text(
+        f"SERVERCHAN_SENDKEY={SENDKEY}\nGITHUB_TOKEN=test-github-token\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+@pytest.fixture(scope="session")
+def skill_copy(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A generated copy outside any git checkout, as a client scan root would be."""
+
+    home = tmp_path_factory.mktemp("skillhome")
+    _sync_to(home)
     skill = home / SKILL
     assert (skill / "scripts" / "run-daily.sh").is_file()
     return skill
@@ -94,17 +96,17 @@ def skill_copy(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
-    (repo / "secrets.env").write_text(
-        f"SERVERCHAN_SENDKEY={SENDKEY}\nGITHUB_TOKEN=test-github-token\n",
-        encoding="utf-8",
-    )
-    return repo
+    return _git_repo(tmp_path / "repo")
 
 
-def _run(skill: Path, repo: Path, *args: str, stub: Stub | None = None, timeout: int = 30):
+def _run(
+    skill: Path,
+    repo: Path,
+    *args: str,
+    stub: Stub | None = None,
+    cwd: Path | None = None,
+    timeout: int = 30,
+):
     env = os.environ.copy()
     for name in ("PYTHONPATH", "SERVERCHAN_SENDKEY", "GITHUB_TOKEN"):
         env.pop(name, None)
@@ -112,7 +114,7 @@ def _run(skill: Path, repo: Path, *args: str, stub: Stub | None = None, timeout:
         env["PATH"] = f"{stub.bin_dir}{os.pathsep}{env['PATH']}"
     return subprocess.run(
         [str(skill / "scripts" / "run-daily.sh"), *args],
-        cwd=repo,
+        cwd=cwd or repo,
         env=env,
         capture_output=True,
         text=True,
@@ -129,6 +131,25 @@ def _flag_value(args: list[str], flag: str) -> str:
 
 def _log(repo: Path) -> str:
     return (repo / "out" / "logs" / "run-daily.log").read_text(encoding="utf-8")
+
+
+def _dead_pid() -> int:
+    """A PID that belonged to a process which has already exited."""
+
+    process = subprocess.Popen(["true"])
+    process.wait(timeout=10)
+    return process.pid
+
+
+def _hold_lock(repo: Path, *, holder: int, client: int | None = None) -> Path:
+    """Write the runtime lock the wrapper reads, as a crashed run would leave it."""
+
+    lock = repo / LOCK
+    lock.mkdir(parents=True)
+    (lock / "pid").write_text(f"{holder}\n", encoding="utf-8")
+    if client is not None:
+        (lock / "client").write_text(f"{client}\n", encoding="utf-8")
+    return lock
 
 
 def test_claude_argv_is_the_documented_headless_form(skill_copy: Path, repo: Path) -> None:
@@ -169,6 +190,23 @@ def test_codex_argv_is_the_documented_exec_form(skill_copy: Path, repo: Path) ->
     prompt = args[-1]
     assert str(skill_copy / "SKILL.md") in prompt
     assert "每日运行" in prompt
+
+
+def test_wrapper_resolves_the_repository_that_owns_the_skill(
+    repo: Path, tmp_path: Path
+) -> None:
+    """A skill inside a checkout runs that checkout, not the caller's directory."""
+
+    _sync_to(repo)
+    skill = repo / SKILL
+    stub = Stub(tmp_path / "bin", "claude")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+
+    result = _run(skill, repo, "claude", stub=stub, cwd=elsewhere)
+    assert result.returncode == 0, result.stderr
+    assert stub.calls()[0]["cwd"] == str(repo)
+    assert (repo / "out" / "logs" / "run-daily.log").is_file()
 
 
 @pytest.mark.parametrize("client", ["claude", "codex"])
@@ -222,59 +260,36 @@ def test_an_unknown_client_is_a_usage_error(
 
 
 def test_a_live_lock_skips_the_overlapping_run(skill_copy: Path, repo: Path) -> None:
-    first = Stub(repo.parent / "first-bin", "claude", block=True)
-    second = Stub(repo.parent / "second-bin", "claude")
+    lock = _hold_lock(repo, holder=os.getpid())
+    stub = Stub(repo.parent / "bin", "claude")
 
-    running = subprocess.Popen(
-        [str(skill_copy / "scripts" / "run-daily.sh"), "claude"],
-        cwd=repo,
-        env={
-            **os.environ,
-            "PATH": f"{first.bin_dir}{os.pathsep}{os.environ['PATH']}",
-        },
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    try:
-        deadline = time.monotonic() + 10
-        while not first.record.is_file() and time.monotonic() < deadline:
-            time.sleep(0.05)
-        assert first.record.is_file(), "the first run never reached the client"
-
-        overlapping = _run(skill_copy, repo, "claude", stub=second, timeout=20)
-        assert overlapping.returncode == 0
-        assert second.calls() == [], "the overlapping run must not start a second client"
-    finally:
-        first.release.write_text("", encoding="utf-8")
-        running.wait(timeout=20)
-    assert running.returncode == 0
+    result = _run(skill_copy, repo, "claude", stub=stub)
+    assert result.returncode == 0
+    assert stub.calls() == [], "the overlapping run must not start a second client"
+    assert "still active" in _log(repo)
+    assert (lock / "pid").is_file(), "the live holder's lock must not be removed"
 
 
-def test_a_lock_left_by_a_dead_process_does_not_block_forever(
+def test_a_lock_whose_client_outlived_the_wrapper_is_not_reclaimed(
     skill_copy: Path, repo: Path
 ) -> None:
-    blocking = Stub(repo.parent / "blocking-bin", "claude", block=True)
-    killed = subprocess.Popen(
-        [str(skill_copy / "scripts" / "run-daily.sh"), "claude"],
-        cwd=repo,
-        env={
-            **os.environ,
-            "PATH": f"{blocking.bin_dir}{os.pathsep}{os.environ['PATH']}",
-        },
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    deadline = time.monotonic() + 10
-    while not blocking.record.is_file() and time.monotonic() < deadline:
-        time.sleep(0.05)
-    assert blocking.record.is_file(), "the killed run never reached the client"
-    killed.kill()
-    killed.wait(timeout=10)
-    blocking.release.write_text("", encoding="utf-8")
+    """A SIGKILLed wrapper can leave its client running; that still blocks a second client."""
 
-    fast = Stub(repo.parent / "fast-bin", "claude")
-    result = _run(skill_copy, repo, "claude", stub=fast, timeout=20)
+    _hold_lock(repo, holder=_dead_pid(), client=os.getpid())
+    stub = Stub(repo.parent / "bin", "claude")
+
+    result = _run(skill_copy, repo, "claude", stub=stub)
     assert result.returncode == 0
-    assert fast.calls(), "a stale lock must be reclaimed instead of skipping forever"
+    assert stub.calls() == [], "a client that is still running must not get a sibling"
+    assert "still active" in _log(repo)
+
+
+def test_a_lock_left_by_dead_processes_is_reclaimed(skill_copy: Path, repo: Path) -> None:
+    _hold_lock(repo, holder=_dead_pid(), client=_dead_pid())
+    stub = Stub(repo.parent / "bin", "claude")
+
+    result = _run(skill_copy, repo, "claude", stub=stub)
+    assert result.returncode == 0
+    assert stub.calls(), "a stale lock must be reclaimed instead of skipping forever"
+    assert "stale lock" in _log(repo)
+    assert not (repo / LOCK).exists(), "the run's own lock must be released at exit"

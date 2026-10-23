@@ -176,14 +176,55 @@ def test_source_has_one_scheduling_variant_per_client() -> None:
     )
 
 
-def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> None:
-    """The three scheduler snippets per CLI client, minus the traps.
+SCHEDULING_INVOCATIONS = {
+    "claude": "/path/to/repo/.claude/skills/academic-digest/scripts/run-daily.sh claude",
+    "codex": "/path/to/repo/.agents/skills/academic-digest/scripts/run-daily.sh codex",
+}
 
-    Claude Code and Codex both offer systemd, launchd and a crontab line, all of
-    which call the one wrapper; the docs also have to carry the three runtime
-    constraints that bite outside a login shell (timezone, no catch-up, and the
-    client-specific switch). The DSH card bypasses the wrapper, and no
-    scheduling doc may offer a cloud scheduler in this release.
+CLAUDE_ARGV = (
+    '-p "/academic-digest"',
+    "--permission-mode acceptEdits",
+    '--allowedTools "Bash(python3 *),Read,Write,Edit"',
+    "--permission-prompts none",
+    "--max-turns 60",
+    "--output-format json",
+)
+
+CODEX_ARGV = (
+    "--sandbox workspace-write",
+    "sandbox_workspace_write.network_access=true",
+    "--skip-git-repo-check",
+    "--json",
+)
+
+
+def _fenced_blocks(text: str) -> list[str]:
+    """Shell/config snippets only, so prose instructions are not mistaken for them."""
+
+    blocks: list[str] = []
+    current: list[str] | None = None
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(("```", "~~~")):
+            if current is None:
+                current = []
+            else:
+                blocks.append("\n".join(current))
+                current = None
+            continue
+        if current is not None:
+            current.append(line)
+    return blocks
+
+
+def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> None:
+    """The three scheduler recipes per CLI client, minus the traps.
+
+    Each client offers a systemd unit and timer, a launchd plist and a crontab
+    line, and every one of them calls the one wrapper. The docs also carry the
+    three runtime constraints that bite outside a login shell (timezone, no
+    catch-up, CRON_TZ cronie-only, plus the client-specific switch). The DSH
+    card bypasses the wrapper, and no scheduling doc offers a cloud scheduler.
     """
 
     texts = {
@@ -191,16 +232,29 @@ def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> No
         for client, (relative, _) in COPIES.items()
     }
 
-    for client in ("claude", "codex"):
+    for client, invoke in SCHEDULING_INVOCATIONS.items():
         text = texts[client]
-        for scheduler in ("systemd", "launchd", "crontab"):
-            assert scheduler in text, f"{client}: missing a {scheduler} snippet"
-        assert f"run-daily.sh {client}" in text, f"{client}: snippets must go through the wrapper"
-        assert "Asia/Shanghai" in text, f"{client}: snippets must pin the timezone"
+        wrapper, _, argument = invoke.rpartition(" ")
+        assert f"ExecStart={invoke}" in text, f"{client}: missing the systemd ExecStart"
+        assert "OnCalendar=*-*-* 08:00:00 Asia/Shanghai" in text, (
+            f"{client}: the timer must pin the IANA timezone"
+        )
+        assert "Persistent=false" in text, f"{client}: a missed systemd run must not be replayed"
+        assert f"<string>{wrapper}</string>" in text, f"{client}: missing the launchd ProgramArguments"
+        assert f"<string>{argument}</string>" in text, f"{client}: launchd must pass {argument}"
+        assert "<key>StartCalendarInterval</key>" in text, (
+            f"{client}: missing the launchd calendar trigger"
+        )
+        assert f"0 8 * * * {invoke}" in text, f"{client}: missing the crontab line"
         assert "CRON_TZ" in text and "cronie" in text, (
             f"{client}: crontab snippets must say CRON_TZ only works on cronie"
         )
         assert "不补跑" in text, f"{client}: docs must state that a missed run is not replayed"
+        for block in _fenced_blocks(text):
+            for duplicated in ("set -a", "secrets.env", "flock", ">>", "cd /path"):
+                assert duplicated not in block, (
+                    f"{client}: scheduler snippets must leave {duplicated!r} to the wrapper"
+                )
 
     assert "--bare" in texts["claude"], "claude docs must warn against --bare"
     assert "sandbox_workspace_write.network_access=true" in texts["codex"], (
@@ -212,6 +266,58 @@ def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> No
     for client, text in texts.items():
         for cloud in ("GitHub Actions", "云端", "scheduled task"):
             assert cloud not in text, f"{client}: cloud scheduling is out of scope for this release"
+
+
+def test_scheduling_docs_repeat_the_wrapper_argv() -> None:
+    """The docs' manual-run recipes and the wrapper's argv are one contract.
+
+    tests/test_run_daily.py pins the wrapper side; this pins the docs side, so
+    changing a flag in only one of the two places fails the suite.
+    """
+
+    claude = (ROOT / COPIES["claude"][0] / SCHEDULING).read_text(encoding="utf-8")
+    codex = (ROOT / COPIES["codex"][0] / SCHEDULING).read_text(encoding="utf-8")
+
+    for fragment in CLAUDE_ARGV:
+        assert fragment in claude, f"claude docs must document {fragment!r}"
+        assert "--bare" in claude
+    for fragment in CODEX_ARGV:
+        assert fragment in codex, f"codex docs must document {fragment!r}"
+
+
+def test_committed_wrappers_are_executable() -> None:
+    """The scheduler invokes the wrapper directly, so the committed mode matters.
+
+    The pre-commit hook checks the index out into a bare temp directory, where
+    there is no git metadata to ask: there the executable bit on the checked-out
+    file is the check, and that bit comes from the index. In a normal checkout
+    the index mode is asserted directly.
+    """
+
+    for client, (relative, _) in COPIES.items():
+        wrapper = relative / "scripts" / "run-daily.sh"
+        assert os.access(ROOT / wrapper, os.X_OK), (
+            f"{client}: {wrapper} is not executable; schedulers invoke it directly"
+        )
+        probe = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+        )
+        if probe.returncode != 0:
+            continue
+        result = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", "-s", "--", str(wrapper)],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0 and result.stdout.strip(), (
+            f"{client}: {wrapper} is not tracked by git"
+        )
+        mode = result.stdout.split()[0]
+        assert mode == "100755", (
+            f"{client}: {wrapper} is committed as {mode}; schedulers invoke it directly"
+        )
 
 
 def _run_collect_from(skill: Path, workdir: Path, *, env: dict[str, str] | None = None):

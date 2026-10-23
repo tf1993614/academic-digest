@@ -32,8 +32,9 @@ DSH 的无人值守入口是任务看板卡：`0 8 * * *` / `Asia/Shanghai` 由�
   开关，这个字段会被忽略，失败改用 `record-external-outcome` 记录（见“失败演练”）。
 - `skipVerification`：`true`。不用 coding 验收裁判，每天不产生 6–12 次裁判请求；
   真正的验收是 `push` 退出码和 SQLite `runs`。
-- `schedule`：`enabled: true`、`mode: "cron"`、`cron: "0 8 * * *"`、
-  `timeZone: "Asia/Shanghai"`。
+- `schedule`：`enabled: true`、`mode: "cron"`、`cron: "0 8 * * *"`。创建接口的
+  `schedule` 对象没有时区字段；建卡后用 `task_board_schedule` 把 `timeZone` 设成
+  `Asia/Shanghai`（省略则用 Host 时区）。
 
 Prompt 用下面这份，逐字粘贴：
 
@@ -100,9 +101,9 @@ Prompt 用下面这份，逐字粘贴：
 
 ## 运行约束
 
-- **时区**：看板卡的 `schedule.timeZone` 固定写 `Asia/Shanghai`；cron 表达式由看板按这个
-  时区解释，与宿主机时区无关，也没有 crontab 那套 `CRON_TZ` 变量（那个变量只对 cronie
-  有效）。
+- **时区**：用 `task_board_schedule` 给卡片设 `timeZone: "Asia/Shanghai"`（创建接口的
+  `schedule` 对象没有时区字段；省略则用 Host 时区）。看板按这个时区解释 cron 表达式，与
+  宿主机时区无关；crontab 的 `CRON_TZ` 只对 cronie 有效，DSH 用不到它。
 - **错过不补跑**：宿主机停机或看板当时不可用时，错过的 08:00 **不会**在恢复后补跑；
   下一次 08:00 正常触发。真正的兜底是采集的 `lookback`（arXiv 默认 4 天，覆盖周末），
   不是补发旧消息。

@@ -54,13 +54,14 @@ mkdir -p "$log_dir" "$repo/state" || {
   exit 1
 }
 
-# One line reaches the scheduler (journalctl / launchd / cron mail); everything
-# else is appended to the log so no snippet needs its own redirection.
+# One summary line reaches the scheduler (journalctl / launchd / cron mail);
+# everything else is appended to the log so no snippet needs its own redirect.
 printf '[run-daily] %s: %s (log: %s)\n' "$client" "$repo" "$log"
 exec >>"$log" 2>&1
 
 lock_dir="$repo/state/run-daily.lock"
 locked=0
+client_pid=""
 cleanup() {
   local status=$?
   if ((locked)); then
@@ -69,15 +70,62 @@ cleanup() {
   printf '[run-daily] %s exited %s after %ss\n' "$client" "$status" "$SECONDS"
   exit "$status"
 }
-trap cleanup EXIT
 
-# mkdir is the lock: atomic on POSIX, works on macOS without flock(1). The PID
-# file lets a run that was killed reclaim a lock its owner will never release.
+forward_signal() {
+  if [[ -n "$client_pid" ]]; then
+    kill "-$1" "$client_pid" 2>/dev/null || true
+  fi
+  exit "$2"
+}
+
+trap cleanup EXIT
+trap 'forward_signal TERM 143' TERM
+trap 'forward_signal INT 130' INT
+
+# mkdir is the lock: atomic on POSIX, works on macOS without flock(1). Two PIDs
+# are recorded (the wrapper, then the client it starts) together with each
+# process's start time, so a lock whose owner was SIGKILLed is reclaimed while
+# an unrelated process that reused the PID is not mistaken for the owner.
+proc_alive() {
+  [[ -n "$1" ]] && ps -p "$1" >/dev/null 2>&1
+}
+
+proc_start() {
+  # LC_ALL=C keeps lstart byte-comparable between runs started from different
+  # environments (unit files, cron, an interactive shell).
+  LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//' || true
+}
+
+holder_alive() {
+  local pid="$1" start="$2" current
+  proc_alive "$pid" || return 1
+  if [[ -n "$start" ]]; then
+    current="$(proc_start "$pid")"
+    # A ps without lstart support (e.g. busybox) cannot confirm reuse; trust
+    # the PID rather than stealing a lock that may still be held.
+    [[ -z "$current" || "$current" == "$start" ]] || return 1
+  fi
+  return 0
+}
+
 if ! mkdir "$lock_dir" 2>/dev/null; then
   holder="$(cat "$lock_dir/pid" 2>/dev/null || true)"
-  if [[ -n "$holder" ]] && ps -p "$holder" >/dev/null 2>&1; then
+  if [[ -z "$holder" ]]; then
+    # The owner creates the directory and writes its PID in two steps. Do not
+    # steal a lock that is still being created: give it a moment to appear.
+    for _ in 1 2 3 4 5; do
+      sleep 0.1
+      holder="$(cat "$lock_dir/pid" 2>/dev/null || true)"
+      [[ -n "$holder" ]] && break
+    done
+  fi
+  holder_start="$(cat "$lock_dir/pid.start" 2>/dev/null || true)"
+  holder_client="$(cat "$lock_dir/client" 2>/dev/null || true)"
+  holder_client_start="$(cat "$lock_dir/client.start" 2>/dev/null || true)"
+  if holder_alive "$holder" "$holder_start" ||
+    holder_alive "$holder_client" "$holder_client_start"; then
     printf '[skip] run-daily: another run is still active (pid %s); not stacking %s on it\n' \
-      "$holder" "$client"
+      "${holder:-$holder_client}" "$client"
     exit 0
   fi
   printf '[warn] run-daily: reclaiming stale lock %s (pid %s is gone)\n' \
@@ -89,6 +137,7 @@ if ! mkdir "$lock_dir" 2>/dev/null; then
   fi
 fi
 printf '%s\n' "$$" >"$lock_dir/pid"
+printf '%s\n' "$(proc_start "$$")" >"$lock_dir/pid.start"
 locked=1
 
 printf '=== %s run-daily %s repo=%s pid=%s\n' \
@@ -147,5 +196,10 @@ case "$client" in
 esac
 
 printf '[cmd] %s\n' "${cmd[*]}"
-"${cmd[@]}"
-exit $?
+"${cmd[@]}" &
+client_pid=$!
+printf '%s\n' "$client_pid" >"$lock_dir/client"
+printf '%s\n' "$(proc_start "$client_pid")" >"$lock_dir/client.start"
+client_status=0
+wait "$client_pid" || client_status=$?
+exit "$client_status"
