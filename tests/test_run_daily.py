@@ -263,6 +263,34 @@ def test_wrapper_passes_the_client_exit_code_through(
     assert f"exited {code}" in _log(repo)
 
 
+def test_a_client_killed_by_a_signal_maps_to_128_plus_n(
+    skill_copy: Path, repo: Path, tmp_path: Path
+) -> None:
+    """Popen reports a signalled child as -N; the wrapper must report 128+N."""
+
+    bin_dir = tmp_path / "killed-bin"
+    bin_dir.mkdir()
+    script = bin_dir / "claude"
+    script.write_text("#!/usr/bin/env bash\nkill -TERM $$\n", encoding="utf-8")
+    script.chmod(0o755)
+
+    env = os.environ.copy()
+    for name in ("PYTHONPATH", "SERVERCHAN_SENDKEY", "GITHUB_TOKEN"):
+        env.pop(name, None)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+    result = subprocess.run(
+        [str(skill_copy / "scripts" / "run-daily.sh"), "claude"],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 143, result.stderr
+    assert "exited 143" in _log(repo)
+
+
 @pytest.mark.parametrize("args", [(), ("openai",), ("claude", "extra")])
 def test_an_unknown_client_is_a_usage_error(
     skill_copy: Path, repo: Path, args: tuple[str, ...]

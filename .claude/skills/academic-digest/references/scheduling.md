@@ -44,7 +44,7 @@ claude -p "/academic-digest" \
 - 从 skill 所在仓库（或当前工作目录所在仓库）解析仓库根并 `cd` 进去；
 - 存在 `secrets.env` 时用 `set -a` 加载进客户端的环境变量，不打印值；
 - 用 `state/run-daily.lock` 上的内核文件锁（`flock`）加锁：上一次还没跑完就直接跳过、
-  退出 0，不叠加第二个会话；锁随持有进程退出自动释放，没有需要手工清理的过期锁，
+  退出 0，不叠加第二个会话；锁由内核在 wrapper 与客户端都退出后自动释放，没有需要手工清理的过期锁，
   macOS 也不需要额外的 `flock` 命令；
 - 把整次运行的输出追加到 `out/logs/run-daily.log`；启动时另打一行到 stdout（systemd 的
   `journalctl` 能看到；launchd 用 plist 的 `StandardOutPath`，见下），结束状态与退出码

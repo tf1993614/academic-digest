@@ -31,9 +31,15 @@ def main() -> int:
         return 0
 
     child: subprocess.Popen[bytes] | None = None
+    pending = 0
 
     def forward(signum: int, _frame: object) -> None:
+        nonlocal pending
         if child is None:
+            # A signal that lands between handler setup and Popen is replayed
+            # once the client exists, so it cannot start after the scheduler
+            # already stopped this run.
+            pending = signum
             return
         try:
             child.send_signal(signum)
@@ -46,6 +52,8 @@ def main() -> int:
     # The client inherits the locked descriptor, so the lock survives a SIGKILL
     # of this helper and is released only when the client itself is gone.
     child = subprocess.Popen(argv, pass_fds=(descriptor,))
+    if pending:
+        child.send_signal(pending)
     status = child.wait()
     # Popen reports a signalled child as -N; a shell reports 128+N.
     return 128 - status if status < 0 else status
