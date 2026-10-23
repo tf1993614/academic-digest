@@ -246,6 +246,7 @@ GitHub 时还有一个 `github` 区块。
   "date": "2026-10-20",
   "doi": "10.1000/aging-omics.1",
   "pmid": "39000001",
+  "arxiv_id": "",
   "url": "https://pubmed.ncbi.nlm.nih.gov/39000001/",
   "abstract": "…",
   "abstract_missing": false,

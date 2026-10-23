@@ -102,7 +102,7 @@ Status: ready-for-agent
 
 ### 候选池与模型契约
 
-- `collect` 输出 JSON：每条含 id、group、source、title、authors、venue、date、doi、url、abstract、tags、score、is_preprint、journal_match、oa_url（可空）。`journal_match` 仅在配置了非空 `journal_filter` 且 `venue` 命中时为 `true`。
+- `collect` 输出 JSON：每条含 id、group、source、title、authors、venue、date、doi、pmid、arxiv_id、url、abstract、abstract_missing、tags、relevance、score、is_preprint、journal_match、oa_url（可空）。`journal_match` 仅在配置了非空 `journal_filter` 且 `venue` 命中时为 `true`。
 - 模型读取候选池，选出 3 篇今日必读 + 7 篇其它速览，必须满足：G2 ≤ 4；G1/G3/G4/G5 只要有候选就至少 1 篇；不足 10 篇时不凑数。
 - 模型同时输出 selection 记录：每条的被选 id、组、一句入选理由、全文状态（OA 全文/仅摘要）、局限性来源（作者/模型判断）。
 - 模型只使用候选池中的摘要或已抓取全文，不得编造数字、样本量、期刊影响因子。

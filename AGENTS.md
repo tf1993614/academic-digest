@@ -28,4 +28,4 @@ The shipped end-user workflow lives in `.dsh/skills/academic-digest/SKILL.md` (a
 
 ### Code review
 
-Self-check the ticket checklist and payload keys, freeze the diff, then dispatch reviewers. See `docs/agents/code-review.md`.
+Before dispatching, read `docs/agents/code-review.md`: grep every new or changed payload key across `README.md`, `CODING_STANDARDS.md`, the ADR, and the ticket, then freeze with `scripts/review-patch.sh --base <fixed-point>`.

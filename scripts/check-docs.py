@@ -3,12 +3,15 @@
 
 These are the machine-checkable claims the review kept catching by hand: the
 repo-root skill pointer, the setup quota table, the transport retry wording,
-and the review-patch contract. Run from ``scripts/check.sh`` so a doc that
-drifts from its code/default fails before commit.
+the candidate-pool key contract, and the review-patch contract. Run from
+``scripts/check.sh`` so a doc that drifts from its code/default fails before
+commit.
 """
 
 from __future__ import annotations
 
+import ast
+import json
 import re
 import sys
 from pathlib import Path
@@ -22,6 +25,8 @@ README = ROOT / "README.md"
 STANDARDS = ROOT / "CODING_STANDARDS.md"
 CONFIG = ROOT / "config.example.yaml"
 BASE = ROOT / "academic_digest/sources/base.py"
+MODELS = ROOT / "academic_digest/models.py"
+SPEC = ROOT / ".scratch/academic-digest/spec.md"
 REVIEW_SCRIPT = ROOT / "scripts/review-patch.sh"
 REVIEW_DOC = ROOT / "docs/agents/code-review.md"
 
@@ -52,6 +57,93 @@ def _check_skill_pointer(failures: list[str]) -> None:
         failures,
         "](.dsh/skills/academic-digest/SKILL.md)" in _text(README),
         "README must link the canonical skill path",
+    )
+
+
+def _paper_dict_keys() -> list[str]:
+    """The candidate-pool keys, read from ``Paper.to_dict`` without importing it."""
+
+    try:
+        tree = ast.parse(_text(MODELS))
+    except SyntaxError as exc:
+        raise ValueError(f"cannot parse {MODELS}: {exc}") from exc
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != "Paper":
+            continue
+        for member in node.body:
+            if not isinstance(member, ast.FunctionDef) or member.name != "to_dict":
+                continue
+            for statement in ast.walk(member):
+                if (
+                    isinstance(statement, ast.Return)
+                    and isinstance(statement.value, ast.Dict)
+                ):
+                    keys = [
+                        key.value
+                        for key in statement.value.keys
+                        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+                    ]
+                    if keys:
+                        return keys
+    raise ValueError("Paper.to_dict must return a string-keyed dict literal")
+
+
+def _readme_sample_keys(readme: str) -> list[str]:
+    """The key order of the README's candidate JSON example."""
+
+    marker = "每篇论文至少包含"
+    start = readme.find(marker)
+    if start < 0:
+        raise ValueError("README must introduce the candidate sample with '每篇论文至少包含'")
+    fence = readme.find("```json", start)
+    if fence < 0:
+        raise ValueError("README candidate sample must be a ```json block")
+    body_start = fence + len("```json")
+    end = readme.find("```", body_start)
+    if end < 0:
+        raise ValueError("README candidate sample is missing its closing fence")
+    try:
+        sample = json.loads(readme[body_start:end])
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"README candidate sample is not valid JSON: {exc}") from exc
+    if not isinstance(sample, dict):
+        raise ValueError("README candidate sample must be a JSON object")
+    return list(sample)
+
+
+def _check_candidate_keys(failures: list[str], readme: str) -> None:
+    """Keep ``Paper.to_dict`` and the documented candidate contract in lockstep."""
+
+    try:
+        keys = _paper_dict_keys()
+        sample_keys = _readme_sample_keys(readme)
+    except ValueError as exc:
+        failures.append(f"candidate contract: {exc}")
+        return
+    _require(
+        failures,
+        sample_keys == keys,
+        f"README candidate sample keys {sample_keys} != Paper.to_dict keys {keys}",
+    )
+
+    spec = _text(SPEC)
+    heading = "### 候选池与模型契约"
+    start = spec.find(heading)
+    if start < 0:
+        failures.append(f"spec.md must have a '{heading}' section")
+        return
+    next_heading = spec.find("\n### ", start + len(heading))
+    section = spec[start:] if next_heading < 0 else spec[start:next_heading]
+    missing = [
+        key
+        for key in keys
+        if re.search(rf"(?<![0-9A-Za-z_]){re.escape(key)}(?![0-9A-Za-z_])", section)
+        is None
+    ]
+    _require(
+        failures,
+        not missing,
+        f"spec.md candidate contract is missing keys: {', '.join(missing)}",
     )
 
 
@@ -182,6 +274,7 @@ def main() -> int:
     _check_skill_pointer(failures)
     _check_quotas(failures, _text(SETUP))
     readme = _text(README)
+    _check_candidate_keys(failures, readme)
     _check_retry_docs(failures, readme)
     _check_review_patch(failures)
     if failures:
@@ -190,7 +283,8 @@ def main() -> int:
         print(f"docs check found {len(failures)} problem(s)", file=sys.stderr)
         return 1
     print(
-        "[ok] docs: skill pointer, quotas, retry wording, transport tests, review patch"
+        "[ok] docs: skill pointer, quotas, retry wording, candidate keys, "
+        "transport tests, review patch"
     )
     return 0
 
