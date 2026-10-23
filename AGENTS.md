@@ -22,6 +22,10 @@ Default five labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for
 
 Single-context: `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
 
+### Daily digest skill
+
+The shipped end-user workflow lives in `.dsh/skills/academic-digest/SKILL.md`; setup and the digest contract are its `references/`. The daily task card runs collect → write digest → push from that skill.
+
 ### Code review
 
 Self-check the ticket checklist and payload keys, freeze the diff, then dispatch reviewers. See `docs/agents/code-review.md`.

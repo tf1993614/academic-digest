@@ -2,13 +2,15 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 09：Server酱 推送**，并保留 Issue 08 的日报契约与 Issue 06/07 的
-GitHub release、OA 全文能力（在 Issue 01–05 的采集、去重、排序与发现骨架上，加入
-`3 + 7` 日报的离线校验、分条推送、失败重试与 pending 补发）。后续按
+当前实现到 **Issue 10：Skill + 任务看板卡 + 端到端**，并保留 Issue 09 的 Server酱
+分条推送、Issue 08 的日报契约与 Issue 06/07 的 GitHub release、OA 全文能力（在
+Issue 01–05 的采集、去重、排序与发现骨架上，加入 `3 + 7` 日报的离线校验、分条推送、
+失败重试、pending 补发、项目级 skill 与每天 08:00 的看板卡）。后续按
 `.scratch/academic-digest/issues/` 继续补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[09-serverchan-push.md](.scratch/academic-digest/issues/09-serverchan-push.md)、[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[10-skill-taskboard.md](.scratch/academic-digest/issues/10-skill-taskboard.md)、[09-serverchan-push.md](.scratch/academic-digest/issues/09-serverchan-push.md)、[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 每日流程与 setup：[.dsh/skills/academic-digest/SKILL.md](.dsh/skills/academic-digest/SKILL.md)
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -103,6 +105,67 @@ DOI→arXiv 交叉检索）。
 `python3 -m academic_digest push ...` 与 `python3 -m academic_digest doctor ...`。
 `push` 的录制响应样例在 `tests/fixtures/push/`。
 
+## Skill 与任务看板卡
+
+项目级 skill 在 [`.dsh/skills/academic-digest/SKILL.md`](.dsh/skills/academic-digest/SKILL.md)：
+DSH 扫描 `<workspace>/.dsh/skills/` 的第一层，因此只要看板卡钉住本仓库就能发现它。
+想让任意工作区也能用，做一次用户级软链：
+
+```bash
+ln -sfn "$(git rev-parse --show-toplevel)/.dsh/skills/academic-digest" \
+  "$HOME/.dsh/skills/academic-digest"
+```
+
+skill 里用 `git -C` 从自己的 base directory 解析真实仓库根，所以软链不会改变运行时
+路径。详细写作契约在 `references/digest.md`，setup 流程在 `references/setup.md`。
+
+### setup 顺序
+
+1. `scripts/setup-secrets.sh` 向导写本地 `secrets.env`（600、gitignored），包括
+   `SERVERCHAN_SENDKEY` 与 `GITHUB_TOKEN`。
+2. 复制 [`config.example.yaml`](config.example.yaml) 为 `config.yaml`（已有就不要覆盖），
+   按访谈调整六组关键词、源开关与 GitHub 用户；`config.yaml` 不提交。
+3. 联网自检：
+   ```bash
+   set -a; . ./secrets.env; set +a
+   python3 scripts/doctor.py --config config.yaml
+   ```
+4. 用 fixture 日报跑 `push --dry-run`，确认 title 与 Markdown payload。dry-run 不读
+   SendKey、不发送；但 `config.yaml` 启用了 GitHub，仍要先加载 secrets 过配置校验。
+5. 用 fixture 日报真发一条测试消息到微信（状态写 `/tmp`，消耗 1 次额度）。
+6. 创建任务卡，字段固定：cron `0 8 * * *`、`Asia/Shanghai`、权限
+   `workspace-write`、工作区为本仓库、`goalRun: true`、`skipVerification: true`。
+   Prompt 必须明确“加载 academic-digest skill”，并列出 collect → 写日报 → push
+   三步，以及“只有 push 退出 0 才视为完成”。
+
+`goalRun` 是完成门：成功时执行会话调用 `update_goal(complete)`，发送失败时不调用，
+看板就把这次执行记为失败；`skipVerification: true` 同时关掉 coding 验收裁判，每天
+不会多出 6–12 次裁判请求。若部署没有打开全局 `/goal`，这个字段会被忽略，卡片按
+普通回合结算，发送失败用 `record-external-outcome` 记录（本机当前就是这个模式）。
+
+### 每日运行
+
+看板每天 08:00 启动一个会话，执行 skill 里的三步，产物固定在 `out/`：
+
+```bash
+set -a; . ./secrets.env; set +a
+python3 scripts/collect.py --config config.yaml                # -> out/candidates.json
+# 模型按 references/digest.md 写 out/selection.json 与 out/digest.md
+python3 scripts/digest.py check --candidates out/candidates.json \
+  --selection out/selection.json --digest out/digest.md
+python3 scripts/push.py --config config.yaml \
+  --candidates out/candidates.json --selection out/selection.json \
+  --digest out/digest.md
+```
+
+- 只有最后一步退出 0 且 stdout 出现 `[ok] push:` 才算当天完成。
+- 联网采集通常 1–4 分钟；某个源不可达时会更久，会话应等待后台任务而不是重跑。
+  部分源 `failed` 时照实写页脚，不要为了修源再跑一次 collect。
+- 部分源失败仍发送，页脚标 `failed`；全部源失败时 `collect` 退出 1，不发送。
+- 发送失败重试 2 次后写 `pending` 并退出 1；下一次 live run 先补发 pending。看板
+  执行历史记录每轮结果，`state/academic-digest.sqlite3` 的 `runs` 是审计来源。
+- Host 必须在线；错过的 cron 不补跑，采集的 lookback 覆盖最近 2–7 天。
+
 ## 命令
 
 ### `collect`
@@ -120,7 +183,9 @@ collect --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db 
 离开 `--fixtures` 时通过 PubMed E-utilities 的 `esearch` + `efetch`、Europe PMC
 的 `search`（`resultType=core`）、arXiv 的 RSS 与 API、Research Square 的 RSS，以及按需
 开启的 bioRxiv/medRxiv `details` API 抓取。PubMed 摘要只从 XML 解析
-（JSON 模式会静默丢掉摘要）。
+（JSON 模式会静默丢掉摘要）。每个 live GET 在连接错误、5xx 或 429 时最多重试 3 次
+（1s/2s 退避）；仍失败才把该源标为 `failed`，不会因为一次掉线丢掉整天的 GitHub/G6
+区块。`--fixtures` 直接读录制文件，不经过这个重试层。
 
 启用 `sources.github` 时还会调用 GitHub Search API 抓取新库、活跃库与 G6 区块
 （AI 工具 / Agent Harness）的仓库；搜索请求串行、约 2 秒一次，带 User-Agent 与
@@ -610,7 +675,10 @@ doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db P
 ## 配置
 
 从 [`config.example.yaml`](config.example.yaml) 复制一份到仓库根的
-`config.yaml`（已被 gitignore），再按需增删关键词组。
+`config.yaml`（已被 gitignore），再按需增删关键词组。示例已是生产默认：六组
+G1–G6、PubMed/Europe PMC/arXiv/Research Square/GitHub 打开，GitHub 用户为
+`tf1993614`；`config.yaml` 不提交。启用 `sources.github` 时先加载
+`secrets.env`，否则配置校验会报 `github.token`。
 
 关键字段：
 
@@ -857,10 +925,11 @@ scripts/review-patch.sh   # -> out/review/current.diff 等
 唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `fulltext` /
 `digest check` / `push` / `doctor`，断言退出码、stderr 与输出文件，不导入内部
 实现。所有测试离线且固定 `--now`；`digest check`、`fulltext --fixtures` 与
-`push --fixtures` / `push --dry-run` 不触碰网络。唯一例外是
-`tests/test_push_transport.py`：fixture 模式从不构造 URL、不读 SendKey、不 sleep，
-所以 ServerChan 端点选择、密钥脱敏、重试/脱敏接线与 `timeout` / `backoff_seconds`
-默认值改为直接测试，否则这些安全相关分支永远没有测试。
+`push --fixtures` / `push --dry-run` 不触碰网络。两个例外：`tests/test_push_transport.py`
+直接测试 fixture 模式到不了的分支（ServerChan 端点选择、密钥脱敏、重试/脱敏接线与
+`timeout` / `backoff_seconds` 默认值）；`tests/test_source_http.py` 直接测试源 GET 的
+重试循环（连接错误 / 5xx / 429，最多 3 次、1s/2s 退避），因为 fixture 读取根本不经过
+传输层。两个测试都伪造 HTTP，不联网、不 sleep。
 
 “已推送”状态由 `push` 写入 SQLite `pushes`；测试也可以直接写一行作为 `collect`
 的前置数据，断言仍只来自 CLI 输出。

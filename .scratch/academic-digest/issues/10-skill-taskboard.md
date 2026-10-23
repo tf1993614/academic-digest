@@ -4,11 +4,53 @@
 
 **Blocked by:** 09.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] SKILL.md 的 setup 流程能写出配置、跑 doctor、跑 dry-run、发测试推送、创建任务卡与 cron。
-- [ ] 任务卡固定本仓库工作区与 workspace-write 权限；Prompt 明确加载 skill 与三步流程；不启用验收裁判。
-- [ ] 从看板手动运行一次，微信收到真实日报，看板执行历史显示成功。
-- [ ] 模拟发送失败时任务卡显示失败；下次运行优先重试 pending。
-- [ ] skill 在项目级 skills 根目录可发现，并可通过用户级软链在任意工作区使用。
-- [ ] 手工验收：日报 3+7、G6 独立区块、页脚源状态齐全。
+- [x] SKILL.md 的 setup 流程能写出配置、跑 doctor、跑 dry-run、发测试推送、创建任务卡与 cron。
+- [x] 任务卡固定本仓库工作区与 workspace-write 权限；Prompt 明确加载 skill 与三步流程；不启用验收裁判。
+- [x] 从看板手动运行一次，微信收到真实日报，看板执行历史显示成功。
+- [x] 模拟发送失败时任务卡显示失败；下次运行优先重试 pending。
+- [x] skill 在项目级 skills 根目录可发现，并可通过用户级软链在任意工作区使用。
+- [x] 手工验收：日报 3+7、G6 独立区块、页脚源状态齐全。
+
+## Comments
+
+- 2026-10-22：实现完成。项目级 skill 在 `.dsh/skills/academic-digest/`，setup 在
+  `references/setup.md`，日报契约在 `references/digest.md`；`scripts/setup-secrets.sh`
+  向导写本地 `secrets.env`（600、gitignored），`config.example.yaml` 已是六组
+  G1–G6 + GitHub 默认开。`doctor` 联网全绿；`push --dry-run` 用 fixture 产出
+  `学术速递 · 2026-10-22` 单条消息且不含密钥；真实 fixture 测试推送成功。
+  skill 的定位仓库改为 `git -C <base> rev-parse --show-toplevel`，从用户级软链
+  `~/.dsh/skills/academic-digest` 或任意工作区都能解析回本仓库；collect 的提示补了
+  “后台等待、部分源失败不要重跑”。
+
+- 2026-10-22：生产卡 `每日学术速递` 为 `7dfb1e87-0c59-45a5-9028-08478950719a`，
+  工作区 `8b8d83b0-a769-481a-9ddb-648dc9593014`（本仓库），权限
+  `workspace-write`，`goalRun: true` + `skipVerification: true`，cron
+  `0 8 * * *`、Host 时区 `Asia/Shanghai`。Prompt 明确加载 academic-digest skill、
+  collect → 写日报（含 fulltext 与 digest check）→ push，只有 push 退出 0 才视为
+  完成；旧卡 `00a737bf…` 三次因模型 transport 失败，已归档。
+
+- 2026-10-22/23：看板端到端已跑通。手动执行 `ae0a2bb7…`（23:43–23:59）与
+  08:00 定时执行 `0987fca0…`（2026-10-23 08:00–08:12）均为 succeeded；
+  `runs` 里对应 `push` 行 `status=ok`、`selected_count=10`、`pushed_count=10`、
+  `pending_count=0`，stdout 为 `[ok] push: sent 1 message(s), recorded 10 paper(s)`。
+  08:00 日报经 `digest check`：3 篇今日必读 + 7 篇其它速览；GitHub 含新项目/活跃项目/
+  关注 release，`## AI 工具 / Agent Harness` 独立；页脚覆盖 pubmed/europepmc/
+  arxiv/researchsquare/github 五个源（arxiv failed 照实写）、候选 26、入选 10。
+  推送成功不等于微信一定收到，最终仍需用户在微信确认当天消息。
+
+- 2026-10-23：发送失败与 pending 补发演练。失败卡 `a1efde30…` 用
+  `SERVERCHAN_SENDKEY=INVALID_KEY_FOR_DRILL` 对 fixture 日报执行 push，退出 1、
+  `[fail] push: message 1/1: HTTP 400`，pending 新增一行；本机部署没有打开全局
+  `/goal`，`goalRun` 被忽略，卡片按普通回合结算，因此按 setup.md 的兜底用
+  `task_board_manage(action: "record-external-outcome", result: "failed")` 把这次
+  演练记为 failed。补发卡 `b3bf0784…` 用同一工作区内的
+  `out/.board-drill.sqlite3`（gitignored）预置 pending，再用真实 SendKey 跑同一条
+  push，stdout 为 `[ok] push: sent 2 message(s), recorded 10 paper(s)`，pending
+  归零、卡片 succeeded；证明下一次运行会先补发 pending。两张演练卡均带“演练”标签，
+  可随时归档。
+
+- 2026-10-23：端到端期间观察到代理/TLS 偶发 `SSLEOFError` 与 arXiv 读超时，给
+  live GET 增加了 3 次尝试（1s/2s 退避）的传输层重试，测试在
+  `tests/test_source_http.py`；失败源仍按契约写进页脚，不阻断其它源与推送。

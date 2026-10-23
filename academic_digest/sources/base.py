@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -10,6 +11,12 @@ from typing import Any, Callable, Mapping
 from ..config import Config
 from ..errors import SourceError
 from ..models import Paper
+
+# Live GETs go through proxies and CDNs that occasionally drop a TLS
+# connection. A retry keeps one transient error from failing a whole source
+# (and with it the day's GitHub/G6 block); fixtures never reach this code.
+_HTTP_ATTEMPTS = 3
+_HTTP_BACKOFF_SECONDS = 1.0
 
 
 @dataclass
@@ -170,14 +177,29 @@ def _request(
     request_headers = {"User-Agent": user_agent}
     if headers:
         request_headers.update(headers)
-    try:
-        response = requests.get(
-            url,
-            params=params,
-            headers=request_headers,
-            timeout=timeout,
-        )
-        response.raise_for_status()
-    except Exception as exc:  # requests raises several unrelated subclasses
-        raise SourceError(f"{error}: {exc}") from exc
-    return response
+    last_error: Exception | None = None
+    for attempt in range(1, _HTTP_ATTEMPTS + 1):
+        try:
+            response = requests.get(
+                url,
+                params=params,
+                headers=request_headers,
+                timeout=timeout,
+            )
+        except requests.exceptions.RequestException as exc:
+            last_error = exc
+            if attempt == _HTTP_ATTEMPTS:
+                break
+            time.sleep(_HTTP_BACKOFF_SECONDS * (2 ** (attempt - 1)))
+            continue
+        if response.status_code >= 500 or response.status_code == 429:
+            if attempt < _HTTP_ATTEMPTS:
+                time.sleep(_HTTP_BACKOFF_SECONDS * (2 ** (attempt - 1)))
+                continue
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            raise SourceError(f"{error}: {exc}") from exc
+        return response
+    assert last_error is not None
+    raise SourceError(f"{error}: {last_error}") from last_error

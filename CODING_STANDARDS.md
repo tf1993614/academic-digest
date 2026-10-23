@@ -7,6 +7,7 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 - A source module exports `NAME`, `collect(config, fixtures_root, now)`, and `check(config, fixtures_root)`.
 - `collect` returns a `SourceResult`; one failed source never aborts the others.
 - Fixture layout is `<fixtures>/<source>/<recorded-response>`. Use `base.read_or_fetch` so `--fixtures` never touches the network.
+- Live GETs go through `base.get_text` / `base.get_bytes`, which retry connection errors, 5xx, and 429 up to three attempts with 1s/2s backoff; a 4xx fails immediately. Fixtures bypass this layer, so `tests/test_source_http.py` tests the loop directly (a documented transport exception beside `test_push_transport.py`).
 - A fixture must mirror the real response shape, including separators. bioRxiv authors, for example, are semicolon-separated `Last, First`.
 
 ## Candidate pool

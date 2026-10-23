@@ -16,6 +16,9 @@ lookback:
 # `max_items` caps that group in the candidate pool, and every non-empty group
 # keeps at least its best paper even when a broader group has the top scores.
 # Omit `max_items` to use the default of 6.
+#
+# G6 is the independent "AI 工具 / Agent Harness" block: it feeds the G6
+# section of the digest and never takes a 3 + 7 paper slot.
 topics:
   - name: G1
     label: 老化 × 多组学
@@ -42,6 +45,62 @@ topics:
       - cell-cell communication
     exclude: []
     max_items: 4
+  - name: G3
+    label: 单细胞基础模型与表征
+    terms:
+      - single-cell foundation model
+      - CellVQ
+      - vector quantization
+      - cell encoding
+      - cell type annotation
+      - protein imputation
+      - virtual cell
+      - batch effect correction
+      - interpretability
+      - explainability
+    exclude: []
+    max_items: 6
+  - name: G4
+    label: 扰动预测与基因调控
+    terms:
+      - perturbation prediction
+      - genetic perturbation
+      - gene regulatory network
+      - GRN
+      - master regulator
+      - zero-shot
+    exclude: []
+    max_items: 6
+  - name: G5
+    label: LLM / 图 / 多模态
+    terms:
+      - LLM
+      - LLMs
+      - large language model
+      - multimodal foundation model
+      - multimodal learning
+      - knowledge graph
+      - graph knowledge network
+      - retrieval-augmented
+      - reasoning
+      - GNN
+      - ESM-2
+      - GraphRAG
+      - Graph-Native
+    exclude: []
+    max_items: 6
+  - name: G6
+    label: AI 工具 / Agent Harness
+    terms:
+      - Claude Code
+      - Codex
+      - DeepSeek Harness
+      - DSH harness
+      - DSH
+      - agent harness
+      - coding agent
+    exclude: []
+    max_items: 2
 
 sources:
   pubmed: true
@@ -53,9 +112,9 @@ sources:
   biorxiv: false
   medrxiv: false
   # GitHub discovery needs a token in the environment named by
-  # `github.token_env` below. It is off in this demo because the demo topics
-  # only define G1/G2 (the G6 block needs an AI-tool group).
-  github: false
+  # `github.token_env` below. Turn it off only if you do not want the GitHub
+  # and AI-tool blocks in the digest.
+  github: true
 
 # arXiv RSS feeds to read. One request per category, three seconds apart.
 arxiv:
@@ -74,49 +133,42 @@ fulltext:
   unpaywall:
     email: ""
 
-# GitHub repository discovery. Omitting this block already uses the documented
-# defaults: the 22 discovery queries grouped by topic plus the 12-query Claude
-# Code / Codex / DSH list, 7-day windows with 5/30-star floors, and caps of
-# 1 new / 2 active / 2 G6 repos. Uncomment to tune any of them. `g6_topic` and
-# `g6_queries` need an AI-tool topic (such as G6) in `topics`; without one the G6
-# block is skipped.
-# github:
-#   token_env: GITHUB_TOKEN
-#   # Your GitHub login. Set it to track the releases of the repositories you
-#   # have starred; leave it empty to skip the starred-release section.
-#   user: tf1993614
-#   # Official G6 repositories whose releases feed the AI-tool block. A repo
-#   # that is also starred is read once and appears only here. Without a G6
-#   # topic this defaults to an empty list.
-#   official:
-#     - anthropics/claude-code
-#     - openai/codex
-#     - deepseek-ai/deepseek-harness
-#   # Release window (inclusive) and how many starred releases to show per day.
-#   releases:
-#     days: 7
-#     max_items: 2
-#   g6_topic: G6
-#   new:
-#     days: 7
-#     min_stars: 5
-#     max_items: 1
-#   active:
-#     days: 7
-#     min_stars: 30
-#     max_items: 2
-#   g6:
-#     max_items: 2
-#   readme_limit: 20
-#   queries:
-#     G1:
-#       - topic:aging
-#     G2:
-#       - topic:single-cell
-#       - '"spatial transcriptomics" in:name,description,readme'
-#   g6_queries:
-#     - topic:claude-code
-#     - '"deepseek harness" in:name,description,readme'
+# GitHub repository discovery. The 22 G1-G5 discovery queries and the 12
+# Claude Code / Codex / DSH queries are the defaults; omit `queries` and
+# `g6_queries` to use them. Set `user` to your GitHub login to track the
+# releases of the repositories you have starred. The official G6 repositories
+# feed the AI-tool block; a repository that is also starred is read once and
+# appears only there.
+github:
+  token_env: GITHUB_TOKEN
+  user: tf1993614
+  official:
+    - anthropics/claude-code
+    - openai/codex
+    - deepseek-ai/deepseek-harness
+  releases:
+    days: 7
+    max_items: 2
+  g6_topic: G6
+  new:
+    days: 7
+    min_stars: 5
+    max_items: 1
+  active:
+    days: 7
+    min_stars: 30
+    max_items: 2
+  g6:
+    max_items: 2
+  readme_limit: 20
+  # Override a group's server-side queries only when the defaults do not fit.
+  # queries:
+  #   G2:
+  #     - topic:single-cell
+  #     - '"spatial transcriptomics" in:name,description,readme'
+  # g6_queries:
+  #   - topic:claude-code
+  #   - '"deepseek harness" in:name,description,readme'
 
 # Candidate pool cap; it must be at least the number of topics so every
 # non-empty group can keep a paper. A short pool is never padded.
@@ -131,8 +183,8 @@ pool:
 # `max_messages` messages of at most `max_bytes` UTF-8 bytes. Failed sends are
 # retried `retries` times with exponential backoff and then stored in `pending`,
 # which the next live run retries once. Pending digests whose `created_at` is
-# more than `pending_days` calendar days old are dropped. `send_empty: true` sends a short
-# notice on a quiet day; set it to false to stay silent.
+# more than `pending_days` calendar days old are dropped. `send_empty: true`
+# sends a short notice on a quiet day; set it to false to stay silent.
 # push:
 #   sendkey_env: SERVERCHAN_SENDKEY
 #   channel: serverchan

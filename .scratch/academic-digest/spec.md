@@ -70,7 +70,7 @@ Status: ready-for-agent
 - **推送层**：`push` CLI，负责校验 selection、排版、分条、Server酱 发送、状态记账与 pending 重试。
 - **自检层**：`doctor` CLI，负责网络、密钥、通道、配置检查；支持 fixture 模式。
 - **状态层**：SQLite，记录 papers、pushes、runs 三张表；pushes 以 `(item_id, topic, channel, digest_date)` 唯一。
-- **调度层**：任务看板一张卡，cron `0 8 * * *`，`Asia/Shanghai`；不启用验收裁判，完成与否由 `push` 退出码与 runs 记录判断。
+- **调度层**：任务看板一张卡，cron `0 8 * * *`，`Asia/Shanghai`；开启 `goalRun` 做完成门，关闭验收裁判；完成与否由 `push` 退出码、`update_goal(complete)` 与 runs 记录判断。
 
 ### 配置
 
@@ -136,7 +136,7 @@ Status: ready-for-agent
 ### 任务看板与 skill
 
 - 任务卡固定工作区为本仓库、权限 `workspace-write`；Prompt 明确“加载 academic-digest skill，运行 collect → 写日报 → push；只有 push 退出 0 才视为完成”。
-- 看板不启用验收裁判；`goalRun` 默认关闭。若用户开启 `/goal`，卡片勾选跳过验收，避免每天 6 次裁判调用。
+- 看板不启用验收裁判；`goalRun` 开启，成功时调用 `update_goal(complete)`，发送失败时看板记为失败；`skipVerification: true` 避免每天 6–12 次裁判调用。
 - skill 的 setup 流程：访谈关键词/通道 → 写配置 → doctor → dry-run → 测试推送 → 创建任务卡与 cron。
 - Host 必须在线；错过触发不补跑，采集按 `last_success` 回看 2–7 天。
 - 首次运行前需要用户提供 Server酱 SendKey、GitHub token、GitHub 用户名 `tf1993614`；密钥只存本地 secrets 文件（600 权限，gitignore），不进入 Prompt、日志、日报。

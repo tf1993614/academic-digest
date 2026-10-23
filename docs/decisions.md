@@ -157,3 +157,27 @@ stderr、状态库或日报。正文按顶层 `## ` 区块拆分（默认超过 
 状态 `failed`。`runs` 增加 `selected_count` /
 `pushed_count` / `pending_count` 三列（Schema v3）；真实连通性与测试推送留给
 Issue 10 的 setup 流程。
+
+## Amendment 2026-10-22（Issue 10）
+
+端到端定案：每日流程做成项目级 skill（`.dsh/skills/academic-digest/`），由看板一张卡
+在 `0 8 * * *` / `Asia/Shanghai` 触发，固定三步：`collect` → 模型按
+`references/digest.md` 写 `out/selection.json` + `out/digest.md` 并跑 `digest check`
+→ `push`。只有 `push` 退出 0 且 stdout 出现 `[ok] push:` 才算完成；任何一步失败都
+不宣告完成。skill 通过 `git -C` 从自身 base directory 解析仓库根，所以项目级
+`.dsh/skills` 与用户级 `~/.dsh/skills/academic-digest` 软链都能用。
+
+任务卡固定本仓库工作区、`workspace-write` 权限，Prompt 显式写“加载 academic-digest
+skill”与三步命令；不启用验收裁判（`skipVerification: true`）。卡片勾选
+`goalRun: true`：成功时执行会话调用 `update_goal(complete)`，发送失败时不调用，
+看板就把这次执行记为失败；验收裁判仍关闭，不会每天多出 6–12 次裁判请求。若部署
+没有打开全局 `/goal`（本机当前如此），`goalRun` 会被忽略，卡片按普通回合结算，
+发送失败改用 `record-external-outcome` 记录。采集联网通常 1–4 分钟，某个源不可达
+时更久；执行会话应等待后台任务，不重跑。
+
+setup 顺序固定为 secrets → `config.yaml`（从 `config.example.yaml` 复制，六组
+G1–G6 + GitHub 默认开，已有配置不覆盖）→ 联网 `doctor` → fixture `push --dry-run`
+（不发送，但要先加载 secrets 过 `github.token` 配置校验）→ fixture 真发一条测试消息
+→ 创建卡片。真实发送失败会重试 2 次后写 `pending` 并退出 1；下一次 live 运行先补发
+pending。Host 必须在线；错过的 cron 不补跑，采集的 lookback 覆盖最近 2–7 天。
+`config.yaml`、`secrets.env`、`out/`、`state/` 仍只在本地，不提交。
