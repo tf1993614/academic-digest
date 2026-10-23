@@ -4,7 +4,7 @@
 #   (no --base)  working tree against HEAD, untracked files included
 #   --base REF   committed range REF...HEAD; requires a clean working tree
 #   --include-generated  keep the generated client copies in the content diff
-#   --verify     working-tree mode only: fail if the tree moved since the freeze
+#   --verify     fail if HEAD, the --base ref, or the working tree moved since the freeze
 # Default output: out/review/current.diff (out/ is gitignored).
 set -euo pipefail
 
@@ -158,19 +158,21 @@ freeze() {
 }
 
 if [[ "$verify" == true ]]; then
-  if [[ "$committed_base" == true ]]; then
-    echo "error: --verify only supports working-tree mode" >&2
-    exit 1
-  fi
   if [[ ! -f "$out.treehash" ]]; then
     echo "error: no frozen tree at $out.treehash; freeze first" >&2
+    exit 1
+  fi
+  frozen_base="$(cat "$out.base" 2>/dev/null || true)"
+  frozen_head="$(cat "$out.head" 2>/dev/null || true)"
+  if [[ "$frozen_base" != "$base" || "$frozen_head" != "$head" ]]; then
+    echo "[fail] review-patch: HEAD moved since the freeze (base $frozen_base -> $base, head $frozen_head -> $head); re-freeze before dispatch" >&2
     exit 1
   fi
   verify_dir="$(mktemp -d)"
   trap 'rm -rf "$verify_dir"' EXIT
   freeze "$verify_dir/current.diff" >/dev/null
   if [[ "$(cat "$out.treehash")" == "$(cat "$verify_dir/current.diff.treehash")" ]]; then
-    echo "[ok] review-patch: working tree matches the frozen patch"
+    echo "[ok] review-patch: frozen patch still matches"
     exit 0
   fi
   echo "[fail] review-patch: working tree changed since the freeze; re-freeze before dispatch" >&2
