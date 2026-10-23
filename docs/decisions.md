@@ -182,3 +182,11 @@ G1–G6 + GitHub 默认开，已有配置不覆盖）→ 联网 `doctor` → fix
 pending。Host 必须在线；错过的 cron 不补跑，采集按各源固定 lookback（默认 2–4 天）
 补窗；`last_success` 动态补窗仍是已知缺口，留待后续 issue。
 `config.yaml`、`secrets.env`、`out/`、`state/` 仍只在本地，不提交。
+
+## Amendment 2026-10-23（Issue 11）
+
+期刊白名单机制已实现，但名单仍由用户提供，`config.yaml` 保持空（不限期刊）。
+`journal_filter` 非空时只改 PubMed / Europe PMC 查询（`[Journal]` / `JOURNAL:`），
+命中名单的候选排序 +2 并带 `journal_match: true`；arXiv、Research Square 与 GitHub
+的采集不变，空名单不影响 3 + 7 入选。名单可参考 Nature Index 期刊列表
+（<https://www.nature.com/nature-index/faq>），但不抓期刊官网。

@@ -285,7 +285,15 @@ def _search_ids(payload_text: str) -> list[str]:
 
 
 def build_query(config: Config) -> str:
-    return " OR ".join(f'"{term}"[tiab]' for term in search_terms(config))
+    term_clause = " OR ".join(f'"{term}"[tiab]' for term in search_terms(config))
+    if not config.journal_filter:
+        return term_clause
+    # Use full journal titles: the same names must match the candidate's
+    # ``venue`` to earn the ranking bonus in ``ranking``.
+    journals = " OR ".join(
+        f'"{journal}"[Journal]' for journal in config.journal_filter
+    )
+    return f"({term_clause}) AND ({journals})"
 
 
 def _text(node: ET.Element | None) -> str:

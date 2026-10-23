@@ -368,6 +368,7 @@ def _doctor(args: argparse.Namespace) -> int:
             f"topic {topic.name} ({topic.label}): {len(topic.terms)} terms, "
             f"max {topic.max_items}"
         )
+    ok(f"journal filter: {_journal_filter_summary(config.journal_filter)}")
 
     for name in config.enabled_sources:
         try:
@@ -389,6 +390,13 @@ def _doctor(args: argparse.Namespace) -> int:
         return EXIT_FAILURE
     print("doctor: all checks passed")
     return EXIT_OK
+
+
+def _journal_filter_summary(journal_filter: tuple[str, ...]) -> str:
+    if not journal_filter:
+        return "unrestricted (no journal_filter; all journals allowed)"
+    noun = "journal" if len(journal_filter) == 1 else "journals"
+    return f"{len(journal_filter)} {noun} ({', '.join(journal_filter)})"
 
 
 def _check_writable_path(

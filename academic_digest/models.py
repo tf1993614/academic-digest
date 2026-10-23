@@ -26,8 +26,18 @@ def normalize_arxiv_id(value: str) -> str:
     return _ARXIV_VERSION.sub("", value.strip())
 
 
+def collapse_whitespace(value: str) -> str:
+    return _WHITESPACE.sub(" ", value).strip()
+
+
 def normalize_title(value: str) -> str:
-    return _WHITESPACE.sub(" ", value).strip().casefold()
+    return collapse_whitespace(value).casefold()
+
+
+def normalize_journal(value: str) -> str:
+    """The comparison form for a journal title: collapsed whitespace, casefolded."""
+
+    return collapse_whitespace(value).casefold()
 
 
 def paper_id(
@@ -76,6 +86,9 @@ class Paper:
     relevance: int = 0
     score: int = 0
     abstract_missing: bool = False
+    # True when a configured journal whitelist matches ``venue``; the ranking
+    # adds a fixed bonus to ``score`` for such a paper.
+    journal_match: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """The candidate-pool entry. Keep the key order stable for humans."""
@@ -98,6 +111,7 @@ class Paper:
             "relevance": self.relevance,
             "score": self.score,
             "is_preprint": self.is_preprint,
+            "journal_match": self.journal_match,
             "oa_url": self.oa_url,
         }
 

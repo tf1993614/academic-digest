@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import yaml
 
 from .errors import ConfigError
+from .models import collapse_whitespace, normalize_journal
 
 DEFAULT_MAX_ITEMS = 30
 DEFAULT_STATE_DB = "state/academic-digest.sqlite3"
@@ -123,6 +124,7 @@ _TOP_LEVEL_KEYS = {
     "pool",
     "paths",
     "arxiv",
+    "journal_filter",
     "github",
     "fulltext",
     "push",
@@ -256,6 +258,8 @@ class Config:
     topics: tuple[Topic, ...]
     sources: Mapping[str, bool]
     arxiv_categories: tuple[str, ...]
+    # Empty means every journal is allowed (the default, unrestricted).
+    journal_filter: tuple[str, ...]
     github: GithubConfig
     fulltext: FullTextConfig
     push: PushConfig
@@ -298,6 +302,7 @@ def load_config(path: Path) -> Config:
     lookback = _parse_lookback(raw.get("lookback"), sources)
     arxiv_categories = _parse_arxiv(raw.get("arxiv"), sources)
     topics = _parse_topics(raw.get("topics"))
+    journal_filter = _parse_journal_filter(raw.get("journal_filter"))
     github = _parse_github(raw.get("github"), topics)
     fulltext = _parse_fulltext(raw.get("fulltext"))
     push = _parse_push(raw.get("push"))
@@ -313,6 +318,7 @@ def load_config(path: Path) -> Config:
         topics=topics,
         sources=sources,
         arxiv_categories=arxiv_categories,
+        journal_filter=journal_filter,
         github=github,
         fulltext=fulltext,
         push=push,
@@ -378,6 +384,35 @@ def _parse_arxiv(value: Any, sources: Mapping[str, bool]) -> tuple[str, ...]:
         mapping.get("categories"), "arxiv.categories", allow_empty=False
     )
     return tuple(dict.fromkeys(categories))
+
+
+def _parse_journal_filter(value: Any) -> tuple[str, ...]:
+    """The optional journal whitelist; an empty list means every journal.
+
+    Names are full journal titles as the sources report them. Internal
+    whitespace is collapsed and duplicates are removed case-insensitively so
+    the same journal spelled twice does not produce a duplicate query clause.
+    Double quotes are rejected because both the PubMed ``[Journal]`` and the
+    Europe PMC ``JOURNAL:`` clauses wrap each name in quotes.
+    """
+
+    if value is None:
+        return ()
+    names = _string_list(value, "journal_filter", allow_empty=True)
+    result: list[str] = []
+    seen: set[str] = set()
+    for index, name in enumerate(names):
+        name = collapse_whitespace(name)
+        if '"' in name:
+            raise ConfigError(
+                f"journal_filter[{index}]", "must not contain double quotes"
+            )
+        key = normalize_journal(name)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(name)
+    return tuple(result)
 
 
 def _parse_github(value: Any, topics: tuple[Topic, ...]) -> GithubConfig:

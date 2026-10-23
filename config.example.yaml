@@ -1,5 +1,17 @@
 timezone: Asia/Shanghai
 
+# Optional journal whitelist. An empty list (or omitting the key) means every
+# journal is allowed. When set, PubMed appends `"<name>"[Journal]` and Europe
+# PMC appends `JOURNAL:"<name>"` to their queries, and a candidate whose venue
+# matches one of the names (case-insensitive, whitespace-normalized) gets +2 to
+# its ranking score. Names are full journal titles as the sources report them;
+# the Nature Index journal list is a convenient reference:
+# https://www.nature.com/nature-index/faq
+# PubMed may need special characters such as parentheses or `&` removed from a
+# title; adjust that one entry if a journal returns no hits.
+# The list is intentionally user-supplied: do not scrape journal websites.
+journal_filter: []
+
 # How far back each source looks when a scheduled run is late.
 # arXiv must look back at least 4 days: Friday-Monday submissions are
 # announced as one batch, and a shorter window loses the weekend.

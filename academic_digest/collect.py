@@ -64,6 +64,7 @@ def collect(
         config.topics,
         pool_max=config.pool_max_items,
         today=config.local_date(now),
+        journal_filter=config.journal_filter,
     )
     return CollectResult(
         now=now, papers=papers, sources=results, github=discovery

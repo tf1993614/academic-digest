@@ -87,7 +87,7 @@ Status: ready-for-agent
 - arXiv：每日新增用 RSS 的 `announce_type=new`（跳过 replace）；关键词/历史用 API，lookback 至少 4 天，遵守 1 请求/3 秒。
 - Research Square：读 RSS，使用 `<abstract>`、`<authors>`、`<doi>`；不爬官方 API。
 - bioRxiv/medRxiv：默认关闭；开启时按日期全量拉取（30 条/页），本地过滤。
-- 期刊白名单：走 PubMed/Europe PMC 的 `JOURNAL` 过滤，不抓期刊官网。
+- 期刊白名单：走 PubMed/Europe PMC 的 `JOURNAL` 过滤，不抓期刊官网；候选池按 `venue` 命中名单加分，因此其他来源中被合并为期刊版本的论文同样适用。
 - GitHub：22 条发现查询 + G6 12 条，分“新库”（`created:>7天`、stars≥5）与“活跃库”（`pushed:>7天`、stars≥30）两遍；`sort=updated`，只取第一页。
 - GitHub 官方关注库：`anthropics/claude-code`、`openai/codex`、`deepseek-ai/deepseek-harness`；关注库 release 看最近 7 天。
 - GitHub 本地打分：对 name/description/topics/README 命中 G1–G6 terms；README 走 raw 域名，不占 API 配额。
@@ -96,13 +96,13 @@ Status: ready-for-agent
 ### 归一化、去重与排序
 
 - 去重键优先级：DOI（小写、去前缀）> PMID > arXiv ID（去版本号）> `normTitle+year` 哈希。
-- 候选池按规则分排序：标题命中权重高于摘要；期刊白名单加分；新鲜度加分；GitHub 用 `log10(stars)` 与最近 push 加分。
+- 候选池按规则分排序：标题命中权重高于摘要；期刊白名单按 `venue` 命中 +2；新鲜度加分；GitHub 用 `log10(stars)` 与最近 push 加分。
 - 候选池最多 30 条，按组保留足够样本：每组最多 6 条，且非空组至少保留其最高分的 1 条。
 - 已推送条目不再进入候选池；`papers` 记录首次/最近出现，`pushes` 记录发送结果。
 
 ### 候选池与模型契约
 
-- `collect` 输出 JSON：每条含 id、group、source、title、authors、venue、date、doi、url、abstract、tags、score、is_preprint、oa_url（可空）。
+- `collect` 输出 JSON：每条含 id、group、source、title、authors、venue、date、doi、url、abstract、tags、score、is_preprint、journal_match、oa_url（可空）。`journal_match` 仅在配置了非空 `journal_filter` 且 `venue` 命中时为 `true`。
 - 模型读取候选池，选出 3 篇今日必读 + 7 篇其它速览，必须满足：G2 ≤ 4；G1/G3/G4/G5 只要有候选就至少 1 篇；不足 10 篇时不凑数。
 - 模型同时输出 selection 记录：每条的被选 id、组、一句入选理由、全文状态（OA 全文/仅摘要）、局限性来源（作者/模型判断）。
 - 模型只使用候选池中的摘要或已抓取全文，不得编造数字、样本量、期刊影响因子。
@@ -180,3 +180,13 @@ Status: ready-for-agent
 - 实现前仍缺：Server酱 SendKey、GitHub token。SendKey 与 token 只放本地 secrets 文件，不要贴进对话。
 - 首轮验收建议先跑 `doctor` + `collect --fixtures` + 一次真实 dry-run，再接任务卡定时。
 - 运行两周后人工看 10 期，再决定是否加 Cursor/Windsurf/Aider、是否加模型名（scGPT/Geneformer 等）、是否调整 G2 配额。
+
+## Amendment 2026-10-23（Issue 11）
+
+- 测试 seam 增加一个窄例外：`tests/test_journal_filter.py` 直接断言 PubMed 的
+  `[Journal]` 与 Europe PMC 的 `JOURNAL:` 查询串，因为 fixture 回放不会构造 live
+  查询；其余行为仍通过 CLI 子进程测试。`journal_match` 作为候选池新键记录在
+  “候选池与模型契约”中；空名单时它为 `false`，`score` 不变。
+- 白名单名称按来源报告的 `venue` 做大小写不敏感的完整匹配；PubMed 的 `[Journal]`
+  对含括号、方括号、`&` 等特殊字符的期刊名可能需要去掉这些字符后再检索，因此
+  配置里的名称应与来源实际报告的标题一致，必要时按 PubMed 的帮助调整。

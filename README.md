@@ -2,14 +2,14 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-当前实现到 **Issue 10：Skill + 任务看板卡 + 端到端**，并保留 Issue 09 的 Server酱
-分条推送、Issue 08 的日报契约与 Issue 06/07 的 GitHub release、OA 全文能力（在
-Issue 01–05 的采集、去重、排序与发现骨架上，加入 `3 + 7` 日报的离线校验、分条推送、
-失败重试、pending 补发、项目级 skill 与每天 08:00 的看板卡）。后续按
-`.scratch/academic-digest/issues/` 继续补齐。
+当前实现到 **Issue 11：期刊白名单**，并保留 Issue 10 的 skill + 任务看板卡、Issue 09
+的 Server酱分条推送、Issue 08 的日报契约与 Issue 06/07 的 GitHub release、OA 全文能力
+（在 Issue 01–05 的采集、去重、排序与发现骨架上，加入 `3 + 7` 日报的离线校验、分条
+推送、失败重试、pending 补发、项目级 skill、每天 08:00 的看板卡与可选的期刊白名单）。
+后续按 `.scratch/academic-digest/issues/` 继续补齐。
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
-- 最近实现：[10-skill-taskboard.md](.scratch/academic-digest/issues/10-skill-taskboard.md)、[09-serverchan-push.md](.scratch/academic-digest/issues/09-serverchan-push.md)、[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
+- 最近实现：[11-journal-whitelist.md](.scratch/academic-digest/issues/11-journal-whitelist.md)、[10-skill-taskboard.md](.scratch/academic-digest/issues/10-skill-taskboard.md)、[09-serverchan-push.md](.scratch/academic-digest/issues/09-serverchan-push.md)、[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
 - 每日流程与 setup：[.dsh/skills/academic-digest/SKILL.md](.dsh/skills/academic-digest/SKILL.md)
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
@@ -253,6 +253,7 @@ GitHub 时还有一个 `github` 区块。
   "relevance": 7,
   "score": 7,
   "is_preprint": false,
+  "journal_match": false,
   "oa_url": null
 }
 ```
@@ -262,13 +263,15 @@ GitHub 时还有一个 `github` 区块。
 
 ### 排序与分组配额
 
-`score` 是规则分，由两部分相加；`relevance` 单独保留相关性部分：
+`score` 是规则分，由三部分相加；`relevance` 单独保留相关性部分：
 
 - **相关性**（`relevance`）：论文归入加权命中分最高的组；组内每个命中词，
   标题命中 +3、摘要命中 +1。
 - **新鲜度**：发布日等于运行日（配置时区）当天 +2、前一天 +1，更早、更晚或
   日期缺失 +0。日期只精确到年份（例如 Europe PMC 的 `pubYear`）时按缺失处理：
   不加新鲜度分，并在同分时排在标了具体日期的论文之后。
+- **期刊白名单**：`journal_filter` 非空且论文 `venue` 命中名单时 +2，并把
+  `journal_match` 置为 `true`；名单为空（默认）时所有论文都不加分。
 
 候选池按 `score` 降序、`date` 降序、`id` 升序排列。同分同日时用 `id` 做稳定
 tie-break，因此固定 fixture 与 `--now` 每次得到完全相同的顺序。
@@ -283,8 +286,25 @@ tie-break，因此固定 fixture 与 `--now` 每次得到完全相同的顺序�
 `tags` 只列出实际命中的词（再追加 `预印本` / `无摘要` 标记），`group` 就是这些
 词所属的组，所以每条候选都能解释自己为什么被选中。
 
-期刊白名单加分尚未启用：当前配置没有 `journal_filter`，默认不限期刊；等给出名单
-后再接入 PubMed/Europe PMC 的 `JOURNAL` 过滤并按白名单加分，见
+### 期刊白名单
+
+`journal_filter` 是可选的期刊白名单，默认 `[]`（或省略）= 不限期刊：
+
+- 非空时只改 **PubMed** 与 **Europe PMC** 的查询：PubMed 追加
+  `("Nature Aging"[Journal] OR "Cell"[Journal])`，Europe PMC 追加
+  `(JOURNAL:"Nature Aging" OR JOURNAL:"Cell")`；arXiv、Research Square、
+  bioRxiv/medRxiv 与 GitHub 的查询不变，也不抓期刊官网。
+- 名称按来源报告的完整期刊名匹配，大小写不敏感、内部空白折叠；命中时候选池
+  的 `journal_match` 为 `true`，`score` 额外 +2。
+- 名单里的名称应与来源实际报告的标题一致。PubMed 的 `[Journal]` 对含括号、方括号、
+  `&` 等特殊字符的刊名可能要求去掉这些字符后再检索；若某一条没有命中，按 PubMed
+  帮助调整该条即可，不影响其它条目。
+- 名单为空时查询语义与分数保持原样，不影响 3 + 7 的入选逻辑。
+- 名单由用户提供，本仓库不内置；[Nature Index 的期刊列表](https://www.nature.com/nature-index/faq)
+  可作为参考，把其中的期刊全名逐条写进 `journal_filter`。
+
+`doctor` 会打印 `journal filter: …`，空名单显示 `unrestricted`，便于确认当前是否
+启用了白名单。实现与验收见
 [11-journal-whitelist.md](.scratch/academic-digest/issues/11-journal-whitelist.md)。
 
 ### GitHub 发现
@@ -651,7 +671,8 @@ SendKey 从 `push.sendkey_env`（默认 `SERVERCHAN_SENDKEY`）指向的环境�
 doctor --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db PATH]
 ```
 
-检查配置字段、时区、每个 topic、数据源、状态库与候选池路径：
+检查配置字段、时区、每个 topic、期刊白名单、数据源、状态库与候选池路径。
+`journal filter:` 行在空名单时显示 `unrestricted`，非空时列出启用的期刊名。
 
 - `--fixtures DIR`：解析 `DIR/pubmed/esearch.xml` + `DIR/pubmed/efetch.xml`、
   `DIR/europepmc/search.json`、`DIR/arxiv/rss/<category>.xml`、
@@ -692,6 +713,10 @@ G1–G6、PubMed/Europe PMC/arXiv/Research Square/GitHub 打开，GitHub 用户�
 - `topics`：非空列表；每项含 `name`、`label`、`terms`、可选 `exclude`、
   `max_items`。`name` 唯一，`terms` 非空。`max_items` 是该组在候选池里的席位
   上限（例如 G2 为 4）；每个有候选的组仍至少保留其最高分的一条。
+- `journal_filter`：可选的期刊白名单，默认 `[]`（不限期刊）。非空时 PubMed 用
+  `"期刊名"[Journal]`、Europe PMC 用 `JOURNAL:"期刊名"` 过滤查询，命中名单的
+  候选在排序时 +2；期刊名必须是来源报告的完整名称（大小写不敏感）。名单由用户
+  提供，可参考 [Nature Index 期刊列表](https://www.nature.com/nature-index/faq)。
 - `sources`：数据源开关；支持 `pubmed`、`europepmc`、`arxiv`、
   `researchsquare`、`biorxiv`、`medrxiv`、`github`。必须显式写出 `sources.pubmed`
   （可设 true/false），且至少要启用一个源；未写出的源视为关闭，

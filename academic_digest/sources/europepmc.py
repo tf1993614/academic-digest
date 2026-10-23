@@ -255,7 +255,14 @@ def _fetch_live(config: Config, now: datetime) -> str:
 def build_query(config: Config, now: datetime) -> str:
     start, end = lookback_window(config, "europepmc", now)
     term_clause = " OR ".join(f'"{term}"' for term in search_terms(config))
-    return (
-        f"({term_clause}) AND (FIRST_PDATE:[{start.isoformat()} TO {end.isoformat()}]) "
-        "AND (SRC:MED OR SRC:PPR)"
-    )
+    clauses = [
+        f"({term_clause})",
+        f"(FIRST_PDATE:[{start.isoformat()} TO {end.isoformat()}])",
+        "(SRC:MED OR SRC:PPR)",
+    ]
+    if config.journal_filter:
+        journals = " OR ".join(
+            f'JOURNAL:"{journal}"' for journal in config.journal_filter
+        )
+        clauses.append(f"({journals})")
+    return " AND ".join(clauses)

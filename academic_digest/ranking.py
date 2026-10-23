@@ -4,7 +4,8 @@ The ranking is a pure function of its inputs, so a fixed fixture and clock
 always produce the same pool:
 
 1. rule score, descending — keyword relevance (a title hit weighs 3, an
-   abstract hit 1) plus the freshness bonus (published today +2, yesterday +1);
+   abstract hit 1) plus the freshness bonus (published today +2, yesterday +1)
+   plus the journal whitelist bonus (a matching venue adds 2);
 2. publication date, descending — the newer paper wins an equal score;
 3. candidate id, ascending — the stable tie-break for otherwise identical papers.
 
@@ -21,10 +22,11 @@ from dataclasses import replace
 from datetime import date
 
 from .config import Topic
-from .models import Paper
+from .models import Paper, normalize_journal
 
 FRESHNESS_TODAY = 2
 FRESHNESS_YESTERDAY = 1
+JOURNAL_BONUS = 2
 
 
 def select_candidates(
@@ -33,15 +35,14 @@ def select_candidates(
     *,
     pool_max: int,
     today: date,
+    journal_filter: tuple[str, ...],
 ) -> list[Paper]:
     """Return at most ``pool_max`` papers in rank order, balanced by group."""
 
     quotas = {topic.name: topic.max_items for topic in topics}
+    whitelist = frozenset(normalize_journal(name) for name in journal_filter)
     ranked = sorted(
-        (
-            replace(paper, score=paper.relevance + _freshness_bonus(paper.date, today))
-            for paper in papers
-        ),
+        (_score_paper(paper, today, whitelist) for paper in papers),
         key=_rank_key,
     )
 
@@ -74,6 +75,26 @@ def select_candidates(
         take(paper)
 
     return sorted(chosen, key=_rank_key)
+
+
+def _score_paper(paper: Paper, today: date, whitelist: frozenset[str]) -> Paper:
+    """Set ``score`` and the whitelist marker before ranking.
+
+    The whitelist matches the full journal title as reported by the source,
+    case-insensitively and with internal whitespace collapsed. An empty
+    whitelist leaves every paper's score and marker untouched.
+    """
+
+    match = bool(whitelist) and normalize_journal(paper.venue) in whitelist
+    return replace(
+        paper,
+        score=(
+            paper.relevance
+            + _freshness_bonus(paper.date, today)
+            + (JOURNAL_BONUS if match else 0)
+        ),
+        journal_match=match,
+    )
 
 
 def _freshness_bonus(published: str, today: date) -> int:

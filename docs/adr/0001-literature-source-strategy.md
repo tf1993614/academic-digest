@@ -106,3 +106,14 @@ push。卡片固定本仓库工作区与 `workspace-write`，`skipVerification: 
 `record-external-outcome`。错过的 cron 仍不补跑，当前按各源固定 lookback（默认 2–4
 天）补窗；`last_success` 动态补窗是已知缺口，留待后续 issue。本 amendment 不改变
 “PubMed 主源、Europe PMC 补充”的判断。
+
+## Amendment 2026-10-23（Issue 11）
+
+期刊白名单不改“PubMed 主源、Europe PMC 补充”的判断，只作用于这两个源的查询与候选池
+排序。`journal_filter` 是可选的完整期刊名列表，默认空 = 不限期刊；非空时 PubMed 追加
+`"<name>"[Journal]`、Europe PMC 追加 `JOURNAL:"<name>"`，仍不抓期刊官网。名单名称与
+来源报告的 `venue` 做大小写不敏感的完整匹配（内部空白折叠），命中时候选 `score` 加 2，
+并在候选池里带 `journal_match: true`；arXiv、Research Square、bioRxiv/medRxiv 与 GitHub
+的查询不变，但加分按论文 `venue` 是否命中名单生效，因此 arXiv 记录若 `journal_ref`
+命中名单也会加分。空名单时行为与 Issue 04 完全一致。名单由用户提供，本仓库
+不内置，Nature Index 的期刊列表（<https://www.nature.com/nature-index/faq>）可作参考。

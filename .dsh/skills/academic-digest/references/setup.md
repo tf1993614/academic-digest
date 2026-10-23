@@ -33,14 +33,17 @@ test -f config.yaml || cp config.example.yaml config.yaml
 ```
 
 逐项问用户，并把回答写进 `config.yaml`：时区；保留/删减哪些关键词组；每组配额；
-启用哪些文献源与 GitHub；GitHub 用户名与关注库；Unpaywall 邮箱；推送通道（V1 只有
-Server酱，没有其它选项）；定时时间。用户不改就按下面的默认值。访谈项与默认值：
+期刊白名单；启用哪些文献源与 GitHub；GitHub 用户名与关注库；Unpaywall 邮箱；推送
+通道（V1 只有 Server酱，没有其它选项）；定时时间。用户不改就按下面的默认值。白名单
+默认留空，**不要替用户猜名单**；只有用户明确给出期刊全名时才写入 `journal_filter`。
+访谈项与默认值：
 
 | 项 | 默认 | 说明 |
 |---|---|---|
 | 时区 | `Asia/Shanghai` | IANA 名称 |
 | 关键词组 | G1–G6 | 老化×多组学、单细胞/空间、基础模型/表征、扰动/调控、LLM/图/多模态、AI 工具/Agent Harness |
 | 每组配额 | G2 ≤ 4，G6 2，其它 6 | `topics[].max_items`，候选池席位上限 |
+| 期刊白名单 | `[]`（不限期刊） | `journal_filter`，完整期刊名；PubMed/Europe PMC 用 `JOURNAL` 过滤，命中候选排序 +2；可参考 [Nature Index 期刊列表](https://www.nature.com/nature-index/faq) |
 | 文献源 | PubMed、Europe PMC、arXiv、Research Square 开；bioRxiv/medRxiv 关 | 全量预印本源按需再开 |
 | GitHub | 开，`user: tf1993614` | 需要 token；官方库是 Claude Code / Codex / DSH |
 | GitHub 阈值 | 新库 7 天/5 星/1 条；活跃库 7 天/30 星/2 条；G6 2 条 | 见 `github.*` |
