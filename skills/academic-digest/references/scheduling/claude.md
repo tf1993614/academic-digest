@@ -6,7 +6,7 @@ Claude Code 从 `.claude/skills/` 发现 skill；本仓库已经提交了
 
 ## 先手动跑一次
 
-在仓库根执行（入口脚本目前在仓库根，见 ADR 0003 的迁移顺序）：
+在仓库根执行（skill 会解析自己的入口脚本，不需要 `pip install`）：
 
 ```bash
 claude -p "/academic-digest" \

@@ -976,14 +976,16 @@ scripts/review-patch.sh --verify  # 派 reviewer 前确认补丁/生成副本没
 
 唯一的测试 seam 是 CLI：测试用 `subprocess` 运行源 skill 里的
 `skills/academic-digest/scripts/{collect,fulltext,digest,push,doctor}.py`（不是 `-m`，
-也不注入 `PYTHONPATH`：入口脚本的 bootstrap 必须自己成立），断言退出码、stderr 与输出
-文件，不导入内部实现。所有测试离线且固定 `--now`；`digest check`、`fulltext --fixtures`
-与 `push --fixtures` / `push --dry-run` 不触碰网络。两个例外：`tests/test_push_transport.py`
-直接测试 fixture 模式到不了的分支（ServerChan 端点选择、密钥脱敏、重试/脱敏接线与
-`timeout` / `backoff_seconds` 默认值）；`tests/test_source_http.py` 直接测试源 GET 的
-重试循环（连接错误 / 5xx / 429 最多 3 次尝试、1s/2s 退避、429 至少 2s；读超时与
-其它 4xx 不重试），因为 fixture 读取根本不经过传输层。两个测试都伪造 HTTP，不联网、
-不 sleep。
+也不靠注入 `PYTHONPATH` 让导入成立：入口脚本的 bootstrap 必须自己成立；副本测试会故意
+放一个会抛错的诱饵包，断言它永远不被导入），断言退出码、stderr 与输出文件，不导入内部
+实现。所有测试离线且固定 `--now`；`digest check`、`fulltext --fixtures` 与
+`push --fixtures` / `push --dry-run` 不触碰网络。三个例外：
+`tests/test_push_transport.py` 直接测试 fixture 模式到不了的分支（ServerChan 端点选择、
+密钥脱敏、重试/脱敏接线与 `timeout` / `backoff_seconds` 默认值）；
+`tests/test_source_http.py` 直接测试源 GET 的重试循环（连接错误 / 5xx / 429 最多 3 次
+尝试、1s/2s 退避、429 至少 2s；读超时与其它 4xx 不重试），因为 fixture 读取根本不经过
+传输层；`tests/test_journal_filter.py` 直接 import `load_config` 与两个源的
+`build_query`，钉住 fixture 绕过的 live 查询串。前两个测试都伪造 HTTP，不联网、不 sleep。
 
 “已推送”状态由 `push` 写入 SQLite `pushes`；测试也可以直接写一行作为 `collect`
 的前置数据，断言仍只来自 CLI 输出。
