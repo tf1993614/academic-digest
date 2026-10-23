@@ -159,8 +159,8 @@ python3 scripts/push.py --config config.yaml \
 ```
 
 - 只有最后一步退出 0 且 stdout 出现 `[ok] push:` 才算当天完成。
-- 联网采集通常 1–4 分钟；某个源不可达时会更久，会话应等待后台任务而不是重跑。
-  部分源 `failed` 时照实写页脚，不要为了修源再跑一次 collect。
+- 联网采集通常 2–4 分钟；某个源不可达时会更久（例如 arXiv 读超时），会话应等待
+  后台任务而不是重跑。部分源 `failed` 时照实写页脚，不要为了修源再跑一次 collect。
 - 部分源失败仍发送，页脚标 `failed`；全部源失败时 `collect` 退出 1，不发送。
 - 发送失败重试 2 次后写 `pending` 并退出 1；下一次 live run 先补发 pending。看板
   执行历史记录每轮结果，`state/academic-digest.sqlite3` 的 `runs` 是审计来源。
@@ -185,8 +185,9 @@ collect --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db 
 的 `search`（`resultType=core`）、arXiv 的 RSS 与 API、Research Square 的 RSS，以及按需
 开启的 bioRxiv/medRxiv `details` API 抓取。PubMed 摘要只从 XML 解析
 （JSON 模式会静默丢掉摘要）。每个 live GET 在连接错误、5xx 或 429 时最多 3 次尝试
-（2 次重试，1s/2s 退避）；读超时与 4xx 不重试。仍失败才把该源标为 `failed`，不会
-因为一次掉线丢掉整天的 GitHub/G6 区块。`--fixtures` 直接读录制文件，不经过这个重试层。
+（2 次重试，1s/2s 退避；429 至少等 2s，避免绕过 GitHub 的 30 次/分钟节奏）；读超时
+与其它 4xx 不重试。仍失败才把该源标为 `failed`，不会因为一次掉线丢掉整天的
+GitHub/G6 区块。`--fixtures` 直接读录制文件，不经过这个重试层。
 
 启用 `sources.github` 时还会调用 GitHub Search API 抓取新库、活跃库与 G6 区块
 （AI 工具 / Agent Harness）的仓库；搜索请求串行、约 2 秒一次，带 User-Agent 与
@@ -345,10 +346,9 @@ tie-break，因此固定 fixture 与 `--now` 每次得到完全相同的顺序�
 new/active 的 `found`）。状态库不记录仓库，`sources.github` 只给 `status` 与入选
 总数；搜索失败时其余源照常产出候选。
 
-34 条查询各跑两遍 = 68 次搜索，按 2 秒间隔约 2–3 分钟。这会超过 spec 里
-“采集 30–90 秒”的目标，是有意取舍：22+12 条查询与 30 次/分钟的认证限速决定了
-请求数，整体运行仍在 2–4 分钟内。活跃库按 star 增量排序尚未实现，当前按上面的
-规则分排序。
+34 条查询各跑两遍 = 68 次搜索，按 2 秒间隔约 2–3 分钟。整体运行目标 2–4 分钟；
+某个源不可达时会超过这个目标，失败源照实写进页脚，不阻塞其它源。活跃库按 star
+增量排序尚未实现，当前按上面的规则分排序。
 
 ### GitHub release 跟踪
 
@@ -929,8 +929,9 @@ scripts/review-patch.sh   # -> out/review/current.diff 等
 `push --fixtures` / `push --dry-run` 不触碰网络。两个例外：`tests/test_push_transport.py`
 直接测试 fixture 模式到不了的分支（ServerChan 端点选择、密钥脱敏、重试/脱敏接线与
 `timeout` / `backoff_seconds` 默认值）；`tests/test_source_http.py` 直接测试源 GET 的
-重试循环（连接错误 / 5xx / 429 最多 3 次尝试、1s/2s 退避；读超时与 4xx 不重试），
-因为 fixture 读取根本不经过传输层。两个测试都伪造 HTTP，不联网、不 sleep。
+重试循环（连接错误 / 5xx / 429 最多 3 次尝试、1s/2s 退避、429 至少 2s；读超时与
+其它 4xx 不重试），因为 fixture 读取根本不经过传输层。两个测试都伪造 HTTP，不联网、
+不 sleep。
 
 “已推送”状态由 `push` 写入 SQLite `pushes`；测试也可以直接写一行作为 `collect`
 的前置数据，断言仍只来自 CLI 输出。

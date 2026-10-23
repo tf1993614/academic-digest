@@ -94,10 +94,10 @@ SQLite `pending`；下次 live 运行先丢弃 `created_at` 起超过 `pending_d
 ## Amendment 2026-10-23（Issue 10）
 
 端到端期间代理偶发 TLS EOF，给所有 live GET 的共享传输层加了有限重试：连接错误、
-5xx、429 最多 3 次尝试（2 次重试，1s/2s 退避）；读超时与 4xx 立即失败，避免把一个
-慢主机拖成十分钟采集。fixture 读取不经过该层，重试循环由
-`tests/test_source_http.py` 直接测试。源选择、查询语法与 fixture 布局不变；部分源
-失败仍只写页脚，不阻断其它源和推送。
+5xx、429 最多 3 次尝试（2 次重试，1s/2s 退避；429 至少 2s，避免绕过 GitHub 的
+30 次/分钟节奏）；读超时与其它 4xx 立即失败，避免把一个慢主机拖成十分钟采集。
+fixture 读取不经过该层，重试循环由 `tests/test_source_http.py` 直接测试。源选择、
+查询语法与 fixture 布局不变；部分源失败仍只写页脚，不阻断其它源和推送。
 
 每日运行落为项目级 skill `.dsh/skills/academic-digest/`（setup 与日报契约是它的
 `references/`），由看板卡 `0 8 * * *` / `Asia/Shanghai` 触发 collect → 写日报 →

@@ -66,4 +66,13 @@
   按各源固定 lookback（默认 2–4 天）补窗，README/ADR 已如实标注；(2) 本机 Host 未开
   全局 `/goal`，`goalRun` 被忽略，发送失败靠 `record-external-outcome` 记录；
   (3) `config.example.yaml` 的 G5/G4 泛词是否按 `docs/decisions.md` §2.4 加生物锚点，
-  属于用户关键词配置，待用户决定，不擅自改。
+  属于用户关键词配置，待用户决定，不擅自改；(4) `未推送数` 按 Issue 09 契约只在
+  pending>0 时由 `push` 追加，pending=0 时省略，spec 的页脚列表与 Issue 09 契约
+  措辞不同，属契约层差异，本票不改。
+
+- 2026-10-23：第二轮审查后再修：setup 增加逐项访谈问题、把失败演练改成真实的两张
+  临时演练卡（状态库放工作区内的 `out/.board-drill.sqlite3`，不再假设生产卡会失败），
+  429 重试至少等 2s 以尊重 GitHub 30 次/分钟节奏，读超时与其它 4xx 不重试，
+  `base._sleep` 作为测试 seam，`setup-secrets.sh` 收尾文案与 `config.example.yaml`
+  的 GitHub token 注释同步；`tests/test_source_http.py` 覆盖 backoff、429 等待、
+  读超时与意外错误。

@@ -32,7 +32,9 @@ scripts/setup-secrets.sh
 test -f config.yaml || cp config.example.yaml config.yaml
 ```
 
-访谈项与默认值：
+逐项问用户，并把回答写进 `config.yaml`：时区；保留/删减哪些关键词组；每组配额；
+启用哪些文献源与 GitHub；GitHub 用户名与关注库；Unpaywall 邮箱；推送通道（V1 只有
+Server酱，没有其它选项）；定时时间。用户不改就按下面的默认值。访谈项与默认值：
 
 | 项 | 默认 | 说明 |
 |---|---|---|
@@ -170,10 +172,12 @@ Prompt 用下面这份，逐字粘贴：
 ## 7. 失败演练（可选，消耗 0 次成功额度）
 
 目的：确认发送失败会留下 pending，下一次优先补发，并且看板能把这次执行记为失败。
+不要改每日生产卡的 Prompt 或 `secrets.env`，临时建两张演练卡：
 
-1. 不改 `secrets.env`。用环境变量临时覆盖 SendKey，对 fixture 日报发一次；状态库放在
-   工作区内，保证跨会话可见（`out/` 已 gitignored）：
+1. **失败卡**：`task_board_create`，工作区同生产卡、权限 `workspace-write`、
+   `goalRun: true`、`skipVerification: true`，标签加“演练”。Prompt 只跑：
    ```bash
+   set -a; . ./secrets.env; set +a
    SERVERCHAN_SENDKEY=INVALID_KEY_FOR_DRILL python3 scripts/push.py \
      --config tests/fixtures/walking/config.yaml \
      --candidates tests/fixtures/digest/valid/candidates.json \
@@ -181,18 +185,19 @@ Prompt 用下面这份，逐字粘贴：
      --digest tests/fixtures/digest/valid/digest.md \
      --state-db out/.board-drill.sqlite3
    ```
-2. 从看板跑一次那张卡。`push` 会重试后退出 1，把未送达消息写进 `pending`，
-   `runs.status='failed'`；因为卡片启用了 `/goal` 且这一轮没有调用
-   `update_goal(complete)`，看板执行记录会显示失败。
-3. 如果部署没有打开全局 `/goal`（本机当前如此），普通单回合不会因为 shell 退出码
-   自动判负；用 `task_board_manage(action: "record-external-outcome", result:
-   "failed", initiatedBy: "academic-digest-setup", summary: "send-failure drill")`
-   把这次演练记成失败，或在 UI 里移到失败列。
-4. 不覆盖 SendKey，`set -a; . ./secrets.env; set +a` 后再跑同一条命令（同一个
-   `out/.board-drill.sqlite3`）。`push` 先按 `part` 顺序补发 pending，再发当天
-   fixture；stdout 的发送条数应包含补发的那条，`pending` 归零，`runs.status='ok'`。
-5. 演练结束后可删除 `out/.board-drill.sqlite3`；确认 `secrets.env` 未改动、权限仍是
-   600，并且没有把无效 key 留在任何文件或看板 Prompt 里。
+   并写明“预期失败，不要调用 `update_goal(complete)`”。状态库放在工作区内，保证
+   跨会话可见（`out/` 已 gitignored）。
+2. 运行失败卡。`push` 重试后退出 1，把未送达消息写进 `out/.board-drill.sqlite3` 的
+   `pending`，`runs.status='failed'`。若 Host 打开了全局 `/goal`，没调用 complete
+   会让卡片自动失败；若没打开（本机当前如此），普通单回合按回合结果结算，用
+   `task_board_manage(action: "record-external-outcome", result: "failed",
+   initiatedBy: "academic-digest-setup", summary: "send-failure drill")` 记录失败。
+3. **补发卡**：同样建一张临时卡，Prompt 只跑同一条命令但**不覆盖** SendKey
+   （`set -a; . ./secrets.env; set +a` 后用 `secrets.env` 里的真实 key），仍用
+   `out/.board-drill.sqlite3`。`push` 先按 `part` 顺序补发 pending，再发当天 fixture；
+   stdout 的发送条数应包含补发的那条，`pending` 归零，卡片 succeeded。
+4. 演练结束后归档两张演练卡，删除 `out/.board-drill.sqlite3`；确认 `secrets.env`
+   未改动、权限仍是 600，并且没有把无效 key 留在任何文件或看板 Prompt 里。
 
 ## 8. 用户级软链（可选）
 

@@ -28,12 +28,12 @@ class _Response:
 def _call(
     monkeypatch: pytest.MonkeyPatch,
     *,
-    sleeps: list[float] | None = None,
+    sleep_calls: list[float] | None = None,
 ) -> str:
-    if sleeps is None:
-        monkeypatch.setattr(base.time, "sleep", lambda seconds: None)
+    if sleep_calls is None:
+        monkeypatch.setattr(base, "_sleep", lambda seconds: None)
     else:
-        monkeypatch.setattr(base.time, "sleep", sleeps.append)
+        monkeypatch.setattr(base, "_sleep", sleep_calls.append)
     return base.get_text(
         "https://example.test/api",
         {"q": "x"},
@@ -78,7 +78,7 @@ def test_get_text_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) 
 def test_get_text_uses_one_and_two_second_backoff(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    sleeps: list[float] = []
+    sleep_calls: list[float] = []
     _fake_get(
         monkeypatch,
         [
@@ -87,8 +87,8 @@ def test_get_text_uses_one_and_two_second_backoff(
             _Response(),
         ],
     )
-    assert _call(monkeypatch, sleeps=sleeps) == "body"
-    assert sleeps == [1.0, 2.0]
+    assert _call(monkeypatch, sleep_calls=sleep_calls) == "body"
+    assert sleep_calls == [1.0, 2.0]
 
 
 def test_get_text_gives_up_after_three_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -112,6 +112,19 @@ def test_get_text_does_not_retry_a_read_timeout(monkeypatch: pytest.MonkeyPatch)
     assert len(calls) == 1
 
 
+def test_get_text_waits_two_seconds_before_retrying_429(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sleep_calls: list[float] = []
+    calls = _fake_get(
+        monkeypatch,
+        [_Response(status_code=429), _Response(status_code=429), _Response()],
+    )
+    assert _call(monkeypatch, sleep_calls=sleep_calls) == "body"
+    assert len(calls) == 3
+    assert sleep_calls == [2.0, 2.0]
+
+
 def test_get_text_retries_429_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = _fake_get(
         monkeypatch,
@@ -119,6 +132,15 @@ def test_get_text_retries_429_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> 
     )
     assert _call(monkeypatch) == "body"
     assert len(calls) == 3
+
+
+def test_get_text_wraps_an_unexpected_transport_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _fake_get(monkeypatch, [ValueError("bad URL")])
+    with pytest.raises(SourceError, match="bad URL"):
+        _call(monkeypatch)
+    assert len(calls) == 1
 
 
 def test_get_text_does_not_retry_a_client_error(monkeypatch: pytest.MonkeyPatch) -> None:

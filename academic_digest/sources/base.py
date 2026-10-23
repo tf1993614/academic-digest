@@ -19,6 +19,9 @@ from ..models import Paper
 # and retrying them turns one slow host into a ten-minute collection.
 _HTTP_ATTEMPTS = 3
 _HTTP_BACKOFF_SECONDS = 1.0
+# A local seam so transport tests can record the backoff without patching the
+# process-wide ``time`` module.
+_sleep = time.sleep
 
 
 @dataclass
@@ -194,16 +197,26 @@ def _request(
                 exc, requests.exceptions.ConnectionError
             ):
                 break
-            time.sleep(_HTTP_BACKOFF_SECONDS * (2 ** (attempt - 1)))
+            _sleep(_HTTP_BACKOFF_SECONDS * (2 ** (attempt - 1)))
             continue
+        except Exception as exc:
+            # Keep the "one failed source never aborts the others" contract
+            # even for an unexpected transport-library error.
+            raise SourceError(f"{error}: {exc}") from exc
         if response.status_code >= 500 or response.status_code == 429:
             if attempt < _HTTP_ATTEMPTS:
-                time.sleep(_HTTP_BACKOFF_SECONDS * (2 ** (attempt - 1)))
+                delay = _HTTP_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                if response.status_code == 429:
+                    # GitHub's search quota is 30/min; a 1s retry would burst
+                    # past the 2s pacing the caller otherwise keeps.
+                    delay = max(delay, 2.0)
+                _sleep(delay)
                 continue
         try:
             response.raise_for_status()
         except requests.exceptions.RequestException as exc:
             raise SourceError(f"{error}: {exc}") from exc
         return response
-    assert last_error is not None
+    if last_error is None:
+        raise SourceError(f"{error}: request failed")
     raise SourceError(f"{error}: {last_error}") from last_error

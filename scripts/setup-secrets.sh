@@ -300,7 +300,7 @@ finish
 printf '\n'
 say "每次运行前先加载环境变量："
 say "  set -a; source \"$ENV_FILE\"; set +a"
-say "然后复制 config.example.yaml 为 config.yaml，按需设置 github.user 与 sources.github。"
+say "然后按需调整 config.yaml 的关键词、配额与源开关；示例默认已是六组 G1–G6 + GitHub 开。"
 }
 
 run_wizard "$@"; exit

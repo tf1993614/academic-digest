@@ -112,8 +112,10 @@ sources:
   biorxiv: false
   medrxiv: false
   # GitHub discovery needs a token in the environment named by
-  # `github.token_env` below. Turn it off only if you do not want the GitHub
-  # and AI-tool blocks in the digest.
+  # `github.token_env` below; config validation rejects an enabled source
+  # without it. Turn it off only if you do not want the GitHub and AI-tool
+  # blocks in the digest. A credential-free fixture demo can use
+  # tests/fixtures/walking/config.yaml instead.
   github: true
 
 # arXiv RSS feeds to read. One request per category, three seconds apart.
