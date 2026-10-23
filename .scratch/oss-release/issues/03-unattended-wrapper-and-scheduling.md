@@ -21,10 +21,13 @@
 - 2026-10-23：无人值守 wrapper 放在 skill 里、随副本分发；仓库根没有第二个入口。参数只接受
   `claude|codex`，其它（含无参数、多个参数）只打印 usage 到 stderr 并退出 2，不启动客户端。
   它按 SKILL.md 同一套规则解析仓库根并 `cd` 进去，加载 `secrets.env`（文件缺失只告警，靠
-  继承的环境），用 `state/run-daily.lock` 加锁：`mkdir` + wrapper 与 client 两个 PID 及各自
-  start time；空 PID 有一次短宽限，活着的持有者让重叠运行跳过并退出 0，PID 已死或已被复用
-  的锁在下一次回收。整次运行追加到 `out/logs/run-daily.log`，另打一行摘要到 stdout，退出码
-  原样透传（被信号杀掉就是 128+N）。
+  继承的环境），用 `state/run-daily.lock` 上的内核文件锁加锁（由随 skill 分发的小 helper 持有）：
+  重叠运行直接跳过并退出 0，锁随持有进程退出由内核释放，没有过期锁或 PID 复用问题，macOS 也
+  不需要 `flock` 命令。整次运行追加到 `out/logs/run-daily.log`（启动时另打一行到 stdout），
+  客户端退出码原样透传。
+- 锁的实现走过一版 `mkdir` + PID 文件，第二轮评审指出空 PID 窗口与 `rm -rf` 重取锁存在
+  TOCTOU、PID 复用会永久跳过；最终改为 `flock(2)`：获取失败即跳过，没有“判断是否过期”这一步，
+  并发安全边界由内核给出。
 - 三份调度文档：Claude Code 与 Codex 各给 systemd unit+timer、launchd plist、crontab 三段
   可粘贴片段，片段里只有一条 wrapper 调用，没有 `cd`、secrets 加载、`flock` 或 `>>`。DSH 那份
   写明看板卡是唯一入口、不经过 wrapper，也不该再套宿主机的三种调度器；创建接口的

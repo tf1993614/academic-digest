@@ -10,13 +10,14 @@
 #   - the repository root: config.yaml, secrets.env, out/ and state/ stay there
 #     (the code travels with the skill, the runtime data stays with the repo);
 #   - secrets.env, loaded into the client's environment;
-#   - a per-repository lock, so a slow run is never stacked on another one;
+#   - a per-repository kernel file lock, so a slow run is never stacked on;
 #   - one append-only log, out/logs/run-daily.log;
 #   - the client's exit code, passed through unchanged.
 #
 # DSH is not a client here: its schedule is a task-board card, which starts the
 # session itself and never goes through this script.
 set -uo pipefail
+umask 077
 
 usage() {
   printf 'usage: run-daily.sh <claude|codex>\n' >&2
@@ -59,86 +60,23 @@ mkdir -p "$log_dir" "$repo/state" || {
 printf '[run-daily] %s: %s (log: %s)\n' "$client" "$repo" "$log"
 exec >>"$log" 2>&1
 
-lock_dir="$repo/state/run-daily.lock"
-locked=0
-client_pid=""
+runner=""
 cleanup() {
   local status=$?
-  if ((locked)); then
-    rm -rf -- "$lock_dir"
-  fi
   printf '[run-daily] %s exited %s after %ss\n' "$client" "$status" "$SECONDS"
   exit "$status"
 }
 
-forward_signal() {
-  if [[ -n "$client_pid" ]]; then
-    kill "-$1" "$client_pid" 2>/dev/null || true
+forward() {
+  if [[ -n "$runner" ]]; then
+    kill "-$1" "$runner" 2>/dev/null || true
   fi
   exit "$2"
 }
 
 trap cleanup EXIT
-trap 'forward_signal TERM 143' TERM
-trap 'forward_signal INT 130' INT
-
-# mkdir is the lock: atomic on POSIX, works on macOS without flock(1). Two PIDs
-# are recorded (the wrapper, then the client it starts) together with each
-# process's start time, so a lock whose owner was SIGKILLed is reclaimed while
-# an unrelated process that reused the PID is not mistaken for the owner.
-proc_alive() {
-  [[ -n "$1" ]] && ps -p "$1" >/dev/null 2>&1
-}
-
-proc_start() {
-  # LC_ALL=C keeps lstart byte-comparable between runs started from different
-  # environments (unit files, cron, an interactive shell).
-  LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//' || true
-}
-
-holder_alive() {
-  local pid="$1" start="$2" current
-  proc_alive "$pid" || return 1
-  if [[ -n "$start" ]]; then
-    current="$(proc_start "$pid")"
-    # A ps without lstart support (e.g. busybox) cannot confirm reuse; trust
-    # the PID rather than stealing a lock that may still be held.
-    [[ -z "$current" || "$current" == "$start" ]] || return 1
-  fi
-  return 0
-}
-
-if ! mkdir "$lock_dir" 2>/dev/null; then
-  holder="$(cat "$lock_dir/pid" 2>/dev/null || true)"
-  if [[ -z "$holder" ]]; then
-    # The owner creates the directory and writes its PID in two steps. Do not
-    # steal a lock that is still being created: give it a moment to appear.
-    for _ in 1 2 3 4 5; do
-      sleep 0.1
-      holder="$(cat "$lock_dir/pid" 2>/dev/null || true)"
-      [[ -n "$holder" ]] && break
-    done
-  fi
-  holder_start="$(cat "$lock_dir/pid.start" 2>/dev/null || true)"
-  holder_client="$(cat "$lock_dir/client" 2>/dev/null || true)"
-  holder_client_start="$(cat "$lock_dir/client.start" 2>/dev/null || true)"
-  if holder_alive "$holder" "$holder_start" ||
-    holder_alive "$holder_client" "$holder_client_start"; then
-    printf '[skip] run-daily: another run is still active (pid %s); not stacking %s on it\n' \
-      "${holder:-$holder_client}" "$client"
-    exit 0
-  fi
-  printf '[warn] run-daily: reclaiming stale lock %s (pid %s is gone)\n' \
-    "$lock_dir" "${holder:-unknown}"
-  rm -rf -- "$lock_dir"
-  if ! mkdir "$lock_dir" 2>/dev/null; then
-    printf '[skip] run-daily: another run acquired the lock first\n'
-    exit 0
-  fi
-fi
-printf '%s\n' "$$" >"$lock_dir/pid"
-printf '%s\n' "$(proc_start "$$")" >"$lock_dir/pid.start"
-locked=1
+trap 'forward TERM 143' TERM
+trap 'forward INT 130' INT
 
 printf '=== %s run-daily %s repo=%s pid=%s\n' \
   "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$client" "$repo" "$$"
@@ -154,11 +92,13 @@ else
     "$repo"
 fi
 
-if ! command -v "$client" >/dev/null 2>&1; then
-  printf '[fail] run-daily: %s not found on PATH\n' "$client"
-  printf '       schedulers do not inherit your shell PATH; set it in the unit/plist/crontab\n'
-  exit 1
-fi
+for required in "$client" python3; do
+  if ! command -v "$required" >/dev/null 2>&1; then
+    printf '[fail] run-daily: %s not found on PATH\n' "$required"
+    printf '       schedulers do not inherit your shell PATH; set it in the unit/plist/crontab\n'
+    exit 1
+  fi
+done
 
 cd "$repo" || {
   printf '[fail] run-daily: cannot enter %s\n' "$repo"
@@ -196,10 +136,7 @@ case "$client" in
 esac
 
 printf '[cmd] %s\n' "${cmd[*]}"
-"${cmd[@]}" &
-client_pid=$!
-printf '%s\n' "$client_pid" >"$lock_dir/client"
-printf '%s\n' "$(proc_start "$client_pid")" >"$lock_dir/client.start"
-client_status=0
-wait "$client_pid" || client_status=$?
-exit "$client_status"
+python3 "$script_dir/run-daily-lock.py" "$repo/state/run-daily.lock" "${cmd[@]}" &
+runner=$!
+wait "$runner"
+exit $?

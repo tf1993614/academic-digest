@@ -40,10 +40,12 @@ claude -p "/academic-digest" \
 
 - 从 skill 所在仓库（或当前工作目录所在仓库）解析仓库根并 `cd` 进去；
 - 存在 `secrets.env` 时用 `set -a` 加载进客户端的环境变量，不打印值；
-- 用仓库内的 `state/run-daily.lock` 加锁：上一次还没跑完就直接跳过、退出 0，不叠加
-  第二个会话；进程被强杀留下的锁会在下一次运行时被识别为过期并回收；
-- 把整次运行的输出追加到 `out/logs/run-daily.log`，另外打一行摘要到 stdout（systemd 的
-  `journalctl` 能看到；launchd 用 plist 的 `StandardOutPath`，见下）；
+- 用 `state/run-daily.lock` 上的内核文件锁（`flock`）加锁：上一次还没跑完就直接跳过、
+  退出 0，不叠加第二个会话；锁随持有进程退出自动释放，没有需要手工清理的过期锁，
+  macOS 也不需要额外的 `flock` 命令；
+- 把整次运行的输出追加到 `out/logs/run-daily.log`；启动时另打一行到 stdout（systemd 的
+  `journalctl` 能看到；launchd 用 plist 的 `StandardOutPath`，见下），结束状态与退出码
+  写在日志里；
 - 把 `claude` 的退出码原样透传，失败就是失败。
 
 所以下面的调度片段里**不要**再写 `cd`、`set -a; . ./secrets.env`、`flock` 或 `>>`：
@@ -155,7 +157,8 @@ launchctl bootout "gui/$UID/com.academic-digest.daily"   # 卸载
   这是三种调度器里唯一会补的。补跑沿用同一份去重状态：当天已经推过的条目不会重发，
   如果 08:00 那次已经跑过，补跑通常只发一条“今日没有匹配的检索条目”；如果 08:00
   那次根本没跑，补跑就是当天真正的日报。
-- 不需要 `flock`：wrapper 用 `mkdir` 加锁，macOS 自带工具就够。
+- 不需要 `flock` 命令：wrapper 用的内核文件锁在 macOS 上同样可用，也没有需要手工
+  清理的过期锁。
 - 日志与退出码都在 `out/logs/run-daily.log`；`launchctl print` 的 `last exit` 是 wrapper
   的退出码。launchd 不会把 stdout 转给你看，所以 plist 里的 `StandardOutPath` /
   `StandardErrorPath` 接住 wrapper 打开自己的日志之前就失败的输出（例如“not inside a git

@@ -101,6 +101,11 @@ def _check_skill_source(failures: list[str]) -> None:
     )
     _require(
         failures,
+        (SKILL_DIR / "scripts" / "run-daily-lock.py").is_file(),
+        "missing skills/academic-digest/scripts/run-daily-lock.py",
+    )
+    _require(
+        failures,
         (SKILL_DIR / "academic_digest" / "cli.py").is_file(),
         "missing skills/academic-digest/academic_digest/cli.py",
     )

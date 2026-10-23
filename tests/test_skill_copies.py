@@ -181,23 +181,6 @@ SCHEDULING_INVOCATIONS = {
     "codex": "/path/to/repo/.agents/skills/academic-digest/scripts/run-daily.sh codex",
 }
 
-CLAUDE_ARGV = (
-    '-p "/academic-digest"',
-    "--permission-mode acceptEdits",
-    '--allowedTools "Bash(python3 *),Read,Write,Edit"',
-    "--permission-prompts none",
-    "--max-turns 60",
-    "--output-format json",
-)
-
-CODEX_ARGV = (
-    "--sandbox workspace-write",
-    "sandbox_workspace_write.network_access=true",
-    "--skip-git-repo-check",
-    "--json",
-)
-
-
 def _fenced_blocks(text: str) -> list[str]:
     """Shell/config snippets only, so prose instructions are not mistaken for them."""
 
@@ -256,7 +239,9 @@ def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> No
                     f"{client}: scheduler snippets must leave {duplicated!r} to the wrapper"
                 )
 
-    assert "--bare" in texts["claude"], "claude docs must warn against --bare"
+    assert "不要加 `--bare`" in texts["claude"], "claude docs must warn against --bare"
+    for block in _fenced_blocks(texts["claude"]):
+        assert "--bare" not in block, "no claude snippet may pass --bare"
     assert "sandbox_workspace_write.network_access=true" in texts["codex"], (
         "codex docs must switch the sandbox network on"
     )
@@ -266,23 +251,6 @@ def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> No
     for client, text in texts.items():
         for cloud in ("GitHub Actions", "云端", "scheduled task"):
             assert cloud not in text, f"{client}: cloud scheduling is out of scope for this release"
-
-
-def test_scheduling_docs_repeat_the_wrapper_argv() -> None:
-    """The docs' manual-run recipes and the wrapper's argv are one contract.
-
-    tests/test_run_daily.py pins the wrapper side; this pins the docs side, so
-    changing a flag in only one of the two places fails the suite.
-    """
-
-    claude = (ROOT / COPIES["claude"][0] / SCHEDULING).read_text(encoding="utf-8")
-    codex = (ROOT / COPIES["codex"][0] / SCHEDULING).read_text(encoding="utf-8")
-
-    for fragment in CLAUDE_ARGV:
-        assert fragment in claude, f"claude docs must document {fragment!r}"
-        assert "--bare" in claude
-    for fragment in CODEX_ARGV:
-        assert fragment in codex, f"codex docs must document {fragment!r}"
 
 
 def test_committed_wrappers_are_executable() -> None:

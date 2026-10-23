@@ -118,7 +118,7 @@ Prompt 用下面这份，逐字粘贴：
 mkdir -p "$HOME/.dsh/skills"
 ln -sfn "$(git rev-parse --show-toplevel)/.dsh/skills/academic-digest" \
   "$HOME/.dsh/skills/academic-digest"
-readlink -f "$HOME/.dsh/skills/academic-digest"
+(cd "$HOME/.dsh/skills/academic-digest" && pwd -P)
 ```
 
 软链指向真实仓库，skill 里的 `git -C` 会跟随软链找到同一个仓库根，因此在其他项目里

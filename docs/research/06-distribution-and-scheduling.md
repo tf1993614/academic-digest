@@ -198,8 +198,10 @@ FreeBSD/macOS 也没有。可行做法只有三种：机器本来就是 `Asia/Sh
 `OnCalendar=` 生效。三者都要显式设 `WorkingDirectory` 与 `PATH`——定时器的环境变量跟登录 shell 不是一套，
 这是"手动能跑、定时失败"的头号原因。
 
-（`scripts/run-daily.sh` 目前**不存在**，要新增：加载 `secrets.env` → 调 headless CLI → 把退出码
-写进日志。见 §2.7。）
+（上面的 `flock` / `>>` 骨架是调研记录。Issue 03 落地后的形态是 skill 内的
+`scripts/run-daily.sh <claude|codex>`：它自己解析仓库根并 `cd`、加载 `secrets.env`、用
+`state/run-daily.lock` 的内核文件锁防止叠加、把输出写进 `out/logs/run-daily.log`、透传客户端
+退出码，所以调度片段只需要一行 wrapper 调用。）
 
 ### 2.4 GitHub Actions（能跑，但有三处会咬人）
 
@@ -288,6 +290,8 @@ jobs:
 ### 2.7 需要在仓库里补的东西（工程 TODO，不是文档）
 
 - `scripts/run-daily.sh`：headless 入口（加载 secrets、调 CLI、日志、退出码），README 直接引用它。
+  **已落地**（Issue 03）：实际位置是 `skills/academic-digest/scripts/run-daily.sh`（随 skill 分发，
+  不在仓库根），参数是 `<claude|codex>`。
 - `references/scheduling-{dsh,claude,codex}.md`：把现在写死在 `SKILL.md`/`setup.md` 里的 DSH 看板卡步骤
   挪成"可选后端"，SKILL.md 只留一句"定时见 references/"。
 - 状态库路径可配置（`--state-db` 已有，但需要环境变量/文档化的持久化建议）。

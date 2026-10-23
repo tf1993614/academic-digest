@@ -14,6 +14,7 @@ repository the wrapper was started from.
 
 from __future__ import annotations
 
+import fcntl
 import os
 import subprocess
 from pathlib import Path
@@ -133,23 +134,14 @@ def _log(repo: Path) -> str:
     return (repo / "out" / "logs" / "run-daily.log").read_text(encoding="utf-8")
 
 
-def _dead_pid() -> int:
-    """A PID that belonged to a process which has already exited."""
-
-    process = subprocess.Popen(["true"])
-    process.wait(timeout=10)
-    return process.pid
-
-
-def _hold_lock(repo: Path, *, holder: int, client: int | None = None) -> Path:
-    """Write the runtime lock the wrapper reads, as a crashed run would leave it."""
+def _hold_lock(repo: Path):
+    """Take the same kernel lock the wrapper's helper takes."""
 
     lock = repo / LOCK
-    lock.mkdir(parents=True)
-    (lock / "pid").write_text(f"{holder}\n", encoding="utf-8")
-    if client is not None:
-        (lock / "client").write_text(f"{client}\n", encoding="utf-8")
-    return lock
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock.open("a+")
+    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    return handle
 
 
 def test_claude_argv_is_the_documented_headless_form(skill_copy: Path, repo: Path) -> None:
@@ -186,7 +178,7 @@ def test_codex_argv_is_the_documented_exec_form(skill_copy: Path, repo: Path) ->
     ), "codex would time out on PubMed without the sandbox network switch"
     assert "--skip-git-repo-check" in args
     assert "--json" in args
-    assert Path(_flag_value(args, "-o")).parent == repo / "out" / "logs"
+    assert Path(_flag_value(args, "-o")) == repo / "out" / "logs" / "codex-last-message.md"
     prompt = args[-1]
     assert str(skill_copy / "SKILL.md") in prompt
     assert "每日运行" in prompt
@@ -260,36 +252,72 @@ def test_an_unknown_client_is_a_usage_error(
 
 
 def test_a_live_lock_skips_the_overlapping_run(skill_copy: Path, repo: Path) -> None:
-    lock = _hold_lock(repo, holder=os.getpid())
-    stub = Stub(repo.parent / "bin", "claude")
+    held = _hold_lock(repo)
+    first = Stub(repo.parent / "first-bin", "claude")
+    try:
+        overlapping = _run(skill_copy, repo, "claude", stub=first)
+    finally:
+        held.close()
 
-    result = _run(skill_copy, repo, "claude", stub=stub)
-    assert result.returncode == 0
-    assert stub.calls() == [], "the overlapping run must not start a second client"
-    assert "still active" in _log(repo)
-    assert (lock / "pid").is_file(), "the live holder's lock must not be removed"
+    assert overlapping.returncode == 0
+    assert first.calls() == [], "the overlapping run must not start a second client"
+    assert "another run holds the lock" in _log(repo)
+
+    # The kernel releases the lock; nothing has to be cleaned up by hand.
+    second = Stub(repo.parent / "second-bin", "claude")
+    following = _run(skill_copy, repo, "claude", stub=second)
+    assert following.returncode == 0
+    assert second.calls(), "the next run must proceed once the holder is gone"
 
 
-def test_a_lock_whose_client_outlived_the_wrapper_is_not_reclaimed(
+def test_the_lock_reports_the_client_exit_code_and_is_released(
     skill_copy: Path, repo: Path
 ) -> None:
-    """A SIGKILLed wrapper can leave its client running; that still blocks a second client."""
+    stub = Stub(repo.parent / "bin", "claude", exit_code=5)
+    failed = _run(skill_copy, repo, "claude", stub=stub)
+    assert failed.returncode == 5
 
-    _hold_lock(repo, holder=_dead_pid(), client=os.getpid())
-    stub = Stub(repo.parent / "bin", "claude")
+    retry = Stub(repo.parent / "retry-bin", "claude")
+    following = _run(skill_copy, repo, "claude", stub=retry)
+    assert following.returncode == 0
+    assert retry.calls(), "a failed run must not leave the lock behind"
 
-    result = _run(skill_copy, repo, "claude", stub=stub)
-    assert result.returncode == 0
-    assert stub.calls() == [], "a client that is still running must not get a sibling"
-    assert "still active" in _log(repo)
+@pytest.mark.parametrize("client", ["claude", "codex"])
+def test_scheduling_docs_document_the_argv_the_wrapper_passes(
+    skill_copy: Path, repo: Path, client: str
+) -> None:
+    """One contract, checked from both sides: the stub records what is passed,
+    the doc has to document the same flag/value pairs."""
 
+    stub = Stub(repo.parent / "bin", client)
+    result = _run(skill_copy, repo, client, stub=stub)
+    assert result.returncode == 0, result.stderr
+    args = stub.calls()[0]["args"]
 
-def test_a_lock_left_by_dead_processes_is_reclaimed(skill_copy: Path, repo: Path) -> None:
-    _hold_lock(repo, holder=_dead_pid(), client=_dead_pid())
-    stub = Stub(repo.parent / "bin", "claude")
+    doc = (
+        ROOT
+        / "skills"
+        / "academic-digest"
+        / "references"
+        / "scheduling"
+        / f"{client}.md"
+    ).read_text(encoding="utf-8")
 
-    result = _run(skill_copy, repo, "claude", stub=stub)
-    assert result.returncode == 0
-    assert stub.calls(), "a stale lock must be reclaimed instead of skipping forever"
-    assert "stale lock" in _log(repo)
-    assert not (repo / LOCK).exists(), "the run's own lock must be released at exit"
+    for index, arg in enumerate(args):
+        if not arg.startswith("-"):
+            continue
+        assert arg in doc, f"{client}: docs do not document {arg!r}"
+        if arg in {"-C", "-o"}:
+            # Values that only exist at run time; the doc names the flag itself.
+            continue
+        if index + 1 == len(args):
+            continue
+        value = args[index + 1]
+        if value.startswith("-") or str(repo) in value or str(skill_copy) in value:
+            continue
+        assert f"{arg} {value}" in doc or f'{arg} "{value}"' in doc, (
+            f"{client}: docs do not document {arg} {value!r}"
+        )
+
+    if client == "codex":
+        assert "codex-last-message.md" in doc
