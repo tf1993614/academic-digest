@@ -1,1 +1,0 @@
-.dsh/skills/academic-digest/SKILL.md

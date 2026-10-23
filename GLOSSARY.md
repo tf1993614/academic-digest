@@ -4,6 +4,12 @@
 
 ## 语言
 
+### 交付
+
+**skill**：
+遵循 Agent Skills 格式的目录包，例如 `academic-digest/`（`SKILL.md` + `references/`，可选 `scripts/`）；客户端从自己的扫描根发现并加载它。
+_Avoid_: 插件、斜杠命令
+
 ### 日报结构
 
 **日报**：

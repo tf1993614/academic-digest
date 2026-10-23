@@ -1,0 +1,4 @@
+# Generated client copies of skills/academic-digest/, under each hidden client
+# scan root (.dsh, .claude, .agents). Regenerate with scripts/sync-skills.sh;
+# scripts/check-skills.sh fails on any drift.
+.*/skills/academic-digest/** linguist-generated=true

@@ -1,14 +1,15 @@
 ---
 name: academic-digest
-description: 自动学术速递的每日运行与配置：按关键词抓取 PubMed/Europe PMC/arXiv/Research Square/GitHub，写 3+7 中文日报并推送到微信；也用于一次性 setup（写 config、doctor、dry-run、测试推送、创建 08:00 任务卡）与推送失败/pending 排查。
+description: 自动学术速递的每日运行与配置：按关键词抓取 PubMed/Europe PMC/arXiv/Research Square/GitHub，写 3+7 中文日报并推送到微信；也用于一次性 setup（写 config、doctor、dry-run、测试推送、接入定时）与推送失败/pending 排查。
 ---
 
 # 自动学术速递
 
 ## 定位仓库
 
-本 skill 在 `<repo>/.dsh/skills/academic-digest/`。加载时 harness 会给出本 skill 的
-base directory；先解析出真实仓库根并进入：
+本 skill 是一个目录包：源目录在 `skills/academic-digest/`，三个客户端扫描根下的
+`.dsh/skills/`、`.claude/skills/`、`.agents/skills/` 里是它的生成副本。无论加载的是
+哪一份，先解析出真实仓库根并进入：
 
 ```bash
 repo=$(git -C "<本 skill 的 base directory>" rev-parse --show-toplevel) || {
@@ -22,12 +23,12 @@ test -f scripts/collect.py && test -f academic_digest/cli.py || {
 }
 ```
 
-之后所有命令都以仓库根为工作目录。用户级软链（`~/.dsh/skills/academic-digest`）
-指向真实仓库，`git -C` 会跟随软链找到同一个仓库根，所以在任意工作区都能这样定位。
+之后所有命令都以仓库根为工作目录。用户级软链（`~/.dsh/skills/`、`~/.claude/skills/`、
+`~/.agents/skills/` 指向仓库里的副本）不会改变结果：`git -C` 会跟随软链找到同一个仓库根。
 
 ## 每日运行
 
-看板卡每天 08:00 触发的固定三步。完成标准是第 3 步 `push` 退出 0 且 stdout 出现
+任何客户端都走同一套三步。完成标准是第 3 步 `push` 退出 0 且 stdout 出现
 `[ok] push:`；任何一步失败就停在那里，报告 stderr 的 `[fail]` 行。
 
 每次 bash 调用都是新 shell。需要 GitHub token / SendKey 的命令先显式加载本地
@@ -107,12 +108,11 @@ python3 scripts/push.py --config config.yaml \
 3. doctor：`set -a; . ./secrets.env; set +a; python3 scripts/doctor.py --config config.yaml`。
 4. dry-run：用 fixture 日报构建 ServerChan payload，不读 SendKey、不发送。
 5. 测试推送：用 fixture 日报真发一条到微信，确认收到。
-6. 创建任务卡：cron `0 8 * * *` / `Asia/Shanghai`，工作区为本仓库，权限
-   `workspace-write`，`goalRun: true` + `skipVerification: true`（完成门是
-   `update_goal(complete)`，不启用验收裁判），Prompt 明确加载本 skill 并走上面三步。
+6. 接入定时：按你使用的客户端读 `references/scheduling.md`（源目录里是
+   `references/scheduling/<客户端>.md`）。
 
-只有第 3–5 步都通过才创建卡片；第 6 步后从看板手动跑一次，确认微信收到真实日报，
-再把卡片交给 cron。
+只有第 3–5 步都通过才接定时。定时接好后手动跑一次，确认微信收到真实日报，再交给
+调度器。
 
 ## 安全与失败
 

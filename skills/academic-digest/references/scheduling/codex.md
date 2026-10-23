@@ -1,0 +1,42 @@
+# Codex：exec 定时
+
+Codex 从 `.agents/skills/` 发现 skill；本仓库已经提交了
+`.agents/skills/academic-digest/`。无人值守入口是 `codex exec`。
+
+## 先手动跑一次
+
+```bash
+codex exec -C <仓库根> \
+  --sandbox workspace-write \
+  -c sandbox_workspace_write.network_access=true \
+  --skip-git-repo-check \
+  --json \
+  -o /tmp/academic-digest-last.md \
+  "读取 .agents/skills/academic-digest/SKILL.md 并照做：collect、写日报、digest check、push。"
+```
+
+- **网络默认关闭**：不加 `-c sandbox_workspace_write.network_access=true`，采集在
+  PubMed 之前就会超时。
+- `codex exec` 不保证按名字加载 skill；prompt 里直接给 SKILL.md 路径，不要写
+  `$academic-digest`。
+- 工作目录必须是仓库根：`config.yaml`、`secrets.env`、`out/`、`state/` 都在那里。
+- 需要 SendKey / token 的会话要能读到 `secrets.env` 里的环境变量。
+
+## 定时
+
+把上面的 `codex exec` 命令交给本机定时器（cron、systemd timer 或 launchd），时间落在
+`Asia/Shanghai` 08:00。调度器不会继承登录 shell 的环境：显式设置工作目录与 `PATH`，
+并保证上一次没跑完时不叠加。错过的一次不补跑；采集的 lookback 会覆盖最近几天。
+
+## 用户级安装（可选）
+
+只在当前仓库工作区使用就跳过；要在任意目录可用：
+
+```bash
+mkdir -p "$HOME/.agents/skills"
+ln -sfn "$(git rev-parse --show-toplevel)/.agents/skills/academic-digest" \
+  "$HOME/.agents/skills/academic-digest"
+```
+
+不要手改 `.agents/skills/academic-digest/`；改源目录 `skills/academic-digest/` 后跑
+`scripts/sync-skills.sh` 重新生成三份副本。

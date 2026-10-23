@@ -10,7 +10,7 @@
 
 - 需求与契约：[spec.md](.scratch/academic-digest/spec.md)
 - 最近实现：[11-journal-whitelist.md](.scratch/academic-digest/issues/11-journal-whitelist.md)、[10-skill-taskboard.md](.scratch/academic-digest/issues/10-skill-taskboard.md)、[09-serverchan-push.md](.scratch/academic-digest/issues/09-serverchan-push.md)、[08-digest-contract.md](.scratch/academic-digest/issues/08-digest-contract.md)、[07-oa-fulltext.md](.scratch/academic-digest/issues/07-oa-fulltext.md)、[06-github-releases.md](.scratch/academic-digest/issues/06-github-releases.md)（前序：[05-github-discovery.md](.scratch/academic-digest/issues/05-github-discovery.md)、[04-ranking-quota.md](.scratch/academic-digest/issues/04-ranking-quota.md)、[03-preprints.md](.scratch/academic-digest/issues/03-preprints.md)、[02-europepmc-dedup.md](.scratch/academic-digest/issues/02-europepmc-dedup.md)、[01-walking-skeleton.md](.scratch/academic-digest/issues/01-walking-skeleton.md)）
-- 每日流程与 setup：[.dsh/skills/academic-digest/SKILL.md](.dsh/skills/academic-digest/SKILL.md)
+- 每日流程与 setup：[skills/academic-digest/SKILL.md](skills/academic-digest/SKILL.md)
 - 术语：[GLOSSARY.md](GLOSSARY.md)
 - 已确认决定：[docs/decisions.md](docs/decisions.md)
 
@@ -107,10 +107,10 @@ DOI→arXiv 交叉检索）。
 
 ## Skill 与任务看板卡
 
-项目级 skill 在 [`.dsh/skills/academic-digest/SKILL.md`](.dsh/skills/academic-digest/SKILL.md)：
-DSH 扫描 `<workspace>/.dsh/skills/` 的第一层，因此只要看板卡钉住本仓库就能发现它。
-仓库根还有一个 [`SKILL.md`](SKILL.md) 软链指向它，方便直接打开；`.dsh` 是隐藏目录，
-普通 `ls` 不显示，用 `ls -a` 或根目录的软链查看。
+源 skill 在 [`skills/academic-digest/SKILL.md`](skills/academic-digest/SKILL.md)。`.dsh/`、
+`.claude/`、`.agents/` 三个扫描根下的 `skills/academic-digest/` 是同一份生成副本，只允许
+`references/scheduling.md` 不同；改源目录后跑 `scripts/sync-skills.sh` 重新生成，禁止手改
+副本。DSH 扫描 `<workspace>/.dsh/skills/` 的第一层，因此只要看板卡钉住本仓库就能发现它。
 
 想让任意工作区也能用，做一次用户级软链：
 
@@ -120,7 +120,8 @@ ln -sfn "$(git rev-parse --show-toplevel)/.dsh/skills/academic-digest" \
 ```
 
 skill 里用 `git -C` 从自己的 base directory 解析真实仓库根，所以软链不会改变运行时
-路径。详细写作契约在 `references/digest.md`，setup 流程在 `references/setup.md`。
+路径。详细写作契约在 `references/digest.md`，setup 流程在 `references/setup.md`，
+三家各自的定时方案在 `references/scheduling/`。
 
 ### setup 顺序
 
@@ -136,10 +137,9 @@ skill 里用 `git -C` 从自己的 base directory 解析真实仓库根，所以
 4. 用 fixture 日报跑 `push --dry-run`，确认 title 与 Markdown payload。dry-run 不读
    SendKey、不发送；但 `config.yaml` 启用了 GitHub，仍要先加载 secrets 过配置校验。
 5. 用 fixture 日报真发一条测试消息到微信（状态写 `/tmp`，消耗 1 次额度）。
-6. 创建任务卡，字段固定：cron `0 8 * * *`、`Asia/Shanghai`、权限
-   `workspace-write`、工作区为本仓库、`goalRun: true`、`skipVerification: true`。
-   Prompt 必须明确“加载 academic-digest skill”，并列出 collect → 写日报 → push
-   三步，以及“只有 push 退出 0 才视为完成”。
+6. 接入定时：按客户端读对应的 scheduling 文档。DSH 看板卡的建卡字段与 Prompt 在
+   [`references/scheduling/dsh.md`](skills/academic-digest/references/scheduling/dsh.md)，
+   Claude Code 与 Codex 各读同目录下的那一份。
 
 `goalRun` 是完成门：成功时执行会话调用 `update_goal(complete)`，发送失败时不调用，
 看板就把这次执行记为失败；`skipVerification: true` 同时关掉 coding 验收裁判，每天
@@ -148,7 +148,8 @@ skill 里用 `git -C` 从自己的 base directory 解析真实仓库根，所以
 
 ### 每日运行
 
-看板每天 08:00 启动一个会话，执行 skill 里的三步，产物固定在 `out/`：
+客户端按 `references/scheduling.md` 的定时方案在 08:00 启动会话后，执行 skill 里的三步，
+产物固定在 `out/`：
 
 ```bash
 set -a; . ./secrets.env; set +a
@@ -936,8 +937,14 @@ SQLite 位于 `paths.state_db`（默认 `state/academic-digest.sqlite3`）：
 scripts/check.sh
 ```
 
-`scripts/check-docs.py` 检查仓库根 `SKILL.md` 指针、`config.example.yaml` 与 setup 配额表、
-retry 文案与 `base.py` 常量、两个 transport test 的命名，以及 review patch 的冻结约定。
+`scripts/check-docs.py` 检查源 skill 路径与“仓库根不再有 `SKILL.md` 软链”、
+`config.example.yaml` 与 setup 配额表、retry 文案与 `base.py` 常量、两个 transport
+test 的命名，以及 review patch 的冻结约定。
+
+三份客户端副本由 `scripts/sync-skills.sh` 生成。`scripts/check-skills.sh` 跑
+`tests/test_skill_copies.py`，把每份副本与该客户端的生成结果逐字节比较（三份之间只允许
+`references/scheduling.md` 不同），并断言每份里出现该客户端的启动命令；`scripts/check.sh`
+的 pytest 也会执行同一个测试。
 
 启用本地 pre-commit hook，每个 clone 执行一次：
 

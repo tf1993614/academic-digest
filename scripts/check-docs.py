@@ -2,7 +2,8 @@
 """Static consistency checks for the docs that steer the digest workflow.
 
 These are the machine-checkable claims the review kept catching by hand: the
-repo-root skill pointer, the setup quota table, the transport retry wording,
+canonical skill path (and the retired repo-root pointer), the setup quota table,
+the transport retry wording,
 the candidate-pool key contract, and the review-patch contract. Run from
 ``scripts/check.sh`` so a doc that drifts from its code/default fails before
 commit.
@@ -19,8 +20,8 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / ".dsh/skills/academic-digest/SKILL.md"
-SETUP = ROOT / ".dsh/skills/academic-digest/references/setup.md"
+SKILL = ROOT / "skills/academic-digest/SKILL.md"
+SETUP = ROOT / "skills/academic-digest/references/setup.md"
 README = ROOT / "README.md"
 STANDARDS = ROOT / "CODING_STANDARDS.md"
 CONFIG = ROOT / "config.example.yaml"
@@ -43,19 +44,17 @@ def _require(failures: list[str], condition: bool, message: str) -> None:
         failures.append(message)
 
 
-def _check_skill_pointer(failures: list[str]) -> None:
-    _require(failures, SKILL.is_file(), "missing .dsh/skills/academic-digest/SKILL.md")
+def _check_skill_source(failures: list[str]) -> None:
+    _require(failures, SKILL.is_file(), "missing skills/academic-digest/SKILL.md")
     pointer = ROOT / "SKILL.md"
-    _require(failures, pointer.is_symlink(), "repo-root SKILL.md must be a symlink")
-    if pointer.is_symlink():
-        _require(
-            failures,
-            pointer.resolve() == SKILL.resolve(),
-            "repo-root SKILL.md must point at .dsh/skills/academic-digest/SKILL.md",
-        )
     _require(
         failures,
-        "](.dsh/skills/academic-digest/SKILL.md)" in _text(README),
+        not pointer.is_symlink() and not pointer.exists(),
+        "repo-root SKILL.md must stay deleted; the source lives in skills/academic-digest/",
+    )
+    _require(
+        failures,
+        "](skills/academic-digest/SKILL.md)" in _text(README),
         "README must link the canonical skill path",
     )
 
@@ -271,7 +270,7 @@ def _check_review_patch(failures: list[str]) -> None:
 
 def main() -> int:
     failures: list[str] = []
-    _check_skill_pointer(failures)
+    _check_skill_source(failures)
     _check_quotas(failures, _text(SETUP))
     readme = _text(README)
     _check_candidate_keys(failures, readme)
@@ -283,7 +282,7 @@ def main() -> int:
         print(f"docs check found {len(failures)} problem(s)", file=sys.stderr)
         return 1
     print(
-        "[ok] docs: skill pointer, quotas, retry wording, candidate keys, "
+        "[ok] docs: skill source, quotas, retry wording, candidate keys, "
         "transport tests, review patch"
     )
     return 0
