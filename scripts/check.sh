@@ -6,7 +6,7 @@ set -euo pipefail
 root="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$root"
 
-python3 -m mypy academic_digest
-python3 -m pyflakes academic_digest scripts tests
+python3 -m mypy skills/academic-digest/academic_digest
+python3 -m pyflakes skills/academic-digest/academic_digest skills/academic-digest/scripts scripts tests
 python3 scripts/check-docs.py
 python3 -m pytest -q

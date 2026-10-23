@@ -31,6 +31,8 @@ copy_source_tree() {
       --exclude='__pycache__' \
       --exclude='*/__pycache__' \
       --exclude='*.pyc' \
+      --exclude='*.egg-info' \
+      --exclude='.pytest_cache' \
       -cf - .
   ) | (
     cd "$dest"

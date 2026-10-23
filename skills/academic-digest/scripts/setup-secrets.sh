@@ -197,7 +197,10 @@ finish() {
 # whole file before the first prompt, so an edit mid-run cannot break it.
 # ──────────────────────────────────────────────────────────────────────────
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The code lives inside the skill; the secrets and config stay at the checkout
+# that owns the skill. A copied skill still resolves the same repository root.
+REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
 ENV_FILE="$REPO_ROOT/secrets.env"
 
 run_wizard() {
@@ -279,13 +282,17 @@ say "以后可重复运行本向导；提示 [Enter keeps current] 时按 Enter 
 stage "真实测试推送（可选）"
 say "用录制的 fixture 日报 + walking fixture 配置，经 Server酱 真发一条消息到你的微信。"
 say "内容是假论文的测试日报；只发 1 条，消耗 1 次 Server酱 额度；状态写到 /tmp。"
-if confirm "现在发送一条真实测试消息？"; then
+FIXTURES="$REPO_ROOT/tests/fixtures"
+if [[ ! -f "$FIXTURES/walking/config.yaml" ]]; then
+  warn "没找到 $FIXTURES；这份 skill 可能被拷出了仓库，跳过真实测试推送。"
+  note "密钥已保存；要试发一条，请按 references/setup.md 用仓库里的 fixture 运行。"
+elif confirm "现在发送一条真实测试消息？"; then
   state_db="/tmp/academic-digest-wizard-state.sqlite3"
-  if SERVERCHAN_SENDKEY="$SERVERCHAN_SENDKEY" python3 "$REPO_ROOT/scripts/push.py" \
-      --config "$REPO_ROOT/tests/fixtures/walking/config.yaml" \
-      --candidates "$REPO_ROOT/tests/fixtures/digest/valid/candidates.json" \
-      --selection "$REPO_ROOT/tests/fixtures/digest/valid/selection.json" \
-      --digest "$REPO_ROOT/tests/fixtures/digest/valid/digest.md" \
+  if SERVERCHAN_SENDKEY="$SERVERCHAN_SENDKEY" python3 "$SCRIPT_DIR/push.py" \
+      --config "$FIXTURES/walking/config.yaml" \
+      --candidates "$FIXTURES/digest/valid/candidates.json" \
+      --selection "$FIXTURES/digest/valid/selection.json" \
+      --digest "$FIXTURES/digest/valid/digest.md" \
       --state-db "$state_db"; then
     say "命令成功。打开微信确认收到“学术速递 · 2026-10-22”。"
   else

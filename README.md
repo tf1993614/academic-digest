@@ -18,12 +18,12 @@
 
 ```bash
 # 1. 自检配置与录制的 PubMed 响应，不联网
-python3 scripts/doctor.py \
+python3 skills/academic-digest/scripts/doctor.py \
   --config tests/fixtures/walking/config.yaml \
   --fixtures tests/fixtures/walking
 
 # 2. 采集候选池；--now 固定逻辑时钟，输出可复现
-python3 scripts/collect.py \
+python3 skills/academic-digest/scripts/collect.py \
   --config tests/fixtures/walking/config.yaml \
   --fixtures tests/fixtures/walking \
   --now 2026-10-22T08:00:00+08:00 \
@@ -31,20 +31,20 @@ python3 scripts/collect.py \
   --state-db /tmp/state.sqlite3
 
 # 3. 抓取并解析一篇 OA 全文；同样只读 fixture，不联网
-python3 scripts/fulltext.py \
+python3 skills/academic-digest/scripts/fulltext.py \
   --config tests/fixtures/fulltext/config.yaml \
   --fixtures tests/fixtures/fulltext/epmc \
   --doi 10.1000/oa-epmc.1 \
   --out /tmp/fulltext.json
 
 # 4. 校验模型写的 selection 与日报（离线，只读三个文件）
-python3 scripts/digest.py check \
+python3 skills/academic-digest/scripts/digest.py check \
   --candidates tests/fixtures/digest/valid/candidates.json \
   --selection tests/fixtures/digest/valid/selection.json \
   --digest tests/fixtures/digest/valid/digest.md
 
 # 5. 构建 Server酱 payload（离线；不读 SendKey、不打开状态库）
-python3 scripts/push.py \
+python3 skills/academic-digest/scripts/push.py \
   --config tests/fixtures/walking/config.yaml \
   --candidates tests/fixtures/digest/valid/candidates.json \
   --selection tests/fixtures/digest/valid/selection.json \
@@ -53,7 +53,7 @@ python3 scripts/push.py \
   --dry-run
 
 # 6. 回放录制响应并记账（fixture 模式不联网、不读 SendKey）
-python3 scripts/push.py \
+python3 skills/academic-digest/scripts/push.py \
   --config tests/fixtures/walking/config.yaml \
   --candidates tests/fixtures/digest/valid/candidates.json \
   --selection tests/fixtures/digest/valid/selection.json \
@@ -79,7 +79,7 @@ GitHub 发现样例在 `tests/fixtures/github/`（只开启 GitHub，不含论�
 一个非空的 `GITHUB_TOKEN`；fixture 模式不会真的请求 GitHub：
 
 ```bash
-GITHUB_TOKEN=test python3 scripts/collect.py \
+GITHUB_TOKEN=test python3 skills/academic-digest/scripts/collect.py \
   --config tests/fixtures/github/config.yaml \
   --fixtures tests/fixtures/github \
   --now 2026-10-22T08:00:00+08:00 \
@@ -100,17 +100,22 @@ DOI→arXiv 交叉检索）。
 日报样例在 `tests/fixtures/digest/`：`valid/` 是合格的 3 + 7 日报（含 GitHub 三种
 模式与 G6），`empty/` 是标题 + 页脚的空日报。
 
-也可以使用模块入口：`python3 -m academic_digest collect ...`、
-`python3 -m academic_digest fulltext ...`、`python3 -m academic_digest digest check ...`、
-`python3 -m academic_digest push ...` 与 `python3 -m academic_digest doctor ...`。
+也可以使用模块入口（先 `pip install -e ".[dev]"`，这样 `academic_digest` 才可导入）：
+`python3 -m academic_digest collect ...`、`python3 -m academic_digest fulltext ...`、
+`python3 -m academic_digest digest check ...`、`python3 -m academic_digest push ...` 与
+`python3 -m academic_digest doctor ...`。装好后也可以用 `academic-digest` 命令行入口。
 `push` 的录制响应样例在 `tests/fixtures/push/`。
 
 ## Skill 与任务看板卡
 
-源 skill 在 [`skills/academic-digest/SKILL.md`](skills/academic-digest/SKILL.md)。`.dsh/`、
-`.claude/`、`.agents/` 三个扫描根下的 `skills/academic-digest/` 是同一份生成副本，只允许
-`references/scheduling.md` 不同；改源目录后跑 `scripts/sync-skills.sh` 重新生成，禁止手改
-副本。DSH 扫描 `<workspace>/.dsh/skills/` 的第一层，因此只要看板卡钉住本仓库就能发现它。
+源 skill 在 [`skills/academic-digest/SKILL.md`](skills/academic-digest/SKILL.md)。代码跟着
+skill 走：五个入口脚本在 `skills/academic-digest/scripts/`，`academic_digest/` 包也在
+这个目录里，每个入口脚本自己把所在 skill 目录加入 `sys.path`——把 `skills/academic-digest/`
+整个拷走，配好 `config.yaml` 与 `secrets.env`（两者留在仓库根），就能在任意工作目录直接
+运行，不需要 `pip install`。`.dsh/`、`.claude/`、`.agents/` 三个扫描根下的
+`skills/academic-digest/` 是同一份生成副本，只允许 `references/scheduling.md` 不同；改源
+目录后跑 `scripts/sync-skills.sh` 重新生成，禁止手改副本。DSH 扫描
+`<workspace>/.dsh/skills/` 的第一层，因此只要看板卡钉住本仓库就能发现它。
 
 想让任意工作区也能用，做一次用户级软链：
 
@@ -125,14 +130,14 @@ skill 里用 `git -C` 从自己的 base directory 解析真实仓库根，所以
 
 ### setup 顺序
 
-1. `scripts/setup-secrets.sh` 向导写本地 `secrets.env`（600、gitignored），包括
+1. `skills/academic-digest/scripts/setup-secrets.sh` 向导写本地 `secrets.env`（600、gitignored），包括
    `SERVERCHAN_SENDKEY` 与 `GITHUB_TOKEN`。
 2. 复制 [`config.example.yaml`](config.example.yaml) 为 `config.yaml`（已有就不要覆盖），
    按访谈调整六组关键词、源开关与 GitHub 用户；`config.yaml` 不提交。
 3. 联网自检：
    ```bash
    set -a; . ./secrets.env; set +a
-   python3 scripts/doctor.py --config config.yaml
+   python3 skills/academic-digest/scripts/doctor.py --config config.yaml
    ```
 4. 用 fixture 日报跑 `push --dry-run`，确认 title 与 Markdown payload。dry-run 不读
    SendKey、不发送；但 `config.yaml` 启用了 GitHub，仍要先加载 secrets 过配置校验。
@@ -153,11 +158,11 @@ skill 里用 `git -C` 从自己的 base directory 解析真实仓库根，所以
 
 ```bash
 set -a; . ./secrets.env; set +a
-python3 scripts/collect.py --config config.yaml                # -> out/candidates.json
+python3 skills/academic-digest/scripts/collect.py --config config.yaml                # -> out/candidates.json
 # 模型按 references/digest.md 写 out/selection.json 与 out/digest.md
-python3 scripts/digest.py check --candidates out/candidates.json \
+python3 skills/academic-digest/scripts/digest.py check --candidates out/candidates.json \
   --selection out/selection.json --digest out/digest.md
-python3 scripts/push.py --config config.yaml \
+python3 skills/academic-digest/scripts/push.py --config config.yaml \
   --candidates out/candidates.json --selection out/selection.json \
   --digest out/digest.md
 ```
@@ -937,13 +942,15 @@ SQLite 位于 `paths.state_db`（默认 `state/academic-digest.sqlite3`）：
 scripts/check.sh
 ```
 
-`scripts/check-docs.py` 检查源 skill 路径与“仓库根不再有 `SKILL.md` 软链”、README 与
-skill 文档里的 Markdown 相对链接、`config.example.yaml` 与 setup 配额表、retry 文案与
-`base.py` 常量、两个 transport test 的命名，以及 review patch 的冻结约定。
+`scripts/check-docs.py` 检查源 skill 路径与“仓库根不再有 `SKILL.md` 软链”、代码确实都在
+`skills/academic-digest/`（入口脚本与包不在仓库根）、README 与 skill 文档里的 Markdown
+相对链接、`config.example.yaml` 与 setup 配额表、retry 文案与 `base.py` 常量、两个
+transport test 的命名，以及 review patch 的冻结约定。
 
 三份客户端副本由 `scripts/sync-skills.sh` 生成。`scripts/check-skills.sh` 跑
 `tests/test_skill_copies.py`，把每份副本与该客户端的生成结果逐字节比较（三份之间只允许
-`references/scheduling.md` 不同），并断言每份里出现该客户端的启动命令；`scripts/check.sh`
+`references/scheduling.md` 不同）、断言每份里出现该客户端的启动命令，并用生成到临时目录
+的 `.claude` 副本在仓库外跑一次离线采集——副本能跑不能跑由这个测试证明；`scripts/check.sh`
 的 pytest 也会执行同一个测试。
 
 启用本地 pre-commit hook，每个 clone 执行一次：
@@ -966,10 +973,11 @@ scripts/review-patch.sh --verify  # 派 reviewer 前确认补丁/生成副本没
 
 规则见 `docs/agents/code-review.md`，审查侧的判断标准见 `CODING_STANDARDS.md`。
 
-唯一的测试 seam 是 CLI：测试用 `subprocess` 运行 `collect` / `fulltext` /
-`digest check` / `push` / `doctor`，断言退出码、stderr 与输出文件，不导入内部
-实现。所有测试离线且固定 `--now`；`digest check`、`fulltext --fixtures` 与
-`push --fixtures` / `push --dry-run` 不触碰网络。两个例外：`tests/test_push_transport.py`
+唯一的测试 seam 是 CLI：测试用 `subprocess` 运行源 skill 里的
+`skills/academic-digest/scripts/{collect,fulltext,digest,push,doctor}.py`（不是 `-m`，
+也不注入 `PYTHONPATH`：入口脚本的 bootstrap 必须自己成立），断言退出码、stderr 与输出
+文件，不导入内部实现。所有测试离线且固定 `--now`；`digest check`、`fulltext --fixtures`
+与 `push --fixtures` / `push --dry-run` 不触碰网络。两个例外：`tests/test_push_transport.py`
 直接测试 fixture 模式到不了的分支（ServerChan 端点选择、密钥脱敏、重试/脱敏接线与
 `timeout` / `backoff_seconds` 默认值）；`tests/test_source_http.py` 直接测试源 GET 的
 重试循环（连接错误 / 5xx / 429 最多 3 次尝试、1s/2s 退避、429 至少 2s；读超时与

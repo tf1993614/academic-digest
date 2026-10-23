@@ -11,7 +11,7 @@ README、ticket 或对话。
 按 SKILL.md 的“定位仓库”得到 `repo` 并 `cd` 进去。确认：
 
 ```bash
-test -f config.example.yaml && test -f scripts/setup-secrets.sh
+test -f config.example.yaml && test -f "<skill>/scripts/setup-secrets.sh"
 test -f secrets.env && stat -c %a secrets.env
 git check-ignore -q config.yaml && git check-ignore -q secrets.env
 ```
@@ -20,7 +20,7 @@ git check-ignore -q config.yaml && git check-ignore -q secrets.env
 secrets 时让用户自己跑向导（会打开浏览器，属于只有人能做的一步）：
 
 ```bash
-scripts/setup-secrets.sh
+"<skill>/scripts/setup-secrets.sh"
 ```
 
 ## 1. 访谈并写 config.yaml
@@ -56,8 +56,12 @@ test -f config.yaml || cp config.example.yaml config.yaml
 
 ```bash
 set -a; . ./secrets.env; set +a
-python3 - <<'PY'
+python3 - "<skill>" <<'PY'
+import sys
+
+sys.path.insert(0, sys.argv[1])
 from academic_digest.config import load_config
+
 c = load_config("config.yaml")
 print("config ok:", ", ".join(t.name for t in c.topics), "| sources:", ", ".join(n for n, on in c.sources.items() if on))
 PY
@@ -70,7 +74,7 @@ PY
 
 ```bash
 set -a; . ./secrets.env; set +a
-python3 scripts/doctor.py --config config.yaml
+python3 "<skill>/scripts/doctor.py" --config config.yaml
 ```
 
 期望最后一行 `doctor: all checks passed`，并列出每个源的连通性、GitHub search 配额、
@@ -85,7 +89,7 @@ python3 scripts/doctor.py --config config.yaml
 ```bash
 set -a; . ./secrets.env; set +a
 rm -f /tmp/academic-digest-payload.json
-python3 scripts/push.py \
+python3 "<skill>/scripts/push.py" \
   --config config.yaml \
   --candidates tests/fixtures/digest/valid/candidates.json \
   --selection tests/fixtures/digest/valid/selection.json \
@@ -112,7 +116,7 @@ PY
 ```bash
 set -a; . ./secrets.env; set +a
 rm -f /tmp/academic-digest-setup-test.sqlite3
-python3 scripts/push.py \
+python3 "<skill>/scripts/push.py" \
   --config tests/fixtures/walking/config.yaml \
   --candidates tests/fixtures/digest/valid/candidates.json \
   --selection tests/fixtures/digest/valid/selection.json \

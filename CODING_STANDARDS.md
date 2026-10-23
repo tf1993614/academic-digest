@@ -1,6 +1,6 @@
 # Coding standards
 
-Read by the code reviewer, not the implementation agent. Anything that can be a deterministic check belongs in `scripts/check.sh`; this file covers the judgement calls a reviewer should apply.
+Read by the code reviewer, not the implementation agent. Anything that can be a deterministic check belongs in `scripts/check.sh`; this file covers the judgement calls a reviewer should apply. Package paths below (`academic_digest/...`) are relative to the skill directory, `skills/academic-digest/`; the repository root holds only development tooling and runtime data.
 
 ## Source adapters
 
@@ -80,13 +80,14 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 
 ## Tests
 
-- Test at the CLI seam: subprocess `collect` / `fulltext` / `digest check` / `push` / `doctor`, asserting exit code, stderr, and output files. Three documented exceptions test what the fixture seam cannot reach: `tests/test_push_transport.py` (fixture runs never build a URL, read a SendKey, or sleep) covers endpoint selection, key redaction, the retry/sanitize wiring, and the transport-only `timeout` / `backoff_seconds` defaults; `tests/test_source_http.py` (fixture runs never reach `_request`) covers the source GET retry loop — connection errors, 5xx/429, the 1s/2s backoff, no retry for read timeouts or 4xx; `tests/test_journal_filter.py` pins the live PubMed `[Journal]` / Europe PMC `JOURNAL:` query strings, which fixtures bypass. All three stay offline and deterministic; the first two fake HTTP and never sleep.
+- Test at the CLI seam: subprocess the skill's own entry scripts (`skills/academic-digest/scripts/{collect,fulltext,digest,push,doctor}.py`), never `-m` and never with an injected `PYTHONPATH` — the script's `sys.path` bootstrap must work on its own, from a copied skill and an unrelated working directory. Assert exit code, stderr, and output files. Three documented exceptions test what the fixture seam cannot reach: `tests/test_push_transport.py` (fixture runs never build a URL, read a SendKey, or sleep) covers endpoint selection, key redaction, the retry/sanitize wiring, and the transport-only `timeout` / `backoff_seconds` defaults; `tests/test_source_http.py` (fixture runs never reach `_request`) covers the source GET retry loop — connection errors, 5xx/429, the 1s/2s backoff, no retry for read timeouts or 4xx; `tests/test_journal_filter.py` pins the live PubMed `[Journal]` / Europe PMC `JOURNAL:` query strings, which fixtures bypass. All three stay offline and deterministic; the first two fake HTTP and never sleep.
+- A change to the skill's code or bootstrap is proven twice: `tests/test_skill_copies.py` runs a generated `.claude` copy from a temp directory, and the sync/check pair keeps the three committed copies byte-identical.
 - Tests stay offline and deterministic: pass `--fixtures` and a fixed `--now`; no sleeps or wall-clock dependencies. `fulltext` has no date logic, so its tests rely on `--fixtures` alone; `push` replays recorded ServerChan responses, so its tests pass `--fixtures` and never read a SendKey.
 - Add a test whenever a documented ordering, marker, default, or switch changes. Every documented default (a config field that may be omitted) has a test that omits the field and asserts the documented value. Every "no update means no block" claim has a fixture with no updates that asserts the block is absent.
 
 ## Docs
 
-- A doc claim about ordering, labels, or defaults must match a test or config fixture. The mechanical subset — the canonical skill path and the retired repo-root pointer, relative Markdown links in the README and skill docs, setup quota table, retry counts/backoff, candidate-pool key contract, transport-test names, and the review-patch contract (generated-copy exclusion and `--verify`) — is enforced by `scripts/check-docs.py`.
+- A doc claim about ordering, labels, or defaults must match a test or config fixture. The mechanical subset — the canonical skill path, the retired repo-root pointer, the code living inside the skill (no repo-root `academic_digest/` or entry scripts), relative Markdown links in the README and skill docs, setup quota table, retry counts/backoff, candidate-pool key contract, transport-test names, and the review-patch contract (generated-copy exclusion and `--verify`) — is enforced by `scripts/check-docs.py`.
 - Update `README.md`, `config.example.yaml`, and the ADR when a source or config contract changes.
 
 Review process: `docs/agents/code-review.md`. Checks: `scripts/check.sh` (mypy, pyflakes, `check-docs.py`, pytest).

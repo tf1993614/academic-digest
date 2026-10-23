@@ -7,24 +7,38 @@ description: 自动学术速递的每日运行与配置：按关键词抓取 Pub
 
 ## 定位仓库
 
-本 skill 是一个目录包：源目录在 `skills/academic-digest/`，三个客户端扫描根下的
-`.dsh/skills/`、`.claude/skills/`、`.agents/skills/` 里是它的生成副本。无论加载的是
-哪一份，先解析出真实仓库根并进入：
+本 skill 是一个自包含目录包：入口脚本在 `scripts/`、Python 包在 `academic_digest/`，都
+跟着 skill 走，所以不需要 `pip install`。源目录在 `skills/academic-digest/`，三个客户端
+扫描根下的 `.dsh/skills/`、`.claude/skills/`、`.agents/skills/` 里是它的生成副本。
+无论加载的是哪一份，先解析出真实仓库根并进入：
 
 ```bash
-repo=$(git -C "<本 skill 的 base directory>" rev-parse --show-toplevel) || {
-  echo "[fail] cannot locate the git repository from the skill directory" >&2
+# <skill> 是本 skill 的 base directory，相对于当前工作目录，例如：
+#   skills/academic-digest            （源目录）
+#   .claude/skills/academic-digest    （Claude Code 副本）
+skill="$(cd "<本 skill 的 base directory>" && pwd)"
+if repo=$(git -C "$skill" rev-parse --show-toplevel 2>/dev/null); then
+  cd "$repo"
+else
+  # skill 被单独拷到 ~/.claude/skills/ 之类的非仓库位置时，运行数据就在当前目录。
+  repo="$PWD"
+  echo "[note] $skill is outside a git repository; using $repo for config/secrets/out/state" >&2
+fi
+test -f "$skill/scripts/collect.py" && test -f "$skill/academic_digest/cli.py" || {
+  echo "[fail] $skill does not contain the academic-digest code" >&2
   exit 1
 }
-cd "$repo"
-test -f scripts/collect.py && test -f academic_digest/cli.py || {
-  echo "[fail] $repo is not the academic-digest repository root" >&2
-  exit 1
-}
+test -f config.yaml || echo "[warn] no config.yaml in $repo; pass --config or run setup first" >&2
 ```
 
-之后所有命令都以仓库根为工作目录。用户级软链（`~/.dsh/skills/`、`~/.claude/skills/`、
-`~/.agents/skills/` 指向仓库里的副本）不会改变结果：`git -C` 会跟随软链找到同一个仓库根。
+之后所有命令都以 `repo` 为工作目录，用加载的那份 skill 里的入口脚本（下面的命令把
+它写成 `<skill>`；把它换成本 skill 的绝对路径，也就是上面解析出的 `$skill`）。用户级
+软链（`~/.dsh/skills/`、`~/.claude/skills/`、`~/.agents/skills/` 指向仓库里的副本）不会
+改变结果：`git -C` 会跟随软链找到同一个仓库根。skill 目录被单独拷走时没有仓库可找，
+`config.yaml`、`secrets.env`、`out/`、`state/` 都留在你运行命令的那个目录。
+
+每个入口脚本自己把所在 skill 目录加入 `sys.path`，所以从任意工作目录运行都能找到
+`academic_digest`，不依赖 `PYTHONPATH`，也不依赖包里是否装过本仓库。
 
 ## 每日运行
 
@@ -42,7 +56,7 @@ set -a; . ./secrets.env; set +a
 
 ```bash
 set -a; . ./secrets.env; set +a
-python3 scripts/collect.py --config config.yaml
+python3 "<skill>/scripts/collect.py" --config config.yaml
 ```
 
 - 产物固定是 `out/candidates.json`（`paths.candidates` 的默认值）。
@@ -66,7 +80,7 @@ python3 scripts/collect.py --config config.yaml
 - 写完先校验；不合格就按 `[fail]` 修到退出 0，再进入推送：
 
 ```bash
-python3 scripts/digest.py check \
+python3 "<skill>/scripts/digest.py" check \
   --candidates out/candidates.json \
   --selection out/selection.json \
   --digest out/digest.md
@@ -76,7 +90,7 @@ python3 scripts/digest.py check \
 
 ```bash
 set -a; . ./secrets.env; set +a
-python3 scripts/push.py --config config.yaml \
+python3 "<skill>/scripts/push.py" --config config.yaml \
   --candidates out/candidates.json \
   --selection out/selection.json \
   --digest out/digest.md
@@ -102,10 +116,10 @@ python3 scripts/push.py --config config.yaml \
 
 完整步骤与话术在 [`references/setup.md`](references/setup.md)，顺序固定：
 
-1. secrets：用户本地 `secrets.env` 已有 SendKey 与 GitHub token（`scripts/setup-secrets.sh`
+1. secrets：用户本地 `secrets.env` 已有 SendKey 与 GitHub token（`<skill>/scripts/setup-secrets.sh`
    向导，600 权限、gitignored）。
 2. config：复制 `config.example.yaml` 为 `config.yaml`，按访谈调整；`config.yaml` 不提交。
-3. doctor：`set -a; . ./secrets.env; set +a; python3 scripts/doctor.py --config config.yaml`。
+3. doctor：`set -a; . ./secrets.env; set +a; python3 "<skill>/scripts/doctor.py" --config config.yaml`。
 4. dry-run：用 fixture 日报构建 ServerChan payload，不读 SendKey、不发送。
 5. 测试推送：用 fixture 日报真发一条到微信，确认收到。
 6. 接入定时：按你使用的客户端读 `references/scheduling.md`（源目录里是

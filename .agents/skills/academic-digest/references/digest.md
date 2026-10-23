@@ -1,7 +1,7 @@
 # 日报写入契约
 
 每日运行的第二步只写两个文件：`out/selection.json` 与 `out/digest.md`。输入是
-`collect` 写出的 `out/candidates.json`。写完后必须用 `scripts/digest.py check`
+`collect` 写出的 `out/candidates.json`。写完后必须用 `<skill>/scripts/digest.py check`
 校验；校验不过就不能推送。
 
 ## 输入
@@ -60,7 +60,7 @@
 只对 `must_read` 的每篇调用 `fulltext`。`quick_scan` 只用候选摘要。
 
 ```bash
-python3 scripts/fulltext.py --config config.yaml \
+python3 "<skill>/scripts/fulltext.py" --config config.yaml \
   --doi "<候选 doi>" --arxiv "<候选 arxiv_id>" --title "<候选 title>" \
   --out out/fulltext-1.json
 ```

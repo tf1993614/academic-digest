@@ -7,8 +7,14 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL = ROOT / "skills" / "academic-digest"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 NOW = "2026-10-22T08:00:00+08:00"
+
+# The package lives inside the skill, not at the repository root. Tests that
+# import internals (the CLI seam never does) need the same path a user's entry
+# script would add; the repository is not an installed distribution here.
+sys.path.insert(0, str(SKILL))
 
 
 @pytest.fixture
@@ -16,14 +22,14 @@ def cli():
     """Run the CLI as a user would: a fresh subprocess, never imported internals."""
 
     def run(*args, cwd=ROOT, env=None):
+        command = str(args[0])
+        script = SKILL / "scripts" / f"{command}.py"
         child_env = os.environ.copy()
-        child_env["PYTHONPATH"] = str(ROOT) + (
-            os.pathsep + child_env["PYTHONPATH"] if child_env.get("PYTHONPATH") else ""
-        )
+        child_env.pop("PYTHONPATH", None)
         if env:
             child_env.update(env)
         return subprocess.run(
-            [sys.executable, "-m", "academic_digest", *map(str, args)],
+            [sys.executable, str(script), *map(str, args[1:])],
             cwd=cwd,
             env=child_env,
             capture_output=True,

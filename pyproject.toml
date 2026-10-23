@@ -23,6 +23,9 @@ dev = ["pytest>=7", "mypy>=1.8", "pyflakes>=3.0"]
 academic-digest = "academic_digest.cli:main"
 
 [tool.setuptools]
+# The package ships inside the skill so a copied skill directory is self-contained;
+# the repository is only one place that skill can live.
+package-dir = {"" = "skills/academic-digest"}
 packages = ["academic_digest", "academic_digest.fulltext", "academic_digest.sources"]
 
 [tool.pytest.ini_options]

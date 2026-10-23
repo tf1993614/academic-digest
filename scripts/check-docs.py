@@ -20,13 +20,14 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills/academic-digest/SKILL.md"
-SETUP = ROOT / "skills/academic-digest/references/setup.md"
+SKILL_DIR = ROOT / "skills/academic-digest"
+SKILL = SKILL_DIR / "SKILL.md"
+SETUP = SKILL_DIR / "references/setup.md"
 README = ROOT / "README.md"
 STANDARDS = ROOT / "CODING_STANDARDS.md"
 CONFIG = ROOT / "config.example.yaml"
-BASE = ROOT / "academic_digest/sources/base.py"
-MODELS = ROOT / "academic_digest/models.py"
+BASE = SKILL_DIR / "academic_digest/sources/base.py"
+MODELS = SKILL_DIR / "academic_digest/models.py"
 SPEC = ROOT / ".scratch/academic-digest/spec.md"
 REVIEW_SCRIPT = ROOT / "scripts/review-patch.sh"
 REVIEW_DOC = ROOT / "docs/agents/code-review.md"
@@ -59,6 +60,32 @@ def _check_skill_source(failures: list[str]) -> None:
         failures,
         "](skills/academic-digest/SKILL.md)" in _text(README),
         "README must link the canonical skill path",
+    )
+    for name in ("collect", "digest", "doctor", "fulltext", "push"):
+        _require(
+            failures,
+            (SKILL_DIR / "scripts" / f"{name}.py").is_file(),
+            f"missing skills/academic-digest/scripts/{name}.py",
+        )
+        _require(
+            failures,
+            not (ROOT / "scripts" / f"{name}.py").exists(),
+            f"scripts/{name}.py must live inside the skill, not at the repository root",
+        )
+    _require(
+        failures,
+        (SKILL_DIR / "scripts" / "setup-secrets.sh").is_file(),
+        "missing skills/academic-digest/scripts/setup-secrets.sh",
+    )
+    _require(
+        failures,
+        (SKILL_DIR / "academic_digest" / "cli.py").is_file(),
+        "missing skills/academic-digest/academic_digest/cli.py",
+    )
+    _require(
+        failures,
+        not (ROOT / "academic_digest").exists(),
+        "the academic_digest package must live inside the skill for a copy to run alone",
     )
 
 

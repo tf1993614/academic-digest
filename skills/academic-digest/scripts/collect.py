@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the collect command from the repository without installing the package."""
+"""Run the collect command from this skill directory without installing the package."""
 
 from __future__ import annotations
 
