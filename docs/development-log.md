@@ -2,9 +2,9 @@
 
 每天按用户设定的关键词，从文献源与 GitHub 收集新内容，筛成一份中文日报并推送到微信。
 
-> **历史记录。** 本文是重构前仓库根 README 的原文，保留当时的实现流水、链接与命令，
-> 按时间只追加，不再维护成“当前用法”。当前命令与配置见 [cli.md](cli.md) 与
-> [configuration.md](configuration.md)。
+> **历史记录。** 本文是重构前仓库根 README 的正文，保留当时的实现流水与命令，按时间只追加，
+> 不再维护成“当前用法”。只改过标题、这段说明，以及仓库根相对链接的前缀。当前命令与配置见
+> [cli.md](cli.md) 与 [configuration.md](configuration.md)。
 
 当前实现到 **Issue 11：期刊白名单**，并保留 Issue 10 的 skill + 任务看板卡、Issue 09
 的 Server酱分条推送、Issue 08 的日报契约与 Issue 06/07 的 GitHub release、OA 全文能力

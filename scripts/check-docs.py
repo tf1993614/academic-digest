@@ -17,6 +17,7 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -38,6 +39,7 @@ PYPROJECT = ROOT / "pyproject.toml"
 STANDARDS = ROOT / "CODING_STANDARDS.md"
 CONFIG = ROOT / "config.example.yaml"
 CONFIG_MODULE = SKILL_DIR / "academic_digest/config.py"
+CLI_MODULE = SKILL_DIR / "academic_digest/cli.py"
 BASE = SKILL_DIR / "academic_digest/sources/base.py"
 MODELS = SKILL_DIR / "academic_digest/models.py"
 SPEC = ROOT / ".scratch/academic-digest/spec.md"
@@ -46,6 +48,17 @@ REVIEW_DOC = DOCS / "agents/code-review.md"
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+
+# The public CLI name to the entry script and subcommand that implement it.
+# ``scripts/check-docs.py`` uses this one mapping both to prove the scripts
+# live inside the skill and to derive each command's flags from ``--help``.
+CLI_ENTRY = {
+    "collect": ("collect.py",),
+    "fulltext": ("fulltext.py",),
+    "digest check": ("digest.py", "check"),
+    "push": ("push.py",),
+    "doctor": ("doctor.py",),
+}
 
 
 def _text(path: Path) -> str:
@@ -60,6 +73,13 @@ def _require(failures: list[str], condition: bool, message: str) -> None:
         failures.append(message)
 
 
+def _parse_module(path: Path) -> ast.Module:
+    try:
+        return ast.parse(_text(path))
+    except SyntaxError as exc:
+        raise ValueError(f"cannot parse {path}: {exc}") from exc
+
+
 def _check_skill_source(failures: list[str]) -> None:
     _require(failures, SKILL.is_file(), "missing skills/academic-digest/SKILL.md")
     pointer = ROOT / "SKILL.md"
@@ -70,19 +90,20 @@ def _check_skill_source(failures: list[str]) -> None:
     )
     _require(
         failures,
-        "](../skills/academic-digest/SKILL.md)" in _text(DEVELOPMENT_LOG),
-        "docs/development-log.md must link the canonical skill path",
+        "](../skills/academic-digest/SKILL.md)" in _text(DOCS_INDEX),
+        "docs/README.md must link the canonical skill path",
     )
-    for name in ("collect", "digest", "doctor", "fulltext", "push"):
+    for entry in CLI_ENTRY.values():
+        script = entry[0]
         _require(
             failures,
-            (SKILL_DIR / "scripts" / f"{name}.py").is_file(),
-            f"missing skills/academic-digest/scripts/{name}.py",
+            (SKILL_DIR / "scripts" / script).is_file(),
+            f"missing skills/academic-digest/scripts/{script}",
         )
         _require(
             failures,
-            not (ROOT / "scripts" / f"{name}.py").exists(),
-            f"scripts/{name}.py must live inside the skill, not at the repository root",
+            not (ROOT / "scripts" / script).exists(),
+            f"scripts/{script} must live inside the skill, not at the repository root",
         )
     _require(
         failures,
@@ -215,20 +236,88 @@ def _check_docs_layout(failures: list[str]) -> None:
     )
 
 
+def _cli_section(text: str, name: str) -> str | None:
+    """The Markdown body of one command section in ``docs/cli.md``."""
+
+    heading = f"## `{name}`"
+    start = text.find(heading)
+    if start < 0:
+        return None
+    next_heading = text.find("\n## ", start + len(heading))
+    return text[start:] if next_heading < 0 else text[start:next_heading]
+
+
+def _help_flags(entry: tuple[str, ...]) -> list[str]:
+    """The long flags the command's own argparse parser declares."""
+
+    script = SKILL_DIR / "scripts" / entry[0]
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script), *entry[1:], "--help"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=ROOT,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f"cannot read --help for {entry[0]}: {exc}") from exc
+    if result.returncode != 0:
+        raise ValueError(
+            f"--help for {entry[0]} exited {result.returncode}: {result.stderr.strip()}"
+        )
+    return sorted(
+        set(re.findall(r"--[A-Za-z][A-Za-z0-9-]*", result.stdout)) - {"--help"}
+    )
+
+
+def _exit_codes() -> list[int]:
+    """The ``EXIT_*`` values the command dispatcher actually returns."""
+
+    tree = _parse_module(CLI_MODULE)
+    codes: list[int] = []
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
+            continue
+        value = node.value.value
+        if not isinstance(value, int) or isinstance(value, bool):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id.startswith("EXIT_"):
+                codes.append(value)
+    if not codes:
+        raise ValueError("academic_digest/cli.py must define EXIT_* integer constants")
+    return sorted(set(codes))
+
+
 def _check_cli_doc(failures: list[str]) -> None:
-    """The command reference covers every entry point and the exit codes."""
+    """The command reference matches the parsers and the dispatcher's exit codes."""
 
     if not CLI_DOC.is_file():
         return
     text = _text(CLI_DOC)
-    for name in ("collect", "fulltext", "digest check", "push", "doctor"):
+    for name, entry in CLI_ENTRY.items():
+        section = _cli_section(text, name)
+        _require(failures, section is not None, f"docs/cli.md must document `{name}`")
+        if section is None:
+            continue
+        try:
+            flags = _help_flags(entry)
+        except ValueError as exc:
+            failures.append(f"cli doc: {exc}")
+            continue
+        missing = [flag for flag in flags if flag not in section]
         _require(
             failures,
-            f"## `{name}`" in text,
-            f"docs/cli.md must document `{name}`",
+            not missing,
+            f"docs/cli.md `{name}` is missing flags: {', '.join(missing)}",
         )
     _require(failures, "## 退出码" in text, "docs/cli.md must document the exit codes")
-    for code in ("0", "1", "2"):
+    try:
+        codes = _exit_codes()
+    except ValueError as exc:
+        failures.append(f"cli doc: {exc}")
+        return
+    for code in codes:
         _require(
             failures,
             f"| `{code}` |" in text,
@@ -239,10 +328,7 @@ def _check_cli_doc(failures: list[str]) -> None:
 def _config_top_level_keys() -> list[str]:
     """``_TOP_LEVEL_KEYS`` from the config module, without importing it."""
 
-    try:
-        tree = ast.parse(_text(CONFIG_MODULE))
-    except SyntaxError as exc:
-        raise ValueError(f"cannot parse {CONFIG_MODULE}: {exc}") from exc
+    tree = _parse_module(CONFIG_MODULE)
     for node in tree.body:
         if not isinstance(node, ast.Assign):
             continue
@@ -292,10 +378,7 @@ def _check_config_doc(failures: list[str]) -> None:
 def _config_default_constants() -> dict[str, object]:
     """The module-level ``DEFAULT_*`` scalar values from the config module."""
 
-    try:
-        tree = ast.parse(_text(CONFIG_MODULE))
-    except SyntaxError as exc:
-        raise ValueError(f"cannot parse {CONFIG_MODULE}: {exc}") from exc
+    tree = _parse_module(CONFIG_MODULE)
     constants: dict[str, object] = {}
     for node in tree.body:
         if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
@@ -424,10 +507,7 @@ def _check_markdown_links(failures: list[str]) -> None:
 def _paper_dict_keys() -> list[str]:
     """The candidate-pool keys, read from ``Paper.to_dict`` without importing it."""
 
-    try:
-        tree = ast.parse(_text(MODELS))
-    except SyntaxError as exc:
-        raise ValueError(f"cannot parse {MODELS}: {exc}") from exc
+    tree = _parse_module(MODELS)
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef) or node.name != "Paper":
             continue
@@ -474,21 +554,23 @@ def _candidate_sample_keys(text: str, label: str) -> list[str]:
     return list(sample)
 
 
-def _check_candidate_keys(failures: list[str], log: str) -> None:
-    """Keep ``Paper.to_dict`` and the documented candidate contract in lockstep."""
+def _check_candidate_keys(failures: list[str]) -> None:
+    """Keep ``Paper.to_dict`` and the current candidate contract in lockstep.
+
+    ``docs/cli.md`` is the live contract. ``docs/development-log.md`` keeps the
+    historical sample untouched: it is append-only history, so it must not be
+    edited every time a payload key changes.
+    """
 
     try:
         keys = _paper_dict_keys()
     except ValueError as exc:
         failures.append(f"candidate contract: {exc}")
         return
-    documented = [(DEVELOPMENT_LOG, log)]
     if CLI_DOC.is_file():
-        documented.append((CLI_DOC, _text(CLI_DOC)))
-    for path, text in documented:
-        label = str(path.relative_to(ROOT))
+        label = str(CLI_DOC.relative_to(ROOT))
         try:
-            sample_keys = _candidate_sample_keys(text, label)
+            sample_keys = _candidate_sample_keys(_text(CLI_DOC), label)
         except ValueError as exc:
             failures.append(f"candidate contract: {exc}")
             return
@@ -564,8 +646,9 @@ def _check_quotas(failures: list[str], setup: str) -> None:
         )
 
 
-def _check_retry_docs(failures: list[str], log: str) -> None:
+def _check_retry_docs(failures: list[str]) -> None:
     base = _text(BASE)
+    cli = _text(CLI_DOC)
     attempts_match = re.search(r"^_HTTP_ATTEMPTS = (\d+)$", base, re.MULTILINE)
     backoff_match = re.search(
         r"^_HTTP_BACKOFF_SECONDS = ([\d.]+)$", base, re.MULTILINE
@@ -579,18 +662,18 @@ def _check_retry_docs(failures: list[str], log: str) -> None:
     standards = _text(STANDARDS)
     _require(
         failures,
-        f"最多 {attempts} 次尝试" in log,
-        f"docs/development-log.md must say '最多 {attempts} 次尝试'",
+        f"最多 {attempts} 次尝试" in cli,
+        f"docs/cli.md must say '最多 {attempts} 次尝试'",
     )
     _require(
         failures,
-        f"{attempts - 1} 次重试" in log,
-        f"docs/development-log.md must say '{attempts - 1} 次重试'",
+        f"{attempts - 1} 次重试" in cli,
+        f"docs/cli.md must say '{attempts - 1} 次重试'",
     )
     _require(
         failures,
-        backoff_text in log,
-        f"docs/development-log.md must say '{backoff_text}'",
+        backoff_text in cli,
+        f"docs/cli.md must say '{backoff_text}'",
     )
     _require(
         failures,
@@ -604,8 +687,8 @@ def _check_retry_docs(failures: list[str], log: str) -> None:
     )
     _require(
         failures,
-        "429" in log and "2s" in log,
-        "docs/development-log.md must document the 429 2s floor",
+        "429" in cli and "2s" in cli,
+        "docs/cli.md must document the 429 2s floor",
     )
     _require(
         failures,
@@ -675,9 +758,8 @@ def main() -> int:
     _check_skill_source(failures)
     _check_markdown_links(failures)
     _check_quotas(failures, _text(SETUP))
-    log = _text(DEVELOPMENT_LOG)
-    _check_candidate_keys(failures, log)
-    _check_retry_docs(failures, log)
+    _check_candidate_keys(failures)
+    _check_retry_docs(failures)
     _check_review_patch(failures)
     if failures:
         for failure in failures:
