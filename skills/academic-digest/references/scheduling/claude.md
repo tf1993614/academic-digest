@@ -10,6 +10,7 @@ secrets、并发锁、日志与退出码。
 在仓库根执行（skill 会解析自己的入口脚本，不需要 `pip install`）：
 
 ```bash
+set -a; . ./secrets.env; set +a
 claude -p "/academic-digest" \
   --permission-mode acceptEdits \
   --allowedTools "Bash(python3 *),Read,Write,Edit" \

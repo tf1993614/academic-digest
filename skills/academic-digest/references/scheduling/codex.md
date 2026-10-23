@@ -8,6 +8,7 @@ Codex 必需的沙箱网络开关。
 ## 先手动跑一次
 
 ```bash
+set -a; . ./secrets.env; set +a
 codex exec -C <仓库根> \
   --sandbox workspace-write \
   -c sandbox_workspace_write.network_access=true \

@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import fcntl
 import os
+import re
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -130,8 +132,25 @@ def _flag_value(args: list[str], flag: str) -> str:
     return args[index + 1]
 
 
+def _log_path(repo: Path) -> Path:
+    return repo / "out" / "logs" / "run-daily.log"
+
+
 def _log(repo: Path) -> str:
-    return (repo / "out" / "logs" / "run-daily.log").read_text(encoding="utf-8")
+    return _log_path(repo).read_text(encoding="utf-8")
+
+
+def _wait_for(path: Path, timeout: float = 10.0) -> None:
+    """Wait for a marker the client writes; every other assertion is state only."""
+
+    deadline = time.monotonic() + timeout
+    while not path.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert path.exists(), f"{path} never appeared"
+
+
+def _flags(text: str) -> set[str]:
+    return set(re.findall(r"(?<![\w-])--?[A-Za-z][A-Za-z0-9-]*", text))
 
 
 def _hold_lock(repo: Path):
@@ -216,6 +235,11 @@ def test_wrapper_runs_in_the_repository_and_loads_its_secrets(
     log = _log(repo)
     assert f"run-daily {client}" in log
     assert "exited 0" in log
+    assert _log_path(repo).stat().st_mode & 0o777 == 0o600, (
+        "the log can hold secrets-adjacent errors; it must stay private"
+    )
+    assert result.stdout.count("\n") == 1, "only the pre-exec banner reaches stdout"
+    assert result.stdout.startswith(f"[run-daily] {client}: ")
 
 
 def test_a_missing_secrets_file_still_runs_from_the_inherited_environment(
@@ -282,17 +306,87 @@ def test_the_lock_reports_the_client_exit_code_and_is_released(
     assert following.returncode == 0
     assert retry.calls(), "a failed run must not leave the lock behind"
 
+
+def test_a_user_level_symlink_still_resolves_the_repository(
+    repo: Path, tmp_path: Path
+) -> None:
+    _sync_to(repo)
+    scan_root = tmp_path / "home" / ".claude" / "skills"
+    scan_root.mkdir(parents=True)
+    linked = scan_root / "academic-digest"
+    linked.symlink_to(repo / SKILL, target_is_directory=True)
+    stub = Stub(tmp_path / "bin", "claude")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+
+    result = _run(linked, repo, "claude", stub=stub, cwd=elsewhere)
+    assert result.returncode == 0, result.stderr
+    assert stub.calls()[0]["cwd"] == str(repo)
+
+
+def test_sigterm_is_forwarded_to_the_client(skill_copy: Path, repo: Path, tmp_path: Path) -> None:
+    """A scheduler stop must reach the client, not orphan it behind the lock.
+
+    This is the one bounded wait in the suite: the client writes a marker when
+    it starts and another when it receives TERM, and the test polls for them
+    instead of sleeping for a fixed period.
+    """
+
+    bin_dir = tmp_path / "signal-bin"
+    bin_dir.mkdir()
+    started = bin_dir / "started"
+    termed = bin_dir / "termed"
+    script = bin_dir / "claude"
+    script.write_text(
+        "#!/usr/bin/env bash\n"
+        f"trap 'printf termed > {termed}; exit 143' TERM\n"
+        f"printf started > {started}\n"
+        "while :; do sleep 1; done\n",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+
+    env = os.environ.copy()
+    for name in ("PYTHONPATH", "SERVERCHAN_SENDKEY", "GITHUB_TOKEN"):
+        env.pop(name, None)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+    running = subprocess.Popen(
+        [str(skill_copy / "scripts" / "run-daily.sh"), "claude"],
+        cwd=repo,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        _wait_for(started)
+        running.terminate()
+        status = running.wait(timeout=20)
+    finally:
+        if running.poll() is None:
+            running.kill()
+            running.wait(timeout=20)
+
+    assert status == 143
+    _wait_for(termed)
+
+
 @pytest.mark.parametrize("client", ["claude", "codex"])
 def test_scheduling_docs_document_the_argv_the_wrapper_passes(
     skill_copy: Path, repo: Path, client: str
 ) -> None:
-    """One contract, checked from both sides: the stub records what is passed,
-    the doc has to document the same flag/value pairs."""
+    """The manual-run recipe and the wrapper's argv are one contract.
+
+    Wrapper to docs: every flag/value the stub records must be documented.
+    Docs to wrapper: the manual-run snippet may not pass a flag the wrapper
+    does not pass, so a doc-only escape hatch fails too.
+    """
 
     stub = Stub(repo.parent / "bin", client)
     result = _run(skill_copy, repo, client, stub=stub)
     assert result.returncode == 0, result.stderr
     args = stub.calls()[0]["args"]
+    wrapper_flags = {arg for arg in args if arg.startswith("-")}
 
     doc = (
         ROOT
@@ -318,6 +412,17 @@ def test_scheduling_docs_document_the_argv_the_wrapper_passes(
         assert f"{arg} {value}" in doc or f'{arg} "{value}"' in doc, (
             f"{client}: docs do not document {arg} {value!r}"
         )
+
+    manual = re.search(r"## 先手动跑一次(.*?)```bash\n(.*?)```", doc, re.S)
+    assert manual is not None, f"{client}: no manual-run snippet"
+    # Drop the secrets prelude: `set -a` is a shell flag, not a client flag.
+    manual_snippet = re.sub(r"(?m)^set -a.*\n", "", manual.group(2))
+    documented_flags = _flags(manual_snippet)
+    assert documented_flags, f"{client}: the manual-run snippet documents no flags"
+    assert documented_flags <= wrapper_flags, (
+        f"{client}: the docs pass flags the wrapper does not: "
+        f"{sorted(documented_flags - wrapper_flags)}"
+    )
 
     if client == "codex":
         assert "codex-last-message.md" in doc

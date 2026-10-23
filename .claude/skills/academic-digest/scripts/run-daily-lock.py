@@ -30,9 +30,11 @@ def main() -> int:
         print("[skip] run-daily: another run holds the lock; not stacking another client")
         return 0
 
-    child = subprocess.Popen(argv)
+    child: subprocess.Popen[bytes] | None = None
 
     def forward(signum: int, _frame: object) -> None:
+        if child is None:
+            return
         try:
             child.send_signal(signum)
         except ProcessLookupError:
@@ -40,7 +42,13 @@ def main() -> int:
 
     for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(signum, forward)
-    return child.wait()
+
+    # The client inherits the locked descriptor, so the lock survives a SIGKILL
+    # of this helper and is released only when the client itself is gone.
+    child = subprocess.Popen(argv, pass_fds=(descriptor,))
+    status = child.wait()
+    # Popen reports a signalled child as -N; a shell reports 128+N.
+    return 128 - status if status < 0 else status
 
 
 if __name__ == "__main__":

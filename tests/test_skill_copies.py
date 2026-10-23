@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -181,6 +182,7 @@ SCHEDULING_INVOCATIONS = {
     "codex": "/path/to/repo/.agents/skills/academic-digest/scripts/run-daily.sh codex",
 }
 
+
 def _fenced_blocks(text: str) -> list[str]:
     """Shell/config snippets only, so prose instructions are not mistaken for them."""
 
@@ -233,8 +235,14 @@ def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> No
             f"{client}: crontab snippets must say CRON_TZ only works on cronie"
         )
         assert "不补跑" in text, f"{client}: docs must state that a missed run is not replayed"
-        for block in _fenced_blocks(text):
-            for duplicated in ("set -a", "secrets.env", "flock", ">>", "cd /path"):
+        # The scheduler section must not redo what the wrapper owns; the
+        # manual-run prelude elsewhere in the doc may still source secrets.
+        scheduler = text.split("## 三种调度器", 1)[1].split("## 用户级安装", 1)[0]
+        for block in _fenced_blocks(scheduler):
+            assert not re.search(r"(?m)^\s*cd\b", block), (
+                f"{client}: scheduler snippets must leave cd to the wrapper"
+            )
+            for duplicated in ("set -a", "secrets.env", "flock", ">>"):
                 assert duplicated not in block, (
                     f"{client}: scheduler snippets must leave {duplicated!r} to the wrapper"
                 )

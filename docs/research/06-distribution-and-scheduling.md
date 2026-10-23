@@ -283,7 +283,7 @@ jobs:
 | 路径 | 现在仓库里有什么 | 该怎么措辞 |
 |---|---|---|
 | DSH 看板卡 | 已实现：`setup.md` 第 5–6 步 + 一张真跑过的卡 | "已实现，作者自用" |
-| 本机 cron + headless | **没有** `scripts/run-daily.sh` | "给出 recipe，复制即可，未随仓库验证" |
+| 本机 cron + headless | 已实现（Issue 03）：skill 内的 `scripts/run-daily.sh <claude\|codex>` | "已实现，复制即用" |
 | GitHub Actions | `ci.yml` 只有 push/PR，没有 `schedule` | "示例，未启用" |
 | 云端 scheduled task | 客户端功能，仓库不需要代码 | "在客户端里建，参考 §2.1" |
 
