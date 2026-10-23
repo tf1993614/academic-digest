@@ -273,17 +273,12 @@ def _help_flags(entry: tuple[str, ...]) -> list[str]:
 def _exit_codes() -> list[int]:
     """The ``EXIT_*`` values the command dispatcher actually returns."""
 
-    tree = _parse_module(CLI_MODULE)
-    codes: list[int] = []
-    for node in tree.body:
-        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
-            continue
-        value = node.value.value
-        if not isinstance(value, int) or isinstance(value, bool):
-            continue
-        for target in node.targets:
-            if isinstance(target, ast.Name) and target.id.startswith("EXIT_"):
-                codes.append(value)
+    values = _module_constants(CLI_MODULE, "EXIT_").values()
+    codes = [
+        value
+        for value in values
+        if isinstance(value, int) and not isinstance(value, bool)
+    ]
     if not codes:
         raise ValueError("academic_digest/cli.py must define EXIT_* integer constants")
     return sorted(set(codes))
@@ -375,18 +370,24 @@ def _check_config_doc(failures: list[str]) -> None:
     )
 
 
-def _config_default_constants() -> dict[str, object]:
-    """The module-level ``DEFAULT_*`` scalar values from the config module."""
+def _module_constants(path: Path, prefix: str) -> dict[str, object]:
+    """Module-level ``prefix*`` names assigned a scalar literal."""
 
-    tree = _parse_module(CONFIG_MODULE)
+    tree = _parse_module(path)
     constants: dict[str, object] = {}
     for node in tree.body:
         if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
             continue
         for target in node.targets:
-            if isinstance(target, ast.Name) and target.id.startswith("DEFAULT_"):
+            if isinstance(target, ast.Name) and target.id.startswith(prefix):
                 constants[target.id] = node.value.value
     return constants
+
+
+def _config_default_constants() -> dict[str, object]:
+    """The module-level ``DEFAULT_*`` scalar values from the config module."""
+
+    return _module_constants(CONFIG_MODULE, "DEFAULT_")
 
 
 # Every row in docs/configuration.md's default table that mirrors a config.py

@@ -24,7 +24,7 @@
   其余正文逐行保留，旧链接仍可点开。`docs/cli.md` 由原 `## 命令` 整段抽出（collect /
   fulltext / digest check / push / doctor 与退出码表，含候选池与日报契约），只把命令标题
   升到 `##` 并加通用约定；`docs/configuration.md` 重写成默认值表 + 分节说明。`docs/README.md`
-  按“使用 / 每日运行与定时 / 设计 / 维护”索引；根 README 收成 5 行：一句项目说明 +
+  按“使用 / 每日运行与定时 / 设计 / 维护”索引；根 README 收成一句项目说明 + 一行
   文档入口（命令、配置两个链接），不再重复 LICENSE 或命令块。
 - 与票面的有意偏差：票面要求把 README 断言“迁到开发记录上”，但开发记录的约束是“只追加、
   不再维护当前用法”。把 `Paper.to_dict` 键序、retry 常量、canonical skill 路径钉在历史文件
