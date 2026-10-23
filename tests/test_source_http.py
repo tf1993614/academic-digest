@@ -25,8 +25,15 @@ class _Response:
             raise requests.HTTPError(f"{self.status_code} error")
 
 
-def _call(monkeypatch: pytest.MonkeyPatch) -> str:
-    monkeypatch.setattr(base.time, "sleep", lambda seconds: None)
+def _call(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    sleeps: list[float] | None = None,
+) -> str:
+    if sleeps is None:
+        monkeypatch.setattr(base.time, "sleep", lambda seconds: None)
+    else:
+        monkeypatch.setattr(base.time, "sleep", sleeps.append)
     return base.get_text(
         "https://example.test/api",
         {"q": "x"},
@@ -36,52 +43,86 @@ def _call(monkeypatch: pytest.MonkeyPatch) -> str:
     )
 
 
-def test_get_text_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+def _fake_get(
+    monkeypatch: pytest.MonkeyPatch,
+    outcomes: list[object],
+) -> list[int]:
+    """Patch ``requests.get`` with a sequence of responses or exceptions."""
+
     calls: list[int] = []
 
     def fake_get(*args: object, **kwargs: object) -> _Response:
         calls.append(1)
-        if len(calls) < 3:
-            raise requests.ConnectionError("connection reset")
-        return _Response(text="recovered")
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
 
     monkeypatch.setattr(requests, "get", fake_get)
+    return calls
+
+
+def test_get_text_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _fake_get(
+        monkeypatch,
+        [
+            requests.ConnectionError("connection reset"),
+            requests.ConnectionError("connection reset"),
+            _Response(text="recovered"),
+        ],
+    )
     assert _call(monkeypatch) == "recovered"
     assert len(calls) == 3
 
 
+def test_get_text_uses_one_and_two_second_backoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sleeps: list[float] = []
+    _fake_get(
+        monkeypatch,
+        [
+            requests.ConnectionError("connection reset"),
+            requests.ConnectionError("connection reset"),
+            _Response(),
+        ],
+    )
+    assert _call(monkeypatch, sleeps=sleeps) == "body"
+    assert sleeps == [1.0, 2.0]
+
+
 def test_get_text_gives_up_after_three_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[int] = []
-
-    def fake_get(*args: object, **kwargs: object) -> _Response:
-        calls.append(1)
-        raise requests.ConnectionError("connection reset")
-
-    monkeypatch.setattr(requests, "get", fake_get)
+    calls = _fake_get(
+        monkeypatch,
+        [
+            requests.ConnectionError("connection reset"),
+            requests.ConnectionError("connection reset"),
+            requests.ConnectionError("connection reset"),
+        ],
+    )
     with pytest.raises(SourceError, match="request failed"):
         _call(monkeypatch)
     assert len(calls) == 3
 
 
+def test_get_text_does_not_retry_a_read_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _fake_get(monkeypatch, [requests.ReadTimeout("read timed out")])
+    with pytest.raises(SourceError, match="read timed out"):
+        _call(monkeypatch)
+    assert len(calls) == 1
+
+
 def test_get_text_retries_429_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
-    statuses = [429, 503, 200]
-
-    def fake_get(*args: object, **kwargs: object) -> _Response:
-        return _Response(status_code=statuses.pop(0))
-
-    monkeypatch.setattr(requests, "get", fake_get)
+    calls = _fake_get(
+        monkeypatch,
+        [_Response(status_code=429), _Response(status_code=503), _Response()],
+    )
     assert _call(monkeypatch) == "body"
-    assert statuses == []
+    assert len(calls) == 3
 
 
 def test_get_text_does_not_retry_a_client_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[int] = []
-
-    def fake_get(*args: object, **kwargs: object) -> _Response:
-        calls.append(1)
-        return _Response(status_code=404)
-
-    monkeypatch.setattr(requests, "get", fake_get)
+    calls = _fake_get(monkeypatch, [_Response(status_code=404)])
     with pytest.raises(SourceError, match="404"):
         _call(monkeypatch)
     assert len(calls) == 1

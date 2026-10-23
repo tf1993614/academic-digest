@@ -38,7 +38,7 @@ test -f config.yaml || cp config.example.yaml config.yaml
 |---|---|---|
 | 时区 | `Asia/Shanghai` | IANA 名称 |
 | 关键词组 | G1–G6 | 老化×多组学、单细胞/空间、基础模型/表征、扰动/调控、LLM/图/多模态、AI 工具/Agent Harness |
-| 每组配额 | G2 ≤ 4，其它 6 | `topics[].max_items`，候选池席位上限 |
+| 每组配额 | G2 ≤ 4，G6 2，其它 6 | `topics[].max_items`，候选池席位上限 |
 | 文献源 | PubMed、Europe PMC、arXiv、Research Square 开；bioRxiv/medRxiv 关 | 全量预印本源按需再开 |
 | GitHub | 开，`user: tf1993614` | 需要 token；官方库是 Claude Code / Codex / DSH |
 | GitHub 阈值 | 新库 7 天/5 星/1 条；活跃库 7 天/30 星/2 条；G6 2 条 | 见 `github.*` |
@@ -46,9 +46,11 @@ test -f config.yaml || cp config.example.yaml config.yaml
 | 推送 | Server酱，`send_empty: true`，标题 ≤32 字 | `push.*` 全部可省略 |
 | 定时 | 每天 `0 8 * * *`，`Asia/Shanghai` | 建卡时用 |
 
-写完后先只做配置校验（不发请求、不建状态库）：
+写完后先只做配置校验（不发请求、不建状态库）。`config.yaml` 默认启用 GitHub，
+配置校验会检查 `GITHUB_TOKEN` 是否存在，所以先加载 secrets：
 
 ```bash
+set -a; . ./secrets.env; set +a
 python3 - <<'PY'
 from academic_digest.config import load_config
 c = load_config("config.yaml")
@@ -123,7 +125,8 @@ python3 scripts/push.py \
 - `title`：`每日学术速递`
 - `description`：说明关键词来自 `config.yaml`，结果推送到微信，失败看 `runs`。
 - `permission`：`workspace-write`（脚本要写 `out/` 与 `state/`）。
-- `workspaceId`：省略即继承当前会话的工作区；创建后用 `task_board_get` 确认是本仓库。
+- `workspaceId`：固定为本仓库。若工具支持显式传，填本仓库的 workspace id；若从当前
+  会话继承，创建后用 `task_board_get` 核对 `workspaceId` 对应本仓库路径。
 - `goalRun`：`true`。完成门是 `push` 成功后调用 `update_goal(action: complete)`；
   发送失败时不调用 complete，看板会把这次执行记为失败。若部署没有打开全局 `/goal`
   开关，这个字段会被忽略，失败改用 `record-external-outcome` 记录（见第 7 步）。
@@ -137,7 +140,7 @@ Prompt 用下面这份，逐字粘贴：
 ```text
 加载 academic-digest skill，按它的“每日运行”执行今天的推送。工作区根目录就是本仓库。需要 token 或 SendKey 的命令前先执行 set -a; . ./secrets.env; set +a，不要打印密钥。
 
-1. 采集：运行 python3 scripts/collect.py --config config.yaml，确认 out/candidates.json 已生成。采集可能超过 10 分钟并被移到后台；用 job_output(wait: true) 等它结束，不要重跑。某个源 [fail] 但 collect 退出 0 时，照实写进页脚，不要为了修源重跑 collect。
+1. 采集：运行 python3 scripts/collect.py --config config.yaml，确认 out/candidates.json 已生成。采集通常 2–4 分钟，网络差时可能更久；给 bash 留 15 分钟超时，被移到后台就用 job_output(wait: true) 等它结束，不要重跑。某个源 [fail] 但 collect 退出 0 时，照实写进页脚，不要为了修源重跑 collect。
 2. 写作：按 skill 的 references/digest.md 读 out/candidates.json，对今日必读逐篇运行 fulltext，写出 out/selection.json 与 out/digest.md，再运行 python3 scripts/digest.py check --candidates out/candidates.json --selection out/selection.json --digest out/digest.md。校验不通过就修到通过，不要推送。
 3. 推送：运行 python3 scripts/push.py --config config.yaml --candidates out/candidates.json --selection out/selection.json --digest out/digest.md。
 
@@ -168,18 +171,28 @@ Prompt 用下面这份，逐字粘贴：
 
 目的：确认发送失败会留下 pending，下一次优先补发，并且看板能把这次执行记为失败。
 
-1. 先备份 `secrets.env`，临时把 SendKey 换成一个无效值（不要打印，也不要提交）。
+1. 不改 `secrets.env`。用环境变量临时覆盖 SendKey，对 fixture 日报发一次；状态库放在
+   工作区内，保证跨会话可见（`out/` 已 gitignored）：
+   ```bash
+   SERVERCHAN_SENDKEY=INVALID_KEY_FOR_DRILL python3 scripts/push.py \
+     --config tests/fixtures/walking/config.yaml \
+     --candidates tests/fixtures/digest/valid/candidates.json \
+     --selection tests/fixtures/digest/valid/selection.json \
+     --digest tests/fixtures/digest/valid/digest.md \
+     --state-db out/.board-drill.sqlite3
+   ```
 2. 从看板跑一次那张卡。`push` 会重试后退出 1，把未送达消息写进 `pending`，
    `runs.status='failed'`；因为卡片启用了 `/goal` 且这一轮没有调用
    `update_goal(complete)`，看板执行记录会显示失败。
-3. 如果部署没有打开全局 `/goal`，普通单回合不会因为 shell 退出码自动判负；用
-   `task_board_manage(action: "record-external-outcome", result: "failed",
-   initiatedBy: "academic-digest-setup", summary: "send-failure drill")` 把这次
-   演练记成失败，或在 UI 里移到失败列。
-4. 恢复正确 SendKey，再跑一次。`push` 先按 `part` 顺序补发 pending，再发当天日报；
-   stdout 的发送条数应包含补发的那条，`pending` 归零，`runs.status='ok'`。
-5. 演练结束后确认 `secrets.env` 已恢复、权限仍是 600，并且没有把无效 key 留在
-   任何文件或看板 Prompt 里。
+3. 如果部署没有打开全局 `/goal`（本机当前如此），普通单回合不会因为 shell 退出码
+   自动判负；用 `task_board_manage(action: "record-external-outcome", result:
+   "failed", initiatedBy: "academic-digest-setup", summary: "send-failure drill")`
+   把这次演练记成失败，或在 UI 里移到失败列。
+4. 不覆盖 SendKey，`set -a; . ./secrets.env; set +a` 后再跑同一条命令（同一个
+   `out/.board-drill.sqlite3`）。`push` 先按 `part` 顺序补发 pending，再发当天
+   fixture；stdout 的发送条数应包含补发的那条，`pending` 归零，`runs.status='ok'`。
+5. 演练结束后可删除 `out/.board-drill.sqlite3`；确认 `secrets.env` 未改动、权限仍是
+   600，并且没有把无效 key 留在任何文件或看板 Prompt 里。
 
 ## 8. 用户级软链（可选）
 

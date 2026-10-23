@@ -7,7 +7,7 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 - A source module exports `NAME`, `collect(config, fixtures_root, now)`, and `check(config, fixtures_root)`.
 - `collect` returns a `SourceResult`; one failed source never aborts the others.
 - Fixture layout is `<fixtures>/<source>/<recorded-response>`. Use `base.read_or_fetch` so `--fixtures` never touches the network.
-- Live GETs go through `base.get_text` / `base.get_bytes`, which retry connection errors, 5xx, and 429 up to three attempts with 1s/2s backoff; a 4xx fails immediately. Fixtures bypass this layer, so `tests/test_source_http.py` tests the loop directly (a documented transport exception beside `test_push_transport.py`).
+- Live GETs go through `base.get_text` / `base.get_bytes`, which retry connection errors, 5xx, and 429 up to three attempts with 1s/2s backoff; a read timeout or 4xx fails immediately. Fixtures bypass this layer, so `tests/test_source_http.py` tests the loop directly (a documented transport exception beside `test_push_transport.py`).
 - A fixture must mirror the real response shape, including separators. bioRxiv authors, for example, are semicolon-separated `Last, First`.
 
 ## Candidate pool
@@ -77,7 +77,7 @@ Read by the code reviewer, not the implementation agent. Anything that can be a 
 
 ## Tests
 
-- Test at the CLI seam: subprocess `collect` / `fulltext` / `digest check` / `push` / `doctor`, asserting exit code, stderr, and output files. The one documented exception is `tests/test_push_transport.py`: fixture runs never build a URL, read a SendKey, or sleep, so endpoint selection, key redaction, the retry/sanitize wiring, and the transport-only `timeout` / `backoff_seconds` defaults are tested directly.
+- Test at the CLI seam: subprocess `collect` / `fulltext` / `digest check` / `push` / `doctor`, asserting exit code, stderr, and output files. Two documented transport exceptions test what the fixture seam cannot reach: `tests/test_push_transport.py` (fixture runs never build a URL, read a SendKey, or sleep) covers endpoint selection, key redaction, the retry/sanitize wiring, and the transport-only `timeout` / `backoff_seconds` defaults; `tests/test_source_http.py` (fixture runs never reach `_request`) covers the source GET retry loop — connection errors, 5xx/429, the 1s/2s backoff, no retry for read timeouts or 4xx. Both fake HTTP and never sleep or touch the network.
 - Tests stay offline and deterministic: pass `--fixtures` and a fixed `--now`; no sleeps or wall-clock dependencies. `fulltext` has no date logic, so its tests rely on `--fixtures` alone; `push` replays recorded ServerChan responses, so its tests pass `--fixtures` and never read a SendKey.
 - Add a test whenever a documented ordering, marker, default, or switch changes. Every documented default (a config field that may be omitted) has a test that omits the field and asserts the documented value. Every "no update means no block" claim has a fixture with no updates that asserts the block is absent.
 

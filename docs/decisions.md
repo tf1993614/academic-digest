@@ -179,5 +179,6 @@ setup 顺序固定为 secrets → `config.yaml`（从 `config.example.yaml` 复�
 G1–G6 + GitHub 默认开，已有配置不覆盖）→ 联网 `doctor` → fixture `push --dry-run`
 （不发送，但要先加载 secrets 过 `github.token` 配置校验）→ fixture 真发一条测试消息
 → 创建卡片。真实发送失败会重试 2 次后写 `pending` 并退出 1；下一次 live 运行先补发
-pending。Host 必须在线；错过的 cron 不补跑，采集的 lookback 覆盖最近 2–7 天。
+pending。Host 必须在线；错过的 cron 不补跑，采集按各源固定 lookback（默认 2–4 天）
+补窗；`last_success` 动态补窗仍是已知缺口，留待后续 issue。
 `config.yaml`、`secrets.env`、`out/`、`state/` 仍只在本地，不提交。

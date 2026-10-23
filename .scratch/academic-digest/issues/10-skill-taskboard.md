@@ -52,5 +52,18 @@
   可随时归档。
 
 - 2026-10-23：端到端期间观察到代理/TLS 偶发 `SSLEOFError` 与 arXiv 读超时，给
-  live GET 增加了 3 次尝试（1s/2s 退避）的传输层重试，测试在
-  `tests/test_source_http.py`；失败源仍按契约写进页脚，不阻断其它源与推送。
+  live GET 增加了 3 次尝试（2 次重试，1s/2s 退避）的传输层重试；读超时与 4xx 立即
+  失败，避免慢主机把采集拖到十分钟。测试在 `tests/test_source_http.py`，ADR
+  0001 已补 Issue 10 amendment；失败源仍按契约写进页脚，不阻断其它源与推送。
+
+- 2026-10-23：code review 后收紧文档与测试：retry 文案改为“3 次尝试（2 次重试）”，
+  `CODING_STANDARDS` 的 Tests 规则同时列入 `test_source_http.py`，setup 的配额表改为
+  “G2 ≤ 4，G6 2，其它 6”，配置校验与失败演练都先加载/覆盖 secrets；backoff 与
+  读超时不重试补了测试。spec.md 恢复原状（不再改写验收标准），Issue 10 的偏离只留在
+  `docs/decisions.md` 与 ADR amendment。
+
+- 2026-10-23：已知缺口（不在本票清单内）：(1) `last_success` 动态补窗未实现，当前
+  按各源固定 lookback（默认 2–4 天）补窗，README/ADR 已如实标注；(2) 本机 Host 未开
+  全局 `/goal`，`goalRun` 被忽略，发送失败靠 `record-external-outcome` 记录；
+  (3) `config.example.yaml` 的 G5/G4 泛词是否按 `docs/decisions.md` §2.4 加生物锚点，
+  属于用户关键词配置，待用户决定，不擅自改。

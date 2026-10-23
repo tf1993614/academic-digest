@@ -15,6 +15,8 @@ from ..models import Paper
 # Live GETs go through proxies and CDNs that occasionally drop a TLS
 # connection. A retry keeps one transient error from failing a whole source
 # (and with it the day's GitHub/G6 block); fixtures never reach this code.
+# Read timeouts are not retried: they already spent the whole timeout budget,
+# and retrying them turns one slow host into a ten-minute collection.
 _HTTP_ATTEMPTS = 3
 _HTTP_BACKOFF_SECONDS = 1.0
 
@@ -188,7 +190,9 @@ def _request(
             )
         except requests.exceptions.RequestException as exc:
             last_error = exc
-            if attempt == _HTTP_ATTEMPTS:
+            if attempt == _HTTP_ATTEMPTS or not isinstance(
+                exc, requests.exceptions.ConnectionError
+            ):
                 break
             time.sleep(_HTTP_BACKOFF_SECONDS * (2 ** (attempt - 1)))
             continue

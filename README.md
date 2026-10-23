@@ -164,7 +164,8 @@ python3 scripts/push.py --config config.yaml \
 - 部分源失败仍发送，页脚标 `failed`；全部源失败时 `collect` 退出 1，不发送。
 - 发送失败重试 2 次后写 `pending` 并退出 1；下一次 live run 先补发 pending。看板
   执行历史记录每轮结果，`state/academic-digest.sqlite3` 的 `runs` 是审计来源。
-- Host 必须在线；错过的 cron 不补跑，采集的 lookback 覆盖最近 2–7 天。
+- Host 必须在线；错过的 cron 不补跑，采集按各源固定 lookback（默认 2–4 天）补窗；
+  `last_success` 动态补窗尚未实现。
 
 ## 命令
 
@@ -183,9 +184,9 @@ collect --config PATH [--fixtures DIR] [--now ISO8601] [--out PATH] [--state-db 
 离开 `--fixtures` 时通过 PubMed E-utilities 的 `esearch` + `efetch`、Europe PMC
 的 `search`（`resultType=core`）、arXiv 的 RSS 与 API、Research Square 的 RSS，以及按需
 开启的 bioRxiv/medRxiv `details` API 抓取。PubMed 摘要只从 XML 解析
-（JSON 模式会静默丢掉摘要）。每个 live GET 在连接错误、5xx 或 429 时最多重试 3 次
-（1s/2s 退避）；仍失败才把该源标为 `failed`，不会因为一次掉线丢掉整天的 GitHub/G6
-区块。`--fixtures` 直接读录制文件，不经过这个重试层。
+（JSON 模式会静默丢掉摘要）。每个 live GET 在连接错误、5xx 或 429 时最多 3 次尝试
+（2 次重试，1s/2s 退避）；读超时与 4xx 不重试。仍失败才把该源标为 `failed`，不会
+因为一次掉线丢掉整天的 GitHub/G6 区块。`--fixtures` 直接读录制文件，不经过这个重试层。
 
 启用 `sources.github` 时还会调用 GitHub Search API 抓取新库、活跃库与 G6 区块
 （AI 工具 / Agent Harness）的仓库；搜索请求串行、约 2 秒一次，带 User-Agent 与
@@ -928,8 +929,8 @@ scripts/review-patch.sh   # -> out/review/current.diff 等
 `push --fixtures` / `push --dry-run` 不触碰网络。两个例外：`tests/test_push_transport.py`
 直接测试 fixture 模式到不了的分支（ServerChan 端点选择、密钥脱敏、重试/脱敏接线与
 `timeout` / `backoff_seconds` 默认值）；`tests/test_source_http.py` 直接测试源 GET 的
-重试循环（连接错误 / 5xx / 429，最多 3 次、1s/2s 退避），因为 fixture 读取根本不经过
-传输层。两个测试都伪造 HTTP，不联网、不 sleep。
+重试循环（连接错误 / 5xx / 429 最多 3 次尝试、1s/2s 退避；读超时与 4xx 不重试），
+因为 fixture 读取根本不经过传输层。两个测试都伪造 HTTP，不联网、不 sleep。
 
 “已推送”状态由 `push` 写入 SQLite `pushes`；测试也可以直接写一行作为 `collect`
 的前置数据，断言仍只来自 CLI 输出。
