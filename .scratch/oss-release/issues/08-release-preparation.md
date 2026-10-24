@@ -4,7 +4,7 @@
 
 **Blocked by:** 06（已 done）。07（Claude Code 实测）不阻塞本票。
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] 正式 `README.md`：首屏说清“是什么、给谁、离线怎么跑”，完整命令/配置链到 `docs/`，不再复制开发记录。
 - [x] `CHANGELOG.md` 的 `v0.1.0` 条目。
@@ -12,7 +12,7 @@
 - [x] `README.md` 与 `references/scheduling/dsh.md` 明确 DSH 看板卡依赖 dsh-web 的 task-board 插件，并给出安装命令。
 - [x] `v0.1.0` annotated tag + GitHub Release；tag 打在 README/CHANGELOG 已通过 CI 的提交上。
 - [x] 公开前：历史 secret 扫描、`git check-ignore`、无 SSH key 的 HTTPS fresh clone 四步复核。
-- [ ] 仓库公开（需人工确认；`gh repo edit --visibility public` 前的最后一步）。
+- [x] 仓库公开（需人工确认；`gh repo edit --visibility public` 前的最后一步）。
 
 ## Notes
 
@@ -38,3 +38,8 @@
 - 待办：仓库公开（需用户明确确认），然后跑无凭据 HTTPS clone 与 release 页面/README 渲染检查。Claude Code 实测仍由 07 跟踪，不阻塞发布。
 
 - 2026-10-24：用户要求 README 说明 Server酱 SendKey 与 GitHub token 的获取方式。README 增加 `## 获取凭据（Server酱 SendKey 与 GitHub token）`，写清两个控制台的链接、classic/fine-grained token 的 scope 取舍、`secrets.env` 的写法与 600/gitignore 约束、以及不配凭据时的行为；`setup-secrets.sh` 的 scope 文案同步（私有关注库勾 `repo`）。因为 `v0.1.0` 原 tag 在 `74c4c99`，这条 README 提交后会把 tag/Release 移到新提交再公开。
+
+- 2026-10-24：仓库已公开：<https://github.com/tf1993614/academic-digest>（`visibility: PUBLIC`，GitHub 识别为 MIT，topics 保留）。公开前把 `v0.1.0` tag/Release 从 `74c4c99` 移到 `f89bd38`（含「获取凭据」章节的 README）；Release 仍为 <https://github.com/tf1993614/academic-digest/releases/tag/v0.1.0>。
+- 公开后验证：不带任何凭据的 HTTPS clone `v0.1.0` 成功，无 `config.yaml` / `secrets.env`，doctor → fixture collect → `digest check` → `push --dry-run` 四步全绿，三个扫描根都有 skill；raw README 能看到凭据章节，Release 页面 HTTP 200。
+- 作者邮箱按用户决定不重写历史，公开后可见；`.scratch/` 内部文档也随仓库公开（spec 原有决定）。
+- 收尾：ticket 08 done；ticket 07（Claude Code 实测）仍等账号恢复，不阻塞发布。
