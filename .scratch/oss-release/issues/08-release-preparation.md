@@ -29,3 +29,6 @@
 - 待办：用户 review README 后打 `v0.1.0` tag + GitHub Release；公开前再做一次 secret 扫描与 HTTPS fresh clone 复核，最后公开仓库需明确确认。
 
 - 2026-10-24：用户指出 DSH 原生不带定时任务，看板卡/`task_board_*`/cron 来自 dsh-web 的 task-board 插件。已补：README 的客户端表与「每天定时跑」写明 `@linxin666/dsh-client-ui-task-board`（或 `@linxin666/dsh-web-all`）的安装命令与重启步骤；`references/scheduling/dsh.md` 增加「前置：DSH Web 任务看板插件」并修正“DSH 没有 headless CLI”的旧表述；`tests/test_skill_copies.py` 增加断言防止再丢；`check-docs.py` 断言 README 必须提到插件。研究文档 `05`、`06` 加补注。
+
+- 2026-10-24：按用户要求在 README 增加 `## Star History`，使用 star-history.com 的
+  `tf1993614/academic-digest` Date 图表。私有期图表可能没有数据，公开后自动填充。

@@ -275,6 +275,10 @@ config.example.yaml            # 配置模板
 - **PDF 解析用什么？** PyMuPDF（AGPL-3.0）；HTML 用 beautifulsoup4 + lxml。再分发前请自行确认许可证兼容性。
 - **V1 没有什么？** Web UI、邮件、公众号、多用户、反馈闭环、动态补窗都不在范围内。
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=tf1993614/academic-digest&type=Date)](https://star-history.com/#tf1993614/academic-digest&Date)
+
 ## 开发、致谢与许可
 
 一次跑完全部检查（mypy、pyflakes、文档一致性、pytest）：
