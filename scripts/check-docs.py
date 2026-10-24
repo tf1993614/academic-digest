@@ -215,6 +215,11 @@ def _check_docs_layout(failures: list[str]) -> None:
         )
         _require(
             failures,
+            "dsh-client-ui-task-board" in readme,
+            "README.md must tell DSH users to install the task-board plugin",
+        )
+        _require(
+            failures,
             "## 测试 fixture 布局" not in readme and "## 状态库" not in readme,
             "README.md must not regress into the development log; link it instead",
         )

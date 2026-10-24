@@ -255,6 +255,12 @@ def test_cli_schedules_share_the_wrapper_and_pin_the_runtime_constraints() -> No
     )
     assert "不补跑" in texts["dsh"], "the DSH card must state that a missed run is not replayed"
     assert "run-daily.sh dsh" not in texts["dsh"], "DSH has no wrapper client argument"
+    assert "dsh-client-ui-task-board" in texts["dsh"], (
+        "the DSH card must name the task-board plugin it depends on"
+    )
+    assert "dsh plugin --profile web add" in texts["dsh"], (
+        "the DSH card must show the task-board plugin install command"
+    )
 
     for client, text in texts.items():
         for cloud in ("GitHub Actions", "云端", "scheduled task"):

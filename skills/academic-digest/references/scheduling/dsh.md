@@ -4,17 +4,36 @@ DSH 的无人值守入口是任务看板卡：`0 8 * * *` / `Asia/Shanghai` 由�
 再按 `SKILL.md` 的“每日运行”执行三步。看板卡钉住本仓库工作区，DSH 就会从
 `.dsh/skills/` 发现这份 skill。
 
+## 前置：DSH Web 任务看板插件
+
+DSH 核心与基础 profile 不带任务看板与 cron；看板卡、cron 与 `task_board_*` 工具来自
+DSH Web 的任务看板插件 `@linxin666/dsh-client-ui-task-board`（装
+`@linxin666/dsh-web-all` 全家桶时已包含）。如果侧栏已有「任务看板」，跳过安装；没有则
+在 DSH 主机上安装并重启：
+
+```sh
+dsh plugin --profile web add @linxin666/dsh-client-ui-task-board@latest
+# 或者一次装全家桶
+dsh plugin --profile web add @linxin666/dsh-web-all@latest
+dsh web
+```
+
+profile 不叫 `web` 时换成你的 profile 名。没有这个插件时 `task_board_*` 工具与 cron 都
+不存在，只能在会话里手动按 `SKILL.md` 跑三步。
+
 ## 为什么是看板卡
 
-- DSH 没有供外部调度器调用的 headless CLI；会话本身由看板启动，“谁定时”与“谁跑模型”
-  是同一个东西。
+- 本项目选择看板卡：调度器、权限门与执行历史都在同一个 Host 插件里；“谁定时”与
+  “谁跑模型”是同一个东西。DSH 也有 `dsh headless` 的单次执行形态，但本版没有为它提供
+  wrapper，也没有验证无人值守路径，所以 DSH 的默认仍是看板卡。
 - 因此 DSH **不经过 `scripts/run-daily.sh`**：那个 wrapper 只服务 Claude Code 与 Codex 的
   `claude -p` / `codex exec`，负责加载 secrets、加并发锁、写日志、透传退出码。看板卡
   不需要这些——会话里按 Prompt 显式执行 `set -a; . ./secrets.env; set +a`，日志以看板
   执行历史与 `state/` 的 `runs` 表为准。
-- 也**不要**为 DSH 再套一层 systemd / launchd / crontab：那三家调度器驱动不了看板卡，
-  只会多一个会失败的空壳。systemd、launchd 与 crontab 的片段在 Claude Code 与 Codex 的
-  定时文档里。
+- 用看板卡时**不要**再套一层 systemd / launchd / crontab：那三家调度器驱动不了看板卡，
+  只会多一个会失败的空壳。没有 task-board 插件时，本版不提供 DSH 的 headless 定时入口；
+  请改用 Claude Code / Codex 的 wrapper，或自行调度 `dsh headless`。systemd、launchd 与
+  crontab 的片段在 Claude Code 与 Codex 的定时文档里。
 
 ## 创建任务卡
 

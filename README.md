@@ -134,9 +134,13 @@ python3 skills/academic-digest/scripts/doctor.py --config config.yaml
 
 | 客户端 | 扫描根 | 触发 |
 |---|---|---|
-| DSH | `.dsh/skills/` | 看板卡或会话中加载 `academic-digest` |
+| DSH | `.dsh/skills/` | 会话中加载；看板卡定时需 task-board 插件（见下） |
 | Claude Code | `.claude/skills/` | `/academic-digest` |
 | Codex | `.agents/skills/` | `/skills` 选择器 |
+
+> DSH 本体不带任务看板与 cron；看板卡来自 DSH Web 的任务看板插件
+> `@linxin666/dsh-client-ui-task-board`（装 `@linxin666/dsh-web-all` 全家桶时已包含）。
+> 侧栏里没有「任务看板」时，按「每天定时跑」里的命令安装后再重启 `dsh web`。
 
 三份副本由 `scripts/sync-skills.sh` 从 `skills/academic-digest/` 生成，除
 `references/scheduling.md` 外逐字节一致；**不要手改副本**，改源目录后重新同步。
@@ -173,16 +177,34 @@ skill 走；推荐始终在你克隆的仓库根运行。客户端的发现规�
 
 ## 每天定时跑
 
-- **DSH**：用看板卡，cron `0 8 * * *`、时区 `Asia/Shanghai`；看板起会话加载 skill，
-  不经过 wrapper。建卡字段与 Prompt 见
-  [`references/scheduling/dsh.md`](skills/academic-digest/references/scheduling/dsh.md)。
-- **Claude Code / Codex**：同一个无人值守入口
-  `skills/academic-digest/scripts/run-daily.sh <claude|codex>`；它加载 `secrets.env`、
-  加并发锁、写 `out/logs/run-daily.log`、透传退出码。systemd、launchd、crontab 的可粘贴
-  片段分别在
-  [`references/scheduling/claude.md`](skills/academic-digest/references/scheduling/claude.md)
-  与
-  [`references/scheduling/codex.md`](skills/academic-digest/references/scheduling/codex.md)。
+### DSH：看板卡 + task-board 插件
+
+DSH 本体不带任务看板与 cron；看板卡与 cron 来自 DSH Web 的任务看板插件
+`@linxin666/dsh-client-ui-task-board`（装 `@linxin666/dsh-web-all` 全家桶时已包含）。
+如果侧栏已有「任务看板」，跳过安装；没有则安装并重启 `dsh web`：
+
+```bash
+dsh plugin --profile web add @linxin666/dsh-client-ui-task-board@latest
+# 或者一次装全家桶
+dsh plugin --profile web add @linxin666/dsh-web-all@latest
+dsh web
+```
+
+然后在看板建卡：cron `0 8 * * *`、时区 `Asia/Shanghai`；看板起会话加载 skill，不经过
+wrapper。建卡字段与 Prompt 见
+[`references/scheduling/dsh.md`](skills/academic-digest/references/scheduling/dsh.md)。
+
+没有这个插件时，`task_board_*` 工具和看板 cron 都不存在；本版没有为 DSH 提供 headless
+wrapper，定时请改用 Claude Code / Codex 的 `run-daily.sh`，或自行调度。
+
+### Claude Code / Codex：本机定时器 + wrapper
+
+同一个无人值守入口 `skills/academic-digest/scripts/run-daily.sh <claude|codex>`；它加载
+`secrets.env`、加并发锁、写 `out/logs/run-daily.log`、透传退出码。systemd、launchd、
+crontab 的可粘贴片段分别在
+[`references/scheduling/claude.md`](skills/academic-digest/references/scheduling/claude.md)
+与
+[`references/scheduling/codex.md`](skills/academic-digest/references/scheduling/codex.md)。
 
 错过触发不会补跑；各源自己的 `lookback`（默认 2–4 天）会在下一次运行时补上窗口。
 云端定时与 GitHub Actions 定时不在 V1 范围内。
@@ -248,7 +270,7 @@ config.example.yaml            # 配置模板
 - **为什么 bioRxiv / medRxiv 默认关？** 它们按日期区间全量拉取再本地过滤，量大；
   需要全量覆盖时再打开。
 - **为什么只有 Server酱？** 微信没有个人号 API；V1 只做 ServerChan。
-- **有云端定时或 GitHub Actions 定时吗？** 没有；定时只做本机调度与 DSH 看板卡。
+- **有云端定时或 GitHub Actions 定时吗？** 没有；定时只做本机调度与 DSH 看板卡（后者需 task-board 插件）。
 - **arXiv 偶尔超时？** 单个源失败仍会发日报并在页脚标注；不会为了重试而重跑整次采集。
 - **PDF 解析用什么？** PyMuPDF（AGPL-3.0）；HTML 用 beautifulsoup4 + lxml。再分发前请自行确认许可证兼容性。
 - **V1 没有什么？** Web UI、邮件、公众号、多用户、反馈闭环、动态补窗都不在范围内。

@@ -9,6 +9,7 @@
 - [x] 正式 `README.md`：首屏说清“是什么、给谁、离线怎么跑”，完整命令/配置链到 `docs/`，不再复制开发记录。
 - [x] `CHANGELOG.md` 的 `v0.1.0` 条目。
 - [x] 仓库 description 与 topics。
+- [x] `README.md` 与 `references/scheduling/dsh.md` 明确 DSH 看板卡依赖 dsh-web 的 task-board 插件，并给出安装命令。
 - [ ] `v0.1.0` annotated tag + GitHub Release；tag 打在 README/CHANGELOG 已通过 CI 的提交上。
 - [ ] 公开前：历史 secret 扫描、`git check-ignore`、无 SSH key 的 HTTPS fresh clone 四步复核。
 - [ ] 仓库公开（需人工确认；`gh repo edit --visibility public` 前的最后一步）。
@@ -26,3 +27,5 @@
 
 - 2026-10-24：第 1+2 步完成。`README.md` 重写为面向访客的版本（首屏定义、一期样例、5 分钟离线 quickstart、三客户端落点、配置/定时/命令/失败/安全/FAQ/许可），`CHANGELOG.md` 增加 `v0.1.0`。仓库 description 已设为英文一句话；topics 设为 `academic`、`literature`、`pubmed`、`europepmc`、`arxiv`、`research-square`、`github`、`wechat`、`serverchan`、`agent-skills`、`claude-code`、`codex`、`deepseek-harness`、`daily-digest`。`check-docs.py` 的“短占位/无代码块”断言随正式 README 退役，改为“链接 docs 索引、链接 LICENSE、不退回开发记录”；`CODING_STANDARDS.md` 同步。`scripts/check.sh` 绿。
 - 待办：用户 review README 后打 `v0.1.0` tag + GitHub Release；公开前再做一次 secret 扫描与 HTTPS fresh clone 复核，最后公开仓库需明确确认。
+
+- 2026-10-24：用户指出 DSH 原生不带定时任务，看板卡/`task_board_*`/cron 来自 dsh-web 的 task-board 插件。已补：README 的客户端表与「每天定时跑」写明 `@linxin666/dsh-client-ui-task-board`（或 `@linxin666/dsh-web-all`）的安装命令与重启步骤；`references/scheduling/dsh.md` 增加「前置：DSH Web 任务看板插件」并修正“DSH 没有 headless CLI”的旧表述；`tests/test_skill_copies.py` 增加断言防止再丢；`check-docs.py` 断言 README 必须提到插件。研究文档 `05`、`06` 加补注。

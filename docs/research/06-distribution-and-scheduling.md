@@ -12,6 +12,10 @@
 | 没有 dsh-web 定时插件怎么办？ | **前提已经过期**：Claude Code 有云端 scheduled tasks（`/schedule`）、Desktop 定时、`/loop`；Codex 的定时在 ChatGPT/桌面端的 **Scheduled**。但真正稳的默认仍是**本机定时器（systemd timer / launchd）+ headless CLI**，原因不是"没有别的定时器"，而是本项目 `state/` 里的已推送集合必须跨天保留——云端任务每次都是全新 clone，去重状态会丢。 |
 | README 怎么写？ | 借 Know-your-fate 的骨架（hero + 为什么 + 客户端安装 + 目录树），但**压到 200 行上下**：现在的 README 是 969 行、开头是 issue 进度流水账、没有 LICENSE、没有文档索引，这四条是发布前必须改的。 |
 
+> 2026-10-24 补注：DSH 看板卡依赖 dsh-web 的 task-board 插件
+> （`@linxin666/dsh-client-ui-task-board`），不是 DSH 核心；README 与
+> `references/scheduling/dsh.md` 已补安装命令。
+
 一句话：**先把 skill 放到三家都认的落点，再把"定时"拆成"谁定时 / 谁跑模型 / 状态存哪"三件事讲清楚，最后写一份 200 行、按客户端分列安装步骤的 README。**
 
 ## 1. Skill 规范与落点

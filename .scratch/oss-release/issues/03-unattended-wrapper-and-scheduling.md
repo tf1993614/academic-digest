@@ -42,3 +42,9 @@
   git mode，都由副本测试钉住。
 - README 与 SKILL.md 的定时入口、CODING_STANDARDS 的 wrapper 契约同步更新；日志落在
   `out/` 下（已 gitignore）。
+
+- 2026-10-24 补正：DSH 看板卡不是 DSH 核心能力，依赖 DSH Web 的任务看板插件
+  `@linxin666/dsh-client-ui-task-board`（通常随 `@linxin666/dsh-web-all` 安装）。没有插件时
+  `task_board_*` 与 cron 都不存在。`references/scheduling/dsh.md` 与 README 已补安装命令；
+  原文“DSH 没有 headless CLI”改为“本版没有为 `dsh headless` 提供 wrapper/验证”，DSH 默认
+  仍走看板卡。

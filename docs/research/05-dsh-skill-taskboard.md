@@ -11,6 +11,10 @@
 - **必须接受的运维约束**：Host 进程必须活着；机器睡眠/关机期间错过的 cron **不补跑**（跳过），卡在运行中也会跳过当次。因此采集脚本必须按“上次成功时间”做补窗，而不是固定只看昨天。
 - **权限门**：卡片有效权限高于部署默认权限时，cron 会拒绝调度直到有人在看板 UI 里确认。稳妥做法是卡片权限钉 `workspace-write` 并确认它不高于当前部署默认值。
 
+> 2026-10-24 补注：任务看板是 DSH Web 插件 `@linxin666/dsh-client-ui-task-board`（通常随
+> `@linxin666/dsh-web-all` 安装），不是 DSH 核心能力；没有插件时 `task_board_*` 与 cron
+> 都不存在。README 与 `references/scheduling/dsh.md` 已写明安装命令。
+
 ## 1. Skill 的格式与发现规则
 
 来源：`@deepseek-ai/dsh-skill-filesystem` 的 `README.md`（本机 `.../dsh/node_modules/@deepseek-ai/dsh-skill-filesystem/README.md`）。
