@@ -10,8 +10,8 @@
 - [x] `CHANGELOG.md` 的 `v0.1.0` 条目。
 - [x] 仓库 description 与 topics。
 - [x] `README.md` 与 `references/scheduling/dsh.md` 明确 DSH 看板卡依赖 dsh-web 的 task-board 插件，并给出安装命令。
-- [ ] `v0.1.0` annotated tag + GitHub Release；tag 打在 README/CHANGELOG 已通过 CI 的提交上。
-- [ ] 公开前：历史 secret 扫描、`git check-ignore`、无 SSH key 的 HTTPS fresh clone 四步复核。
+- [x] `v0.1.0` annotated tag + GitHub Release；tag 打在 README/CHANGELOG 已通过 CI 的提交上。
+- [x] 公开前：历史 secret 扫描、`git check-ignore`、无 SSH key 的 HTTPS fresh clone 四步复核。
 - [ ] 仓库公开（需人工确认；`gh repo edit --visibility public` 前的最后一步）。
 
 ## Notes
@@ -32,3 +32,7 @@
 
 - 2026-10-24：按用户要求在 README 增加 `## Star History`，使用 star-history.com 的
   `tf1993614/academic-digest` Date 图表。私有期图表可能没有数据，公开后自动填充。
+
+- 2026-10-24：`v0.1.0` annotated tag 打在 `74c4c99`（README 定稿、CI run `40096827296` 绿），tag 已推送；GitHub Release 已创建：<https://github.com/tf1993614/academic-digest/releases/tag/v0.1.0>（`isDraft: false`、`isPrerelease: false`，notes 用 `out/release-notes-v0.1.0.md`）。
+- 公开前复核：HEAD 无 `secrets.env` / 根 `config.yaml`；`ghp_` / `github_pat_` / `sctp…` / 私钥模式扫描为空；`git check-ignore` 命中 `config.yaml`、`secrets.env`、`state/`、`out/`。用 token 走 HTTPS（不带 SSH key）clone `v0.1.0`，无 `config.yaml` / `secrets.env` 时四步全绿，三个扫描根都有 skill。真正“无任何凭据”的 HTTPS clone 要等公开后再跑一次。
+- 待办：仓库公开（需用户明确确认），然后跑无凭据 HTTPS clone 与 release 页面/README 渲染检查。Claude Code 实测仍由 07 跟踪，不阻塞发布。
