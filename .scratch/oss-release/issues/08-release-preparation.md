@@ -36,3 +36,5 @@
 - 2026-10-24：`v0.1.0` annotated tag 打在 `74c4c99`（README 定稿、CI run `40096827296` 绿），tag 已推送；GitHub Release 已创建：<https://github.com/tf1993614/academic-digest/releases/tag/v0.1.0>（`isDraft: false`、`isPrerelease: false`，notes 用 `out/release-notes-v0.1.0.md`）。
 - 公开前复核：HEAD 无 `secrets.env` / 根 `config.yaml`；`ghp_` / `github_pat_` / `sctp…` / 私钥模式扫描为空；`git check-ignore` 命中 `config.yaml`、`secrets.env`、`state/`、`out/`。用 token 走 HTTPS（不带 SSH key）clone `v0.1.0`，无 `config.yaml` / `secrets.env` 时四步全绿，三个扫描根都有 skill。真正“无任何凭据”的 HTTPS clone 要等公开后再跑一次。
 - 待办：仓库公开（需用户明确确认），然后跑无凭据 HTTPS clone 与 release 页面/README 渲染检查。Claude Code 实测仍由 07 跟踪，不阻塞发布。
+
+- 2026-10-24：用户要求 README 说明 Server酱 SendKey 与 GitHub token 的获取方式。README 增加 `## 获取凭据（Server酱 SendKey 与 GitHub token）`，写清两个控制台的链接、classic/fine-grained token 的 scope 取舍、`secrets.env` 的写法与 600/gitignore 约束、以及不配凭据时的行为；`setup-secrets.sh` 的 scope 文案同步（私有关注库勾 `repo`）。因为 `v0.1.0` 原 tag 在 `74c4c99`，这条 README 提交后会把 tag/Release 移到新提交再公开。

@@ -128,6 +128,39 @@ python3 skills/academic-digest/scripts/doctor.py --config config.yaml
 `doctor` 联网检查每个源的连通性、GitHub 配额与状态库路径；看到最后一行
 `doctor: all checks passed` 之后再接定时。
 
+## 获取凭据（Server酱 SendKey 与 GitHub token）
+
+两个值都只写进仓库根的 `secrets.env`（已被 gitignore，权限 600）。最省事是运行一次性
+向导，它会打开下面的页面、隐藏输入、写文件并设权限：
+
+```bash
+skills/academic-digest/scripts/setup-secrets.sh
+```
+
+手动配置也可以：
+
+### Server酱 SendKey
+
+1. 打开 <https://sct.ftqq.com/>，用微信扫码登录。
+2. 在「SendKey / 密钥」页面复制 key（常见形如 `sctp...`）。
+3. 写入 `secrets.env`：`SERVERCHAN_SENDKEY=<复制的 key>`。
+
+Server酱³ 的 key 形如 `sctp<uid>t...`，控制台在 <https://sc3.ft07.com/>；本项目会自动
+选择推送域名。免费额度与限制以 Server酱官网为准。
+
+### GitHub token
+
+1. 打开 <https://github.com/settings/tokens/new>。
+2. Note 填 `academic-digest`，Expiration 选 90 天。
+3. Classic token：只做公开数据发现时**不勾任何 scope**；要跟踪自己 starred 的私有仓库
+   时勾 `repo`。也可以建 fine-grained token，只给公开仓库只读权限。
+4. 复制 `ghp_...` / `github_pat_...`，写入 `secrets.env`：`GITHUB_TOKEN=<复制的 token>`。
+5. 执行 `chmod 600 secrets.env`；不要提交 `secrets.env`，也不要把 key 贴进对话、日报或
+   Prompt。
+
+不配置 GitHub token 时，把 `config.yaml` 的 `sources.github` 设为 `false`；不配置
+SendKey 时 `push` 会退出 2（不会发送）。
+
 ## 接到你的客户端
 
 仓库自带三份生成副本，克隆后不需要再复制或软链即可被三家发现（依赖仍需按上一节装一次）：
