@@ -4,12 +4,12 @@
 
 **Blocked by:** 02.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] 卡片 Prompt 不含脚本路径，只要求加载 skill 并执行每日三步；完成门仍是 `push` 退出 0。
 - [x] 若卡片 Prompt 已冻结，则新建一张同字段的卡、归档旧卡，不修改历史执行记录。
 - [x] 手动跑一次：微信收到当天真实日报；`state/` 的 `runs` 新增一行 `push`/`ok`。
-- [ ] 次日 08:00 自动跑通一次，卡片执行历史为成功。
+- [x] 次日 08:00 自动跑通一次，卡片执行历史为成功。
 
 ## Notes
 
@@ -28,3 +28,9 @@
   push（`ok`，`pending_count` 为 0）；`out/digest.md` 是 2026-10-23 的真实 3+7 日报。
   用户已确认微信收到 2026-10-23 的日报。
 - 剩余验收：2026-10-24 08:00 自动跑通后，勾第 4 条并把 `Status` 改为 `done`。
+
+- 2026-10-24：看板卡 `aabbec5e-6251-4607-bf9b-640853791397` 的 cron 在 08:00 自动触发
+  （`runCount` 1，执行 `223dd0d9-61af-4b75-952a-81003453930b`，结果为 `succeeded`）。
+  `state/` 的 `runs` 同日有 collect（arXiv 读超时、其余源 ok，退出 0）与 push
+  （`status: ok`，`pushed_count` 为 10、`pending_count` 为 0）；`out/digest.md` 是
+  2026-10-24 的真实 3+7 日报。第 4 项验收完成，`Status` 改为 `done`。
