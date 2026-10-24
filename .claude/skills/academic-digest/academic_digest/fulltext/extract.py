@@ -155,20 +155,20 @@ def extract_html(text: str) -> Extracted:
     sections = Sections()
     stack: list[tuple[int, str | None]] = []
 
-    for element in soup.descendants:
-        if not isinstance(element, Tag):
+    for node in soup.descendants:
+        if not isinstance(node, Tag):
             continue
-        name = (element.name or "").lower()
+        name = (node.name or "").lower()
         if name in _HTML_HEADINGS:
             level = int(name[1])
-            label = _heading_label(element.get_text(" ", strip=True))
+            label = _heading_label(node.get_text(" ", strip=True))
             while stack and stack[-1][0] >= level:
                 stack.pop()
             stack.append((level, label))
             continue
         if name not in ("p", "li"):
             continue
-        paragraph = _clean(element.get_text(" ", strip=True))
+        paragraph = _clean(node.get_text(" ", strip=True))
         if not paragraph:
             continue
         label = _nearest_target(stack)
