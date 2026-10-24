@@ -2,8 +2,8 @@
 """Static consistency checks for the docs that steer the digest workflow.
 
 These are the machine-checkable claims the review kept catching by hand: the
-docs layout (a short root README that defers to ``docs/``), the MIT license and
-its ``pyproject`` field, the command/config references indexed by
+docs layout (a root README pointing into an indexed ``docs/`` tree), the MIT
+license and its ``pyproject`` field, the command/config references indexed by
 ``docs/README.md``, the canonical skill path (and the retired repo-root
 pointer), relative Markdown links across ``docs/``, the README-side history, the
 setup quota table, the transport retry wording, the candidate-pool key
@@ -193,7 +193,7 @@ def _require_link(
 
 
 def _check_docs_layout(failures: list[str]) -> None:
-    """The visitor-facing surface: a short README pointing at an indexed docs tree."""
+    """The visitor-facing surface: a README pointing into the indexed docs tree."""
 
     for path in (README, DOCS_INDEX, CLI_DOC, CONFIG_DOC, DEVELOPMENT_LOG):
         _require(
@@ -210,13 +210,13 @@ def _check_docs_layout(failures: list[str]) -> None:
         )
         _require(
             failures,
-            len(readme.splitlines()) <= 30,
-            "README.md must stay a short pointer to docs/, not the development log",
+            "](LICENSE)" in readme,
+            "README.md must link the LICENSE file",
         )
         _require(
             failures,
-            "```" not in readme,
-            "README.md must not repeat the command blocks that now live in docs/",
+            "## 测试 fixture 布局" not in readme and "## 状态库" not in readme,
+            "README.md must not regress into the development log; link it instead",
         )
     if not DOCS_INDEX.is_file():
         return
