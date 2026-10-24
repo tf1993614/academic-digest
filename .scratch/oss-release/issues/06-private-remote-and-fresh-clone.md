@@ -8,7 +8,7 @@
 
 - [x] 私有远端建立并推送当前历史；公开仓库名定为 `academic-digest`（只影响远端名，本地目录不改）。
 - [x] 在干净目录 clone 后跑通四步：doctor 自检 → fixture 采集 → 日报校验 → `push --dry-run`。
-- [ ] `claude`、`codex`、DSH 三处各发现一次 skill（Claude Code 能 `/academic-digest`，Codex `/skills` 可见，DSH catalog 可见）。
+- [ ] `codex` 与 DSH 各发现一次 skill（Codex `/skills` 可见，DSH catalog 可见）；Claude Code 的实测已拆到 [07-claude-code-live-check.md](07-claude-code-live-check.md)，不阻塞本票。
 - [x] 副本在 GitHub 的 diff 中默认折叠（`.gitattributes` 的生成标记生效），语言统计不被三份副本翻倍。
 
 ## Notes
@@ -41,3 +41,5 @@
 - 剩余人工步骤：1) `claude` 重新登录（或 `claude setup-token`），在 clone 里确认
   `/academic-digest` 可见；2) 在 DSH GUI 里把 clone 目录作为 workspace 打开，确认 catalog
   里出现 `academic-digest`；3) 顺手在 GitHub 上看一眼 diff 是否折叠（机械证据已足够）。
+
+- 2026-10-24：Claude Code 账号过期（`OAuth token revoked`），第三家实测无法完成；为避免发布门被个人续费阻塞，Claude 项拆到 07。Codex 已实测；DSH 的 clone 结构已具备，待把 `out/fresh-clone` 作为 workspace 打开确认 catalog。为方便该检查，已把最新提交 clone 到 `out/fresh-clone`（gitignored、无 `config.yaml` / `secrets.env`），四步验收再次通过。
